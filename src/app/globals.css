@@ -860,3 +860,42 @@ textarea.campo {
 .login-card .boton {
   margin-top: 8px;
 }
+
+/* Desplegables sin JavaScript: cerrar y descartar un lead, acciones rápidas. */
+.desplegable > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.desplegable > summary::-webkit-details-marker {
+  display: none;
+}
+.desplegable[open] > summary {
+  border-color: var(--acento);
+}
+.panel-desplegable {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: #fff;
+  min-width: min(320px, 100%);
+}
+.opciones-en-linea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.opcion-chica {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.kpi-detalle {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--texto-2);
+}

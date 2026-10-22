@@ -1,12 +1,24 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, sql, type AnyColumn } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
 import type { AlcanceLicitacion, EstadoLead, Prioridad, Zona } from "@/db/schema";
 import { requerirSesion } from "@/lib/auth";
-import { ALCANCES, ESTADOS, PRIORIDADES, ZONAS } from "@/lib/catalogos";
+import { ALCANCES, ESTADOS, PRIORIDADES, RAMOS, ZONAS } from "@/lib/catalogos";
+import { esMotivoDescarte, estadoImplicaContacto, motivoImplicaContacto, parsearMonto } from "@/lib/cierre";
+
+const { leads } = schema;
+
+/** Primera vez que pasó algo: si ya tenía fecha, se conserva. */
+const primeraVez = (columna: AnyColumn) => sql`coalesce(${columna}, now())`;
+
+function revalidarLead(id: number) {
+  revalidatePath("/");
+  revalidatePath(`/leads/${id}`);
+  revalidatePath("/resultados");
+}
 
 function idDeLead(formData: FormData): number {
   const id = Number(formData.get("id"));
@@ -20,11 +32,54 @@ export async function cambiarEstado(formData: FormData) {
   const estado = String(formData.get("estado")) as EstadoLead;
   if (!ESTADOS.some((e) => e.id === estado)) throw new Error("Estado inválido");
   await db
-    .update(schema.leads)
-    .set({ estado, actualizadoEl: new Date() })
-    .where(eq(schema.leads.id, id));
-  revalidatePath("/");
-  revalidatePath(`/leads/${id}`);
+    .update(leads)
+    .set({
+      estado,
+      actualizadoEl: new Date(),
+      ...(estadoImplicaContacto(estado) && { contactadoEl: primeraVez(leads.contactadoEl) }),
+      ...(estado === "reunion" && { reunionEl: primeraVez(leads.reunionEl) }),
+    })
+    .where(eq(leads.id, id));
+  revalidarLead(id);
+}
+
+/** Marca el lead como cerrado, con lo que se vendió (todo opcional). */
+export async function cerrarLead(formData: FormData) {
+  await requerirSesion();
+  const id = idDeLead(formData);
+  const ramos = [...new Set(formData.getAll("ramo").map(String))].filter((r) => r in RAMOS);
+  await db
+    .update(leads)
+    .set({
+      estado: "cerrado",
+      cierreRamos: ramos.length ? ramos : null,
+      cierrePrima: parsearMonto(formData.get("prima")?.toString()),
+      cierreComision: parsearMonto(formData.get("comision")?.toString()),
+      motivoDescarte: null,
+      contactadoEl: primeraVez(leads.contactadoEl),
+      cerradoEl: primeraVez(leads.cerradoEl),
+      actualizadoEl: new Date(),
+    })
+    .where(eq(leads.id, id));
+  revalidarLead(id);
+}
+
+/** Descarta el lead con un motivo, para saber qué fuentes rinden y cuáles no. */
+export async function descartarLead(formData: FormData) {
+  await requerirSesion();
+  const id = idDeLead(formData);
+  const motivo = String(formData.get("motivo") ?? "");
+  if (!esMotivoDescarte(motivo)) throw new Error("Motivo inválido");
+  await db
+    .update(leads)
+    .set({
+      estado: "descartado",
+      motivoDescarte: motivo,
+      actualizadoEl: new Date(),
+      ...(motivoImplicaContacto(motivo) && { contactadoEl: primeraVez(leads.contactadoEl) }),
+    })
+    .where(eq(leads.id, id));
+  revalidarLead(id);
 }
 
 export async function guardarSeguimiento(formData: FormData) {

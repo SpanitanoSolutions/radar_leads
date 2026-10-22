@@ -6,7 +6,9 @@ import { obtenerLead } from "@/lib/datos";
 import { DIAS_CAUCION_URGENTE, etiquetaEvento, type TipoEvento } from "@/lib/evento";
 import { haceCuanto } from "@/lib/fechas";
 import { puntuarLead } from "@/lib/filtros";
-import { cambiarEstado, guardarSeguimiento } from "../../actions";
+import { MOTIVOS_DESCARTE, nombreMotivo } from "@/lib/cierre";
+import { pesos } from "@/lib/formato";
+import { cambiarEstado, cerrarLead, descartarLead, guardarSeguimiento } from "../../actions";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
 export const instant = false;
@@ -128,7 +130,7 @@ export default async function FichaLead({
               <input type="hidden" name="id" value={lead.id} />
               <fieldset className="estados">
                 <legend className="visualmente-oculto">Estado del lead</legend>
-                {ESTADOS.map((e) => (
+                {ESTADOS.filter((e) => e.id !== "cerrado" && e.id !== "descartado").map((e) => (
                   <button
                     key={e.id}
                     type="submit"
@@ -142,6 +144,87 @@ export default async function FichaLead({
                 ))}
               </fieldset>
             </form>
+
+            <div className="estados">
+              <details className="desplegable">
+                <summary className="boton boton-estado" aria-pressed={lead.estado === "cerrado"}>
+                  Cerrado
+                </summary>
+                <form action={cerrarLead} className="form-columna panel-desplegable">
+                  <input type="hidden" name="id" value={lead.id} />
+                  <fieldset className="opciones-en-linea">
+                    <legend className="etiqueta">Qué se vendió (opcional)</legend>
+                    {[...new Set([...ramosOrdenados, ...(lead.cierreRamos ?? [])])].map((r) => (
+                      <label key={r} className="opcion-chica">
+                        <input type="checkbox" name="ramo" value={r} defaultChecked={lead.cierreRamos?.includes(r)} />
+                        {r}
+                      </label>
+                    ))}
+                  </fieldset>
+                  <div className="form-fila">
+                    <label className="form-columna">
+                      <span className="etiqueta">Prima anual aprox. ($)</span>
+                      <input
+                        name="prima"
+                        inputMode="numeric"
+                        className="campo"
+                        defaultValue={lead.cierrePrima ?? ""}
+                        placeholder="Ej.: 1.200.000"
+                      />
+                    </label>
+                    <label className="form-columna">
+                      <span className="etiqueta">Comisión aprox. ($)</span>
+                      <input
+                        name="comision"
+                        inputMode="numeric"
+                        className="campo"
+                        defaultValue={lead.cierreComision ?? ""}
+                        placeholder="Ej.: 180.000"
+                      />
+                    </label>
+                  </div>
+                  <button type="submit" className="boton boton-primario">
+                    Marcar como cerrado
+                  </button>
+                </form>
+              </details>
+
+              <details className="desplegable">
+                <summary className="boton boton-estado" aria-pressed={lead.estado === "descartado"}>
+                  Descartado
+                </summary>
+                <form action={descartarLead} className="form-columna panel-desplegable">
+                  <input type="hidden" name="id" value={lead.id} />
+                  <label className="form-columna">
+                    <span className="etiqueta">Motivo</span>
+                    <select name="motivo" className="campo" required defaultValue={lead.motivoDescarte ?? ""}>
+                      <option value="" disabled>
+                        Elegí un motivo
+                      </option>
+                      {MOTIVOS_DESCARTE.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit" className="boton boton-primario">
+                    Descartar
+                  </button>
+                </form>
+              </details>
+            </div>
+
+            {lead.estado === "cerrado" && Boolean(lead.cierreRamos?.length || lead.cierreComision || lead.cierrePrima) && (
+              <p className="nota-info">
+                Cerrado{lead.cierreRamos?.length ? `: ${lead.cierreRamos.join(", ")}` : ""}
+                {lead.cierrePrima ? ` · prima ${pesos(lead.cierrePrima)}` : ""}
+                {lead.cierreComision ? ` · comisión ${pesos(lead.cierreComision)}` : ""}.
+              </p>
+            )}
+            {lead.estado === "descartado" && lead.motivoDescarte && (
+              <p className="nota-info">Descartado: {nombreMotivo(lead.motivoDescarte)}.</p>
+            )}
 
             <form action={guardarSeguimiento} className="form-columna">
               <input type="hidden" name="id" value={lead.id} />

@@ -41,6 +41,14 @@ export function IconoGrilla({ size = 18 }: Props) {
   );
 }
 
+export function IconoGrafico({ size = 18 }: Props) {
+  return (
+    <svg {...base(size)}>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </svg>
+  );
+}
+
 export function IconoEstrella({ size = 14 }: Props) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

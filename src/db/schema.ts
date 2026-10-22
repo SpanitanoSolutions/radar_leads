@@ -86,6 +86,16 @@ export const leads = pgTable("leads", {
   estado: estadoEnum("estado").notNull().default("nuevo"),
   nota: text("nota"),
   recordatorio: date("recordatorio", { mode: "string" }),
+  /** Primera vez que el productor contactó (o intentó contactar) a la empresa. */
+  contactadoEl: timestamp("contactado_el", { withTimezone: true }),
+  reunionEl: timestamp("reunion_el", { withTimezone: true }),
+  cerradoEl: timestamp("cerrado_el", { withTimezone: true }),
+  /** Al cerrar: qué se vendió y cuánto (aproximado, en pesos). */
+  cierreRamos: text("cierre_ramos").array(),
+  cierrePrima: integer("cierre_prima"),
+  cierreComision: integer("cierre_comision"),
+  /** Al descartar: por qué (ver MOTIVOS_DESCARTE en src/lib/cierre.ts). */
+  motivoDescarte: text("motivo_descarte"),
   telefono: text("telefono"),
   /** Página donde la empresa publica ese teléfono. */
   telefonoFuente: text("telefono_fuente"),
