@@ -43,6 +43,8 @@ const lead = (extra: Partial<Lead>): Lead => ({
   nota: null,
   recordatorio: null,
   telefono: null,
+  telefonoFuente: null,
+  telefonoBuscadoEl: null,
   domicilio: null,
   artActual: null,
   deudaBcra: null,

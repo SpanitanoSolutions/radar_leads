@@ -78,6 +78,10 @@ export const leads = pgTable("leads", {
   nota: text("nota"),
   recordatorio: date("recordatorio", { mode: "string" }),
   telefono: text("telefono"),
+  /** Página donde la empresa publica ese teléfono. */
+  telefonoFuente: text("telefono_fuente"),
+  /** Cuándo se buscó el teléfono (aunque no se haya encontrado): no se vuelve a buscar. */
+  telefonoBuscadoEl: timestamp("telefono_buscado_el", { withTimezone: true }),
   domicilio: text("domicilio"),
   artActual: text("art_actual"),
   deudaBcra: text("deuda_bcra"),

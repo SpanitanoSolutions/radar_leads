@@ -58,7 +58,13 @@ export const RAMOS: Record<string, string> = {
 
 export type EstadoFuente = "activa" | "por-configurar" | "manual" | "sin-datos";
 
-export const FUENTES: { nombre: string; detalle: string; estado: EstadoFuente }[] = [
+export const FUENTES: {
+  nombre: string;
+  detalle: string;
+  estado: EstadoFuente;
+  /** Variable de entorno que la activa: sin ella figura "Por configurar". */
+  requiere?: string;
+}[] = [
   {
     nombre: "Licitaciones nacionales",
     detalle: "Adjudicaciones de COMPR.AR (datos abiertos, se publican cada algunos meses)",
@@ -73,6 +79,12 @@ export const FUENTES: { nombre: string; detalle: string; estado: EstadoFuente }[
     nombre: "Boletín Oficial de la Provincia",
     detalle: "Sociedades nuevas y transferencias de fondo de comercio, cada día hábil",
     estado: "activa",
+  },
+  {
+    nombre: "Teléfonos de las empresas",
+    detalle: "Claude busca en la web el teléfono que publica cada empresa",
+    estado: "activa",
+    requiere: "ANTHROPIC_API_KEY",
   },
   {
     nombre: "Habilitaciones municipales",

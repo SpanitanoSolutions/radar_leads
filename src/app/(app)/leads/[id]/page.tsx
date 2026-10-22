@@ -184,7 +184,25 @@ export default async function FichaLead({
               <dt>Domicilio</dt>
               <dd>{lead.domicilio ?? <SinDato />}</dd>
               <dt>Teléfono</dt>
-              <dd>{lead.telefono ?? <SinDato />}</dd>
+              <dd>
+                {lead.telefono ? (
+                  <>
+                    {lead.telefono}
+                    {lead.telefonoFuente && (
+                      <>
+                        {" · "}
+                        <a href={lead.telefonoFuente} target="_blank" rel="noopener noreferrer">
+                          dónde figura
+                        </a>
+                      </>
+                    )}
+                  </>
+                ) : lead.telefonoBuscadoEl ? (
+                  <span className="sin-dato">La empresa no lo publica</span>
+                ) : (
+                  <SinDato />
+                )}
+              </dd>
               <dt>Fuente</dt>
               <dd>{lead.fuente}</dd>
             </dl>

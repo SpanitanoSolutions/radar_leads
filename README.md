@@ -30,6 +30,25 @@ Cada lead guarda una `clave` (empresa + evento) para no cargarse dos veces, y
 la tabla `capturas` recuerda qué versión de cada fuente ya se procesó: si no
 hay nada nuevo, no se descarga nada.
 
+### Teléfonos
+
+Después de cada captura, Claude (`claude-haiku-5-5` con búsqueda web) busca
+el teléfono que **la propia empresa publica** para que la contacten: su web, su
+perfil de Google, sus redes o su ficha en una guía comercial. Prefiere el de
+ventas y guarda el link de dónde lo sacó (en la ficha: "dónde figura"). Nunca
+busca teléfonos personales de socios o empleados (Ley 25.326). Si no hay uno
+confiable, el lead queda como "La empresa no lo publica" y no se vuelve a buscar.
+
+- Se busca una vez por empresa: si gana otra licitación, se reutiliza el dato.
+- Cada mañana se procesan hasta 30 empresas, las de mayor score primero. Para
+  vaciar la cola de una vez: `npm run telefonos -- 400`.
+- Costo estimado: unos US$ 0,03 por empresa (US$ 10 cada 1.000 búsquedas web
+  más el modelo). Se paga en console.anthropic.com, aparte de la suscripción a Claude.
+- Requiere `ANTHROPIC_API_KEY`. Sin ella, la búsqueda no corre y el resto
+  funciona igual.
+- Antes de llamar, conviene cruzar los números con el
+  [Registro Nacional No Llame](https://nollame.aaip.gob.ar) (Ley 26.951).
+
 **Lo que todavía no se captura, y por qué:**
 
 - **COMPR.AR se publica con atraso.** El CSV se actualiza cada algunos meses
@@ -84,7 +103,8 @@ npm run dev                   # http://localhost:3000
 2. **Base de datos:** en el proyecto, pestaña *Storage* → **Neon** → crear base.
    Vercel carga `DATABASE_URL` automáticamente.
 3. **Variables:** en *Settings → Environment Variables* carga `APP_PASSWORD`
-   (la contraseña de tu papá), `SESSION_SECRET` y `CRON_SECRET`.
+   (la contraseña de tu papá), `SESSION_SECRET`, `CRON_SECRET` y, para los
+   teléfonos, `ANTHROPIC_API_KEY`.
 4. **Redeploy.** El build aplica las migraciones y, si la base está vacía,
    carga sectores y leads de ejemplo (`scripts/preparar-db.ts`). Nunca pisa datos existentes.
 
@@ -98,12 +118,13 @@ Si cambias `SESSION_SECRET`, todas las sesiones abiertas se cierran.
 
 ### Captura diaria (Vercel Cron)
 
-`vercel.json` programa dos ejecuciones por día, en hora argentina:
+`vercel.json` programa tres ejecuciones por día, en hora argentina:
 
 | Hora | Endpoint |
 |---|---|
 | 05:00 | `/api/cron/captura/licitaciones` |
 | 06:00 | `/api/cron/captura/boletin-oficial` |
+| 07:00 | `/api/cron/telefonos` |
 
 Vercel las llama con `Authorization: Bearer <CRON_SECRET>`. Sin esa clave el
 endpoint responde 401. En el plan Hobby, Vercel puede correrlas en cualquier
@@ -120,6 +141,7 @@ a mano: `npm run captura`.
 | `npm run lint` | ESLint |
 | `npm test` | Tests unitarios (score, filtros, fechas, sesión, captura de fuentes) |
 | `npm run captura` | Trae leads reales de todas las fuentes (`-- licitaciones` o `-- boletin-oficial` para una sola) |
+| `npm run telefonos` | Busca el teléfono de hasta 30 empresas pendientes (`-- 3` para probar, `-- 400` para todas) |
 | `npm run test:e2e` | Prueba de punta a punta de los flujos (ver abajo) |
 | `npm run db:generate` | Genera una migración a partir de `src/db/schema.ts` |
 | `npm run db:migrate` | Aplica las migraciones pendientes |
@@ -155,6 +177,7 @@ src/
     licitaciones/      COMPR.AR (CSV de datos abiertos)
     boletin-oficial/   Boletín Oficial de la Provincia (PDF diario)
   lib/                 lógica: score, filtros, fechas, sesión, catálogos
+  telefonos/           búsqueda del teléfono de cada empresa con Claude
   proxy.ts             redirige al login si no hay sesión
 scripts/               seed, captura manual y limpieza de ejemplos
 drizzle/               migraciones SQL

@@ -182,6 +182,15 @@ export default async function LeadsDelDia({
                     <div className="celda-secundaria">
                       {l.rubro} · {l.localidad}
                     </div>
+                    {l.telefono && (
+                      <a
+                        href={`tel:${l.telefono.replace(/[^\d+]/g, "")}`}
+                        className="celda-secundaria"
+                        style={{ display: "block" }}
+                      >
+                        {l.telefono}
+                      </a>
+                    )}
                   </td>
                   <td>
                     <div>{l.motivo}</div>
