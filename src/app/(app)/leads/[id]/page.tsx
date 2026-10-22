@@ -6,7 +6,9 @@ import { obtenerLead } from "@/lib/datos";
 import { DIAS_CAUCION_URGENTE, etiquetaEvento, type TipoEvento } from "@/lib/evento";
 import { haceCuanto } from "@/lib/fechas";
 import { puntuarLead } from "@/lib/filtros";
+import { BotonCopiar } from "@/components/BotonCopiar";
 import { MOTIVOS_DESCARTE, nombreMotivo } from "@/lib/cierre";
+import { guionContacto } from "@/lib/guion";
 import { pesos } from "@/lib/formato";
 import { cambiarEstado, cerrarLead, descartarLead, guardarSeguimiento } from "../../actions";
 
@@ -35,6 +37,16 @@ export default async function FichaLead({
 
   const { score, nivel, tipoEvento, diasEvento, ramosOrdenados } = puntuarLead(lead, sector);
   const caucionAlFinal = ramosOrdenados.length > 1 && ramosOrdenados.at(-1) === "Caución";
+  const guion = guionContacto({
+    empresa: lead.empresa,
+    tipoEvento,
+    sectorId: lead.sectorId,
+    rubro: lead.rubro,
+    localidad: lead.localidad,
+    motivo: lead.motivo,
+    diasEvento,
+    productor: process.env.NOMBRE_PRODUCTOR,
+  });
   const telefono = lead.telefono?.replace(/[^\d+]/g, "");
 
   return (
@@ -103,6 +115,14 @@ export default async function FichaLead({
                 )}
                 {lead.fuenteReferencia && <p className="nota-info">{lead.fuenteReferencia}</p>}
               </div>
+            </div>
+          </section>
+
+          <section className="tarjeta tarjeta-padding" aria-labelledby="t-guion">
+            <h2 id="t-guion" className="titulo-seccion">Cómo arrancar la conversación</h2>
+            <p className="guion">{guion}</p>
+            <div className="fila-acciones">
+              <BotonCopiar texto={guion} />
             </div>
           </section>
 

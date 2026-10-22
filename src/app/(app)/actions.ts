@@ -8,6 +8,10 @@ import type { AlcanceLicitacion, EstadoLead, Prioridad, Zona } from "@/db/schema
 import { requerirSesion } from "@/lib/auth";
 import { ALCANCES, ESTADOS, PRIORIDADES, RAMOS, ZONAS } from "@/lib/catalogos";
 import { esMotivoDescarte, estadoImplicaContacto, motivoImplicaContacto, parsearMonto } from "@/lib/cierre";
+import { diaEnArgentina, sumarDias } from "@/lib/fechas";
+
+/** "Para después": vuelve a aparecer arriba (y en el resumen diario) dentro de una semana. */
+const DIAS_PARA_DESPUES = 7;
 
 const { leads } = schema;
 
@@ -39,6 +43,17 @@ export async function cambiarEstado(formData: FormData) {
       ...(estadoImplicaContacto(estado) && { contactadoEl: primeraVez(leads.contactadoEl) }),
       ...(estado === "reunion" && { reunionEl: primeraVez(leads.reunionEl) }),
     })
+    .where(eq(leads.id, id));
+  revalidarLead(id);
+}
+
+/** Desde la lista: deja el lead para dentro de una semana, con recordatorio. */
+export async function posponerLead(formData: FormData) {
+  await requerirSesion();
+  const id = idDeLead(formData);
+  await db
+    .update(leads)
+    .set({ recordatorio: sumarDias(diaEnArgentina(new Date()), DIAS_PARA_DESPUES), actualizadoEl: new Date() })
     .where(eq(leads.id, id));
   revalidarLead(id);
 }

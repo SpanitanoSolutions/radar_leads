@@ -5,8 +5,10 @@ import {
   calcularKpis,
   contarPorSector,
   contarPorZona,
+  estaPospuesto,
   leadsVisibles,
   leerFiltros,
+  ordenarParaHoy,
   urlFiltros,
   type Filtros,
 } from "./filtros";
@@ -217,5 +219,18 @@ describe("calcularKpis", () => {
       enSeguimiento: 2,
       cerrados: 1,
     });
+  });
+});
+
+describe("ordenarParaHoy", () => {
+  it("los leads 'para después' van al final hasta el día del recordatorio", () => {
+    const leads = [
+      { id: 1, recordatorio: "2026-10-29" },
+      { id: 2, recordatorio: null },
+      { id: 3, recordatorio: "2026-10-22" }, // vence hoy: vuelve arriba
+      { id: 4, recordatorio: null },
+    ];
+    expect(ordenarParaHoy(leads, "2026-10-22").map((l) => l.id)).toEqual([2, 3, 4, 1]);
+    expect(estaPospuesto({ recordatorio: "2026-10-29" }, "2026-10-29")).toBe(false);
   });
 });

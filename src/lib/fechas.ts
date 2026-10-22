@@ -39,3 +39,14 @@ export function fechaLarga(fecha: Date = new Date()): string {
   }).format(fecha);
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
+
+/** "2026-10-22" + 7 → "2026-10-29". */
+export function sumarDias(iso: string, dias: number): string {
+  const d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + dias));
+  return d.toISOString().slice(0, 10);
+}
+
+/** "2026-10-29" → "29/10". */
+export function diaYMes(iso: string): string {
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+}

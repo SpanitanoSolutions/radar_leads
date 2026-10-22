@@ -131,3 +131,13 @@ export function urlFiltros(actual: Filtros, cambios: Partial<Filtros>): string {
   const qs = p.toString();
   return qs ? `/?${qs}` : "/";
 }
+
+/** Un lead "para después" tiene recordatorio a futuro: hasta ese día no compite por la atención. */
+export function estaPospuesto(lead: Pick<Lead, "recordatorio">, hoy: string): boolean {
+  return lead.recordatorio !== null && lead.recordatorio > hoy;
+}
+
+/** Los pospuestos van al final, manteniendo el orden por score dentro de cada grupo. */
+export function ordenarParaHoy<T extends Pick<Lead, "recordatorio">>(leads: T[], hoy: string): T[] {
+  return [...leads].sort((a, b) => Number(estaPospuesto(a, hoy)) - Number(estaPospuesto(b, hoy)));
+}

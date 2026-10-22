@@ -3,17 +3,21 @@ import { IconoEstrella, IconoUbicacion } from "@/components/iconos";
 import { nombreEstado, ZONAS } from "@/lib/catalogos";
 import { obtenerAjustes, obtenerLeads, obtenerSectores } from "@/lib/datos";
 import { etiquetaEvento } from "@/lib/evento";
-import { fechaLarga, haceCuanto } from "@/lib/fechas";
+import { MOTIVOS_DESCARTE } from "@/lib/cierre";
+import { diaEnArgentina, diaYMes, fechaLarga, haceCuanto } from "@/lib/fechas";
 import {
   aplicarFiltros,
   calcularKpis,
   contarPorSector,
   contarPorZona,
   leadsVisibles,
+  estaPospuesto,
   leerFiltros,
+  ordenarParaHoy,
   urlFiltros,
 } from "@/lib/filtros";
 import type { EstadoLead } from "@/db/schema";
+import { cambiarEstado, descartarLead, posponerLead } from "./actions";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
 export const instant = false;
@@ -39,7 +43,8 @@ export default async function LeadsDelDia({
   ]);
 
   const visibles = leadsVisibles(todos, sectores, ajustes);
-  const lista = aplicarFiltros(visibles, filtros);
+  const hoy = diaEnArgentina(new Date());
+  const lista = ordenarParaHoy(aplicarFiltros(visibles, filtros), hoy);
   const porSector = contarPorSector(visibles, filtros);
   const porZona = contarPorZona(visibles, filtros);
   const sectoresActivos = sectores.filter((s) => s.activo);
@@ -218,11 +223,51 @@ export default async function LeadsDelDia({
                   </td>
                   <td>
                     <span className={`pastilla ${CLASE_ESTADO[l.estado]}`}>{nombreEstado(l.estado)}</span>
+                    {estaPospuesto(l, hoy) && (
+                      <div className="celda-secundaria">Para el {diaYMes(l.recordatorio!)}</div>
+                    )}
                   </td>
                   <td>
-                    <Link href={`/leads/${l.id}`} className="boton" aria-label={`Ver ${l.empresa}`}>
-                      Ver
-                    </Link>
+                    <div className="acciones-rapidas">
+                      <Link href={`/leads/${l.id}`} className="boton boton-chico" aria-label={`Ver ${l.empresa}`}>
+                        Ver
+                      </Link>
+                      {l.estado === "nuevo" && (
+                        <form action={cambiarEstado}>
+                          <input type="hidden" name="id" value={l.id} />
+                          <button type="submit" name="estado" value="llamado" className="boton boton-chico">
+                            Llamé
+                          </button>
+                        </form>
+                      )}
+                      {!estaPospuesto(l, hoy) && (
+                        <form action={posponerLead}>
+                          <input type="hidden" name="id" value={l.id} />
+                          <button type="submit" className="boton boton-chico" title="Recordármelo en una semana">
+                            Para después
+                          </button>
+                        </form>
+                      )}
+                      <details className="desplegable">
+                        <summary className="boton boton-chico">Descartar</summary>
+                        <form action={descartarLead} className="form-columna panel-desplegable">
+                          <input type="hidden" name="id" value={l.id} />
+                          <select name="motivo" className="campo" required defaultValue="" aria-label={`Motivo para descartar ${l.empresa}`}>
+                            <option value="" disabled>
+                              Motivo
+                            </option>
+                            {MOTIVOS_DESCARTE.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.nombre}
+                              </option>
+                            ))}
+                          </select>
+                          <button type="submit" className="boton boton-primario boton-chico">
+                            Descartar
+                          </button>
+                        </form>
+                      </details>
+                    </div>
                   </td>
                 </tr>
               ))}

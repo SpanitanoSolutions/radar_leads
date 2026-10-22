@@ -90,6 +90,20 @@ personas físicas se descartan por CUIT (20, 23, 24, 27) y por tipo de
 personería. De los edictos del Boletín se guarda la razón social, la
 localidad, el objeto o rubro y el CUIT de la sociedad, nunca socios, DNI ni domicilios.
 
+## Uso diario
+
+- **En la lista**, sin entrar a la ficha: "Llamé" (pasa a Llamado), "Para
+  después" (recordatorio en 7 días; el lead baja al final de la lista hasta ese
+  día) y "Descartar" con motivo.
+- **En la ficha**, "Cómo arrancar la conversación" propone un mensaje corto, de
+  usted, según qué pasó (licitación, sociedad nueva, fondo de comercio) y el
+  sector, con un botón para copiarlo y mandarlo por WhatsApp. Son plantillas,
+  no IA (`src/lib/guion.ts`). Si cargás `NOMBRE_PRODUCTOR`, el saludo lo incluye.
+- **Cerrar el ciclo**: al marcar "Cerrado" se cargan (opcional) los ramos
+  vendidos, la prima y la comisión aproximadas; al "Descartar", el motivo.
+  La página **Resultados** muestra contactados, reuniones, cierres, comisión y
+  conversión por fuente y por sector.
+
 ## Cómo se calcula el score
 
 Cada fuente asigna un `score_base` (0–95) según qué tan urgente es la
