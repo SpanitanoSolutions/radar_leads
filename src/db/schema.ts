@@ -82,6 +82,11 @@ export const leads = pgTable("leads", {
   artActual: text("art_actual"),
   deudaBcra: text("deuda_bcra"),
   esEjemplo: boolean("es_ejemplo").notNull().default(false),
+  /**
+   * Identifica el evento en su fuente (p. ej. "comprar:<proceso>:<cuit>") para
+   * no cargar dos veces el mismo lead. Nulo en los leads de ejemplo.
+   */
+  clave: text("clave").unique(),
   detectadoEl: timestamp("detectado_el", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -90,7 +95,18 @@ export const leads = pgTable("leads", {
     .defaultNow(),
 });
 
+/** Última ejecución de cada fuente de captura y la versión de datos que procesó. */
+export const capturas = pgTable("capturas", {
+  fuente: text("fuente").primaryKey(),
+  /** Marca de la última versión procesada (ETag del CSV, número de boletín…). */
+  version: text("version"),
+  ejecutadoEl: timestamp("ejecutado_el", { withTimezone: true }).notNull().defaultNow(),
+  nuevos: integer("nuevos").notNull().default(0),
+  error: text("error"),
+});
+
 export type Sector = typeof sectores.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type NuevoLead = typeof leads.$inferInsert;
 export type Ajustes = typeof ajustes.$inferSelect;
+export type Captura = typeof capturas.$inferSelect;

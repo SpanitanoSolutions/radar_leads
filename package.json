@@ -13,6 +13,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx scripts/seed.ts",
     "db:limpiar-ejemplos": "tsx scripts/limpiar-ejemplos.ts",
+    "captura": "tsx scripts/capturar.ts",
     "test:e2e": "node e2e/flujos.mjs",
     "db:preparar": "tsx scripts/preparar-db.ts"
   },
@@ -23,7 +24,8 @@
     "postgres": "^3.4.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "unpdf": "1.6.2"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

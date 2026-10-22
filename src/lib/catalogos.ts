@@ -56,28 +56,33 @@ export const RAMOS: Record<string, string> = {
   "RC profesional": "Mala praxis o errores profesionales.",
 };
 
-export type EstadoFuente = "activa" | "por-configurar" | "manual";
+export type EstadoFuente = "activa" | "por-configurar" | "manual" | "sin-datos";
 
 export const FUENTES: { nombre: string; detalle: string; estado: EstadoFuente }[] = [
   {
-    nombre: "Licitaciones adjudicadas",
-    detalle: "Municipales, provinciales (PBAC) y nacionales (COMPR.AR)",
+    nombre: "Licitaciones nacionales",
+    detalle: "Adjudicaciones de COMPR.AR (datos abiertos, se publican cada algunos meses)",
+    estado: "activa",
+  },
+  {
+    nombre: "Licitaciones provinciales y municipales",
+    detalle: "PBAC y PBA Contrataciones no publican datos abiertos",
     estado: "por-configurar",
   },
   {
-    nombre: "Boletín Oficial",
-    detalle: "Sociedades nuevas y transferencias de fondo de comercio",
-    estado: "por-configurar",
+    nombre: "Boletín Oficial de la Provincia",
+    detalle: "Sociedades nuevas y transferencias de fondo de comercio, cada día hábil",
+    estado: "activa",
   },
   {
     nombre: "Habilitaciones municipales",
-    detalle: "Datos abiertos de General Pueyrredón",
-    estado: "por-configurar",
+    detalle: "General Pueyrredón las publica sin razón social ni CUIT",
+    estado: "sin-datos",
   },
   {
     nombre: "Búsquedas laborales",
-    detalle: "Empresas que contratan choferes y personal",
-    estado: "por-configurar",
+    detalle: "Los portales de empleo no permiten la captura automática",
+    estado: "sin-datos",
   },
   {
     nombre: "Consulta ART (SRT)",

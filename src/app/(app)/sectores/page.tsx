@@ -10,6 +10,7 @@ const ESTADO_FUENTE = {
   activa: { texto: "Activa", clase: "pastilla-verde" },
   "por-configurar": { texto: "Por configurar", clase: "pastilla-ambar" },
   manual: { texto: "Manual", clase: "pastilla-gris" },
+  "sin-datos": { texto: "Sin datos utilizables", clase: "pastilla-gris" },
 };
 
 export default async function MisSectores({
