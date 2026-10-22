@@ -36,21 +36,19 @@ Necesitas Node 20.9+ y un Postgres (local o en Neon).
 ```bash
 npm install
 cp .env.example .env          # completa DATABASE_URL, APP_PASSWORD y SESSION_SECRET
-npm run db:migrate            # crea las tablas
-npm run db:seed               # sectores, configuración inicial y leads de ejemplo
+npm run db:preparar           # crea las tablas y carga los datos iniciales
 npm run dev                   # http://localhost:3000
 ```
 
 ## Publicarlo en Vercel (para que tu papá entre desde su computadora)
 
-1. **Base de datos:** crea un proyecto gratis en [Neon](https://neon.tech)
-   (o agrega Neon desde el Marketplace de Vercel) y copia la *connection string*
-   en su versión **pooled**.
-2. **Tablas y datos iniciales:** desde tu computadora, con esa `DATABASE_URL`
-   en tu `.env`, corre `npm run db:migrate` y `npm run db:seed`.
-3. **Proyecto en Vercel:** "Add New → Project", importa este repo y carga las
-   variables de entorno `DATABASE_URL`, `APP_PASSWORD` y `SESSION_SECRET`.
-4. Deploy. Pásale a tu papá el link y la contraseña.
+1. **Proyecto:** en Vercel, importa este repo. Cada push a `main` se publica solo.
+2. **Base de datos:** en el proyecto, pestaña *Storage* → **Neon** → crear base.
+   Vercel carga `DATABASE_URL` automáticamente.
+3. **Variables:** en *Settings → Environment Variables* carga `APP_PASSWORD`
+   (la contraseña de tu papá) y `SESSION_SECRET`.
+4. **Redeploy.** El build aplica las migraciones y, si la base está vacía,
+   carga sectores y leads de ejemplo (`scripts/preparar-db.ts`). Nunca pisa datos existentes.
 
 Para generar un `SESSION_SECRET`:
 
@@ -71,6 +69,7 @@ Si cambias `SESSION_SECRET`, todas las sesiones abiertas se cierran.
 | `npm run test:e2e` | Prueba de punta a punta de los flujos (ver abajo) |
 | `npm run db:generate` | Genera una migración a partir de `src/db/schema.ts` |
 | `npm run db:migrate` | Aplica las migraciones pendientes |
+| `npm run db:preparar` | Migraciones + datos iniciales si la base está vacía (lo corre el build) |
 | `npm run db:seed` | Carga datos iniciales y leads de ejemplo (no pisa la configuración) |
 | `npm run db:seed -- --reset` | Igual, pero vuelve sectores y zonas a los valores iniciales |
 | `npm run db:limpiar-ejemplos` | Borra los leads de ejemplo cuando entren los reales |
