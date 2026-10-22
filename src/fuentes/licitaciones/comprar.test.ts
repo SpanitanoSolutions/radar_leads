@@ -102,6 +102,7 @@ describe("adjudicaciones de COMPR.AR", () => {
       fuente: "COMPR.AR – adjudicaciones",
       fuenteUrl: "https://datos.gob.ar/dataset/sistema-de-contrataciones-electronicas",
       alcanceLicitacion: "nacional",
+      fechaEvento: "2026-06-22", // la fecha de adjudicación, no la de captura
       ramos: ["Caución", "RC", "ART", "Todo riesgo construcción"],
       scoreBase: 92,
     });

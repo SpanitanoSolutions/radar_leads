@@ -260,6 +260,7 @@ export function sociedadALead(aviso: Aviso, edicion: Edicion): LeadCapturado | n
       (objeto ? ` Objeto: ${recortar(objeto, 400)}` : ""),
     fuente: FUENTE,
     fuenteUrl: edicion.urlOficial,
+    fechaEvento: edicion.fecha,
     ramos: RAMOS_POR_SECTOR[sector],
     scoreBase: calcularScoreBase("sociedad", { sector, zona }),
   };
@@ -291,6 +292,7 @@ export function transferenciaALead(aviso: Aviso, edicion: Edicion): LeadCapturad
       `Con el cambio de dueño hay que rehacer los seguros del local y la ART del personal.`,
     fuente: FUENTE,
     fuenteUrl: edicion.urlOficial,
+    fechaEvento: edicion.fecha,
     ramos: ramos.includes("ART") ? ramos : [...ramos, "ART"],
     scoreBase: calcularScoreBase("transferencia", { sector, zona }),
   };

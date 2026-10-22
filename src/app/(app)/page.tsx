@@ -2,6 +2,7 @@ import Link from "next/link";
 import { IconoEstrella, IconoUbicacion } from "@/components/iconos";
 import { nombreEstado, ZONAS } from "@/lib/catalogos";
 import { obtenerAjustes, obtenerLeads, obtenerSectores } from "@/lib/datos";
+import { etiquetaEvento } from "@/lib/evento";
 import { fechaLarga, haceCuanto } from "@/lib/fechas";
 import {
   aplicarFiltros,
@@ -162,7 +163,7 @@ export default async function LeadsDelDia({
                 <th scope="col">Empresa</th>
                 <th scope="col">Por qué es un lead</th>
                 <th scope="col">Ramos sugeridos</th>
-                <th scope="col">Detectado</th>
+                <th scope="col">Cuándo</th>
                 <th scope="col">Estado</th>
                 <th scope="col">
                   <span className="visualmente-oculto">Acciones</span>
@@ -198,14 +199,23 @@ export default async function LeadsDelDia({
                   </td>
                   <td>
                     <div className="ramos">
-                      {l.ramos.map((r) => (
+                      {l.ramosOrdenados.map((r) => (
                         <span key={r} className="etiqueta-ramo">
                           {r}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td>{haceCuanto(l.detectadoEl)}</td>
+                  <td>
+                    {l.fechaEvento ? (
+                      <>
+                        <div>{etiquetaEvento(l.tipoEvento, l.fechaEvento)}</div>
+                        <div className="celda-secundaria">Detectado: {haceCuanto(l.detectadoEl).toLowerCase()}</div>
+                      </>
+                    ) : (
+                      <>Detectado: {haceCuanto(l.detectadoEl).toLowerCase()}</>
+                    )}
+                  </td>
                   <td>
                     <span className={`pastilla ${CLASE_ESTADO[l.estado]}`}>{nombreEstado(l.estado)}</span>
                   </td>

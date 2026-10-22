@@ -5,6 +5,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import type { NuevoLead } from "../src/db/schema";
+import { diaEnArgentina } from "../src/lib/fechas";
 
 const { sectores, ajustes, leads } = schema;
 
@@ -235,7 +236,14 @@ export async function sembrar({ reset = false }: { reset?: boolean } = {}) {
   }
 
   await db.delete(leads).where(eq(leads.esEjemplo, true));
-  await db.insert(leads).values(EJEMPLOS.map((l) => ({ ...l, esEjemplo: true })));
+  await db.insert(leads).values(
+    EJEMPLOS.map((l) => ({
+      ...l,
+      esEjemplo: true,
+      // En los ejemplos el evento ocurrió el mismo día en que se detectó.
+      fechaEvento: diaEnArgentina(l.detectadoEl as Date),
+    })),
+  );
 
   console.log(
     `Listo: ${SECTORES.length} sectores y ${EJEMPLOS.length} leads de ejemplo` +

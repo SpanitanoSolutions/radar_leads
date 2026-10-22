@@ -1,11 +1,31 @@
 import type { Ajustes, Lead, Sector, Zona } from "@/db/schema";
+import { diasDesde, penalizacionPorAntiguedad, ramosSugeridos, tipoDeEvento, type TipoEvento } from "./evento";
 import { nivelScore, scoreFinal, type NivelScore } from "./score";
 
 export type LeadConScore = Lead & {
   score: number;
   nivel: NivelScore;
   sector: Sector;
+  tipoEvento: TipoEvento;
+  /** Días desde el evento; null si no se conoce la fecha. */
+  diasEvento: number | null;
+  /** Ramos en el orden en que conviene ofrecerlos hoy. */
+  ramosOrdenados: string[];
 };
+
+/** Score de un lead hoy: score base, prioridad del sector y antigüedad del evento. */
+export function puntuarLead(lead: Lead, sector: Sector, ahora: Date = new Date()) {
+  const tipoEvento = tipoDeEvento(lead);
+  const diasEvento = lead.fechaEvento ? diasDesde(lead.fechaEvento, ahora) : null;
+  const score = scoreFinal(lead.scoreBase, sector.prioridad, penalizacionPorAntiguedad(tipoEvento, diasEvento));
+  return {
+    score,
+    nivel: nivelScore(score),
+    tipoEvento,
+    diasEvento,
+    ramosOrdenados: ramosSugeridos(lead.ramos, tipoEvento, diasEvento),
+  };
+}
 
 export type Filtros = {
   sector: string; // "todos" o id de sector
@@ -34,6 +54,7 @@ export function leadsVisibles(
   leads: Lead[],
   sectores: Sector[],
   ajustes: Pick<Ajustes, "zonas" | "licitaciones">,
+  ahora: Date = new Date(),
 ): LeadConScore[] {
   const porId = new Map(sectores.map((s) => [s.id, s]));
   const resultado: LeadConScore[] = [];
@@ -43,8 +64,7 @@ export function leadsVisibles(
     if (lead.estado === "descartado") continue;
     if (!ajustes.zonas[lead.zona]) continue;
     if (lead.alcanceLicitacion && !ajustes.licitaciones[lead.alcanceLicitacion]) continue;
-    const score = scoreFinal(lead.scoreBase, sector.prioridad);
-    resultado.push({ ...lead, sector, score, nivel: nivelScore(score) });
+    resultado.push({ ...lead, sector, ...puntuarLead(lead, sector, ahora) });
   }
   return resultado.sort(
     (a, b) => b.score - a.score || b.detectadoEl.getTime() - a.detectadoEl.getTime(),

@@ -166,6 +166,7 @@ export function adjudicacionALead(
     fuente: "COMPR.AR – adjudicaciones",
     fuenteUrl: URL_DATASET,
     alcanceLicitacion: "nacional",
+    fechaEvento: adj.fecha,
     ramos: ramosLicitacion(sector),
     scoreBase: calcularScoreBase("licitacion", {
       sector,

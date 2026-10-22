@@ -81,6 +81,21 @@ necesidad de seguro (ver `src/fuentes/clasificacion.ts`):
 La prioridad del sector lo ajusta: **alta +5**, **media 0**, **baja −15**
 (ver `src/lib/score.ts`). Alto ≥ 80, medio ≥ 65.
 
+**Antigüedad del evento.** Cada lead guarda la fecha del evento
+(`fecha_evento`: adjudicación o publicación del edicto), distinta de cuándo lo
+detectó el radar. El score baja con los días que pasaron desde el evento, y se
+recalcula solo cada día (`src/lib/evento.ts`):
+
+| Evento | Hasta 7 días | 8–15 | 16–30 | 31–60 | 61–90 | Más de 90 |
+|---|---|---|---|---|---|---|
+| Licitación ganada | 0 | −5 | −10 | −25 | −25 | −35 |
+| Sociedad nueva | 0 | 0 | 0 | −5 | −10 | −20 |
+| Compra de fondo de comercio | 0 | 0 | 0 | −5 | −15 | −15 |
+
+Pasados 30 días de una adjudicación la garantía ya se presentó: la caución deja
+de ser el primer ramo sugerido y pasa al final. La lista y la ficha muestran
+"Adjudicada hace X" o "Publicado hace X", y la fecha de detección como dato secundario.
+
 ## Stack
 
 Next.js 16 (App Router, Server Actions) · TypeScript · Postgres + Drizzle ORM ·

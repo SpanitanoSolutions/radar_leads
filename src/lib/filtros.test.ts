@@ -50,6 +50,7 @@ const lead = (extra: Partial<Lead>): Lead => ({
   deudaBcra: null,
   esEjemplo: false,
   clave: null,
+  fechaEvento: null,
   detectadoEl: new Date("2026-10-20T12:00:00Z"),
   actualizadoEl: new Date("2026-10-20T12:00:00Z"),
   ...extra,
@@ -75,6 +76,33 @@ describe("leadsVisibles", () => {
       ["flotas", 85],
       ["salud", 75],
     ]);
+  });
+
+  it("una adjudicación de hace 4 meses no es el lead más urgente aunque se haya detectado hoy", () => {
+    const ahora = new Date("2026-10-22T15:00:00Z");
+    const res = leadsVisibles(
+      [
+        lead({
+          empresa: "Senderos de la Costa S.A.",
+          sectorId: "flotas",
+          scoreBase: 92,
+          clave: "comprar:68-0001-LPR26:30-71222454-8",
+          alcanceLicitacion: "nacional",
+          fechaEvento: "2026-06-22",
+          ramos: ["Caución", "RC", "ART"],
+          detectadoEl: ahora,
+        }),
+        lead({ empresa: "Gobblack SA", sectorId: "flotas", scoreBase: 87, clave: "bo-pba:sociedad:gobblack-sa", fechaEvento: "2026-10-22" }),
+      ],
+      sectores,
+      todoActivo,
+      ahora,
+    );
+    expect(res.map((l) => [l.empresa, l.score, l.diasEvento])).toEqual([
+      ["Gobblack SA", 92, 0],
+      ["Senderos de la Costa S.A.", 62, 122], // 92 + 5 (prioridad alta) − 35 (más de 90 días)
+    ]);
+    expect(res[1].ramosOrdenados).toEqual(["RC", "ART", "Caución"]);
   });
 
   it("oculta sectores inactivos, zonas apagadas y descartados", () => {

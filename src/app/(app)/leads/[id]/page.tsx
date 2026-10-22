@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { IconoAtras, IconoDocumento, IconoEstrella, IconoTelefono } from "@/components/iconos";
 import { ESTADOS, RAMOS, URL_CONSULTA_ART } from "@/lib/catalogos";
 import { obtenerLead } from "@/lib/datos";
+import { DIAS_CAUCION_URGENTE, etiquetaEvento } from "@/lib/evento";
 import { haceCuanto } from "@/lib/fechas";
-import { nivelScore, scoreFinal } from "@/lib/score";
+import { puntuarLead } from "@/lib/filtros";
 import { cambiarEstado, guardarSeguimiento } from "../../actions";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
@@ -30,8 +31,8 @@ export default async function FichaLead({
   const { lead, sector } = datos;
   const guardado = (await searchParams).guardado === "1";
 
-  const score = scoreFinal(lead.scoreBase, sector.prioridad);
-  const nivel = nivelScore(score);
+  const { score, nivel, tipoEvento, diasEvento, ramosOrdenados } = puntuarLead(lead, sector);
+  const caucionAlFinal = ramosOrdenados.length > 1 && ramosOrdenados.at(-1) === "Caución";
   const telefono = lead.telefono?.replace(/[^\d+]/g, "");
 
   return (
@@ -89,8 +90,9 @@ export default async function FichaLead({
               <div>
                 <p className="motivo-titulo">{lead.motivo}</p>
                 <p className="motivo-texto">
-                  {lead.descripcion ?? `Detectado en ${lead.fuente}.`} Detectado:{" "}
-                  {haceCuanto(lead.detectadoEl).toLowerCase()}.
+                  {lead.descripcion ?? `Detectado en ${lead.fuente}.`}{" "}
+                  {lead.fechaEvento && `${etiquetaEvento(tipoEvento, lead.fechaEvento)} · `}
+                  Detectado: {haceCuanto(lead.detectadoEl).toLowerCase()}.
                 </p>
                 {lead.fuenteUrl && (
                   <a href={lead.fuenteUrl} target="_blank" rel="noopener noreferrer">
@@ -103,8 +105,14 @@ export default async function FichaLead({
 
           <section className="tarjeta tarjeta-padding" aria-labelledby="t-ramos">
             <h2 id="t-ramos" className="titulo-seccion">Ramos sugeridos</h2>
+            {caucionAlFinal && (
+              <p className="nota-info">
+                Se adjudicó hace {diasEvento} días: la garantía ya se presentó. Pasados {DIAS_CAUCION_URGENTE} días
+                la caución deja de ser lo primero que ofrecer.
+              </p>
+            )}
             <div className="ramos-grilla">
-              {lead.ramos.map((r) => (
+              {ramosOrdenados.map((r) => (
                 <div key={r} className="ramo-tarjeta">
                   <span className="ramo-nombre">{r}</span>
                   {RAMOS[r] && <span className="ramo-texto">{RAMOS[r]}</span>}

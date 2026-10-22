@@ -122,6 +122,7 @@ describe("leads del boletín", () => {
       motivo: "Sociedad nueva: transporte y logística",
       fuente: "Boletín Oficial PBA",
       fuenteUrl: EDICION.urlOficial,
+      fechaEvento: "2026-10-22", // fecha de publicación del edicto
       ramos: ["Flota", "Carga", "ART"],
     });
     expect(gobblack.descripcion).toMatch(
