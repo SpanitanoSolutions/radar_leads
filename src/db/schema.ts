@@ -69,6 +69,8 @@ export const leads = pgTable("leads", {
   descripcion: text("descripcion"),
   fuente: text("fuente").notNull(),
   fuenteUrl: text("fuente_url"),
+  /** Cómo encontrar la publicación a mano (boletín, sección y página; número de proceso). */
+  fuenteReferencia: text("fuente_referencia"),
   /** Solo para leads que vienen de una licitación. */
   alcanceLicitacion: alcanceEnum("alcance_licitacion"),
   ramos: text("ramos").array().notNull(),

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { IconoAtras, IconoDocumento, IconoEstrella, IconoTelefono } from "@/components/iconos";
 import { ESTADOS, RAMOS, URL_CONSULTA_ART } from "@/lib/catalogos";
 import { obtenerLead } from "@/lib/datos";
-import { DIAS_CAUCION_URGENTE, etiquetaEvento } from "@/lib/evento";
+import { DIAS_CAUCION_URGENTE, etiquetaEvento, type TipoEvento } from "@/lib/evento";
 import { haceCuanto } from "@/lib/fechas";
 import { puntuarLead } from "@/lib/filtros";
 import { cambiarEstado, guardarSeguimiento } from "../../actions";
@@ -96,9 +96,10 @@ export default async function FichaLead({
                 </p>
                 {lead.fuenteUrl && (
                   <a href={lead.fuenteUrl} target="_blank" rel="noopener noreferrer">
-                    Ver publicación original
+                    {textoEnlaceFuente(tipoEvento, lead.fuenteUrl)}
                   </a>
                 )}
+                {lead.fuenteReferencia && <p className="nota-info">{lead.fuenteReferencia}</p>}
               </div>
             </div>
           </section>
@@ -240,6 +241,12 @@ export default async function FichaLead({
       </div>
     </>
   );
+}
+
+function textoEnlaceFuente(tipo: TipoEvento, url: string): string {
+  if (tipo === "licitacion" && url.includes("comprar.gob.ar")) return "Abrir el buscador de COMPR.AR";
+  const pagina = /#page=(\d+)/.exec(url);
+  return pagina ? `Ver el edicto (página ${pagina[1]})` : "Ver publicación original";
 }
 
 function SinDato() {

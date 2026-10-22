@@ -37,13 +37,20 @@ describe("listado de ediciones", () => {
 describe("texto del boletín", () => {
   const secciones = separarSecciones(EXTRACTO);
 
-  it("separa las secciones", () => {
-    expect([...secciones.keys()]).toEqual([
-      "TRANSFERENCIAS",
-      "SOCIEDADES",
-      "SOCIEDADES POR ACCIONES SIMPLIFICADAS",
-      "VARIOS",
+  it("separa las secciones y sabe en qué página empieza cada una", () => {
+    expect([...secciones].map(([titulo, s]) => [titulo, s.pagina])).toEqual([
+      ["TRANSFERENCIAS", 74],
+      ["SOCIEDADES", 76],
+      ["SOCIEDADES POR ACCIONES SIMPLIFICADAS", 101],
+      ["VARIOS", 101],
     ]);
+  });
+
+  it("cada aviso recuerda la página donde empieza, aunque siga en la siguiente", () => {
+    const transferencias = separarAvisos(secciones.get("TRANSFERENCIAS")!, false);
+    expect(transferencias.map((a) => a.pagina)).toEqual([74, 74, 74, 76, 76]);
+    const sociedades = separarAvisos(secciones.get("SOCIEDADES")!, true);
+    expect(sociedades.find((a) => a.titulo === "GOBBLACK SA")?.pagina).toBe(76); // sigue en la 99
   });
 
   it("separa los avisos de sociedades con su razón social, aunque crucen de página", () => {
@@ -122,7 +129,9 @@ describe("leads del boletín", () => {
       rubro: "Transporte de pasajeros",
       motivo: "Sociedad nueva: transporte de pasajeros",
       fuente: "Boletín Oficial PBA",
-      fuenteUrl: EDICION.urlOficial,
+      // El PDF se abre en la página del aviso.
+      fuenteUrl: `${EDICION.urlOficial}#page=76`,
+      fuenteReferencia: "Boletín Oficial N° 30347 del 22/10/2026 · Sección Oficial · Sociedades · página 76",
       fechaEvento: "2026-10-22", // fecha de publicación del edicto
       ramos: ["Flota", "RC transporte de personas", "AP", "ART"],
     });

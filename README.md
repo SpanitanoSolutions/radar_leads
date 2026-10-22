@@ -44,6 +44,11 @@ se clasificó (`texto_clasificacion`, sin datos de personas). Si cambian las
 reglas, `npm run db:reclasificar` muestra qué cambiaría en los leads ya
 guardados y `npm run db:reclasificar -- --aplicar` lo guarda.
 
+**Enlace al original.** En los avisos del Boletín, "Ver el edicto" abre el PDF
+en la página del aviso (`#page=N`), y la ficha muestra boletín, sección y
+página. COMPR.AR no tiene un enlace público por número de proceso: la ficha
+abre su buscador y muestra el número de proceso y la fecha para encontrarlo.
+
 Cada lead guarda una `clave` (empresa + evento) para no cargarse dos veces, y
 la tabla `capturas` recuerda qué versión de cada fuente ya se procesó: si no
 hay nada nuevo, no se descarga nada.

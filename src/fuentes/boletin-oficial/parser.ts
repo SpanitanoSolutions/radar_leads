@@ -46,27 +46,49 @@ export function leerEdiciones(html: string): Edicion[] {
   return ediciones.sort((a, b) => b.numero - a.numero);
 }
 
-/** Quita encabezados y pies de página que cortan los avisos. */
+/** Marca de comienzo de página que la captura agrega al texto de cada página del PDF. */
+export const MARCA_PAGINA = /^=====PAGINA (\d+)$/;
+
+export function marcaDePagina(numero: number): string {
+  return `=====PAGINA ${numero}`;
+}
+
+/** Quita encabezados y pies de página que cortan los avisos (las marcas de página quedan). */
 export function limpiarTexto(texto: string): string {
   return texto
     .replace(/\r\n?/g, "\n")
-    .replace(/=====PAGINA \d+\n/g, "")
     .replace(/BOLET[ÍI]N OFICIAL DE LA PROVINCIA DE BUENOS AIRES\n[^\n]*>[^\n]*\nSECCI[ÓO]N OFICIAL > p[áa]gina \d+\n?/g, "")
     .replace(/^Secci[óo]n\s*\n?Oficial(?=\n|◢)/gm, "");
 }
 
-/** Secciones del boletín ("SOCIEDADES", "TRANSFERENCIAS"…) con su texto. */
-export function separarSecciones(texto: string): Map<string, string> {
-  const secciones = new Map<string, string>();
-  for (const parte of limpiarTexto(texto).split("◢").slice(1)) {
+/** Página en que termina un texto, según la última marca de página que contiene. */
+function ultimaPagina(texto: string, actual: number): number {
+  let pagina = actual;
+  for (const m of texto.matchAll(/^=====PAGINA (\d+)$/gm)) pagina = Number(m[1]);
+  return pagina;
+}
+
+export type Seccion = { texto: string; pagina: number };
+
+/** Secciones del boletín ("SOCIEDADES", "TRANSFERENCIAS"…) con su texto y la página donde empiezan. */
+export function separarSecciones(texto: string): Map<string, Seccion> {
+  const secciones = new Map<string, Seccion>();
+  const [antes, ...partes] = limpiarTexto(texto).split("◢");
+  let pagina = ultimaPagina(antes, 1);
+  for (const parte of partes) {
     const salto = parte.indexOf("\n");
     const titulo = parte.slice(0, salto).trim().toUpperCase();
-    secciones.set(titulo, (secciones.get(titulo) ?? "") + parte.slice(salto + 1));
+    const previa = secciones.get(titulo);
+    secciones.set(titulo, {
+      texto: (previa?.texto ?? "") + parte.slice(salto + 1),
+      pagina: previa?.pagina ?? pagina,
+    });
+    pagina = ultimaPagina(parte, pagina);
   }
   return secciones;
 }
 
-export type Aviso = { titulo: string | null; texto: string };
+export type Aviso = { titulo: string | null; texto: string; pagina: number };
 
 const INICIO_AVISO = /^POR \d+ D[ÍI]AS? ?-/;
 
@@ -81,26 +103,31 @@ function unirLineas(lineas: string[]): string {
 
 /**
  * Separa una sección en avisos. Cada aviso empieza con "POR N DÍA(S) -"; en
- * Sociedades la línea anterior es la razón social.
+ * Sociedades la línea anterior es la razón social. Cada aviso recuerda la
+ * página del PDF donde empieza.
  */
-export function separarAvisos(seccion: string, conTitulo: boolean): Aviso[] {
-  const avisos: { titulo: string | null; lineas: string[] }[] = [];
-  const lineas = seccion.split("\n").map((l) => l.trim()).filter(Boolean);
+export function separarAvisos(seccion: Seccion, conTitulo: boolean): Aviso[] {
+  const avisos: { titulo: string | null; lineas: string[]; pagina: number }[] = [];
+  let pagina = seccion.pagina;
+  const lineas = seccion.texto.split("\n").map((l) => l.trim()).filter(Boolean);
   for (const linea of lineas) {
-    if (INICIO_AVISO.test(linea)) {
+    const marca = MARCA_PAGINA.exec(linea);
+    if (marca) {
+      pagina = Number(marca[1]);
+    } else if (INICIO_AVISO.test(linea)) {
       const anterior = avisos.at(-1);
       const titulo = conTitulo ? (anterior ? anterior.lineas.pop() : undefined) ?? null : null;
-      avisos.push({ titulo, lineas: [linea] });
+      avisos.push({ titulo, lineas: [linea], pagina });
     } else if (avisos.length) {
       avisos.at(-1)!.lineas.push(linea);
     } else if (conTitulo) {
       // Razón social del primer aviso de la sección.
-      avisos.push({ titulo: null, lineas: [linea] });
+      avisos.push({ titulo: null, lineas: [linea], pagina });
     }
   }
   return avisos
     .filter((a) => INICIO_AVISO.test(a.lineas[0] ?? ""))
-    .map((a) => ({ titulo: a.titulo, texto: unirLineas(a.lineas) }));
+    .map((a) => ({ titulo: a.titulo, texto: unirLineas(a.lineas), pagina: a.pagina }));
 }
 
 /**
@@ -227,11 +254,24 @@ export function rubroDeTransferencia(texto: string): string | null {
   return m ? oracion(quitarDatosPersonales(m[1]).replace(/[\s,;:.-]+$/, "")) : null;
 }
 
+/**
+ * Enlace a la página exacta del aviso en el PDF (los navegadores abren el
+ * PDF en esa página con #page=N) y cómo encontrarlo a mano.
+ */
+export function ubicacionDelAviso(aviso: Aviso, edicion: Edicion, seccion: string) {
+  return {
+    fuenteUrl: `${edicion.urlOficial}#page=${aviso.pagina}`,
+    fuenteReferencia:
+      `Boletín Oficial N° ${edicion.numero} del ${fechaLegible(edicion.fecha)} · Sección Oficial · ` +
+      `${seccion} · página ${aviso.pagina}`,
+  };
+}
+
 function claveDe(texto: string): string {
   return normalizar(texto).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-export function sociedadALead(aviso: Aviso, edicion: Edicion): LeadCapturado | null {
+export function sociedadALead(aviso: Aviso, edicion: Edicion, seccion = "Sociedades"): LeadCapturado | null {
   if (!aviso.titulo || !esConstitucion(aviso.texto)) return null;
   const empresa = tituloPropio(aviso.titulo.replace(/[“”"]/g, ""));
   const objeto = extraerObjeto(aviso.texto);
@@ -261,7 +301,7 @@ export function sociedadALead(aviso: Aviso, edicion: Edicion): LeadCapturado | n
       `. Una empresa recién creada necesita contratar sus seguros antes de empezar a operar.` +
       (objeto ? ` Objeto: ${recortar(objeto, 400)}` : ""),
     fuente: FUENTE,
-    fuenteUrl: edicion.urlOficial,
+    ...ubicacionDelAviso(aviso, edicion, seccion),
     fechaEvento: edicion.fecha,
     ramos: c.ramos,
     scoreBase: calcularScoreBase("sociedad", { sector, zona }),
@@ -294,7 +334,7 @@ export function transferenciaALead(aviso: Aviso, edicion: Edicion): LeadCapturad
       `${localidad} en el Boletín Oficial de la Provincia el ${fechaLegible(edicion.fecha)}. ` +
       `Con el cambio de dueño hay que rehacer los seguros del local y la ART del personal.`,
     fuente: FUENTE,
-    fuenteUrl: edicion.urlOficial,
+    ...ubicacionDelAviso(aviso, edicion, "Transferencias"),
     fechaEvento: edicion.fecha,
     ramos: ramosTransferencia(c),
     scoreBase: calcularScoreBase("transferencia", { sector, zona }),
@@ -307,8 +347,9 @@ export function leadsDeBoletin(texto: string, edicion: Edicion): LeadCapturado[]
   const leads: LeadCapturado[] = [];
   for (const [titulo, contenido] of secciones) {
     if (titulo.startsWith("SOCIEDADES")) {
+      const seccion = titulo === "SOCIEDADES" ? "Sociedades" : "Sociedades por Acciones Simplificadas";
       for (const aviso of separarAvisos(contenido, true)) {
-        const lead = sociedadALead(aviso, edicion);
+        const lead = sociedadALead(aviso, edicion, seccion);
         if (lead) leads.push(lead);
       }
     } else if (titulo === "TRANSFERENCIAS") {

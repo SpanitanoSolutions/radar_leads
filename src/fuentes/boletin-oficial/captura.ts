@@ -1,7 +1,7 @@
 import { extractText, getDocumentProxy } from "unpdf";
 import { esperar, pedir } from "../descargas";
 import type { Fuente, LeadCapturado } from "../tipos";
-import { leadsDeBoletin, leerEdiciones, URL_BOLETIN } from "./parser";
+import { leadsDeBoletin, leerEdiciones, marcaDePagina, URL_BOLETIN } from "./parser";
 
 /** En la primera ejecución alcanza con la última semana hábil. */
 const EDICIONES_MAXIMAS = 5;
@@ -10,7 +10,8 @@ async function textoDePdf(url: string): Promise<string> {
   const datos = new Uint8Array(await (await pedir(url, { timeoutMs: 90_000 })).arrayBuffer());
   const pdf = await getDocumentProxy(datos);
   const { text } = await extractText(pdf, { mergePages: false });
-  return text.join("\n");
+  // La marca de página permite enlazar cada aviso a la página donde está.
+  return text.map((pagina, i) => `${marcaDePagina(i + 1)}\n${pagina}`).join("\n");
 }
 
 export const boletinOficial: Fuente = {

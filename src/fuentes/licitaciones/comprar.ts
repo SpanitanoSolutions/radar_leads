@@ -19,6 +19,7 @@ import type { LeadCapturado } from "../tipos";
 // de proveedores (SiPRO) para saber si la empresa es de la provincia.
 
 export const URL_DATASET = "https://datos.gob.ar/dataset/sistema-de-contrataciones-electronicas";
+export const URL_BUSCAR_PROCESO = "https://comprar.gob.ar/BuscarAvanzado.aspx";
 const BASE = "https://infra.datos.gob.ar/catalog/jgm/dataset/4/distribution";
 export const URL_ADJUDICACIONES = `${BASE}/4.22/download/Adjudicaciones.csv`;
 export const URL_CONVOCATORIAS = `${BASE}/4.21/download/Convocatorias.csv`;
@@ -171,7 +172,12 @@ export function adjudicacionALead(
       `${adj.organismo}, el ${fechaLegible(adj.fecha)}, ${monto}. ` +
       `Para firmar el contrato suele exigirse seguro de caución.`,
     fuente: "COMPR.AR – adjudicaciones",
-    fuenteUrl: URL_DATASET,
+    // COMPR.AR no tiene un enlace público por número de proceso: se abre su
+    // buscador y la referencia dice qué buscar.
+    fuenteUrl: URL_BUSCAR_PROCESO,
+    fuenteReferencia:
+      `Proceso N° ${adj.proceso} (${adj.procedimiento.toLowerCase()}), adjudicado el ${fechaLegible(adj.fecha)}. ` +
+      `En COMPR.AR: "Buscar procesos" → número de proceso. Datos abiertos de datos.gob.ar (CC BY 4.0).`,
     alcanceLicitacion: "nacional",
     fechaEvento: adj.fecha,
     ramos: ramosLicitacion(c),

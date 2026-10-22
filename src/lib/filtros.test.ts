@@ -36,6 +36,7 @@ const lead = (extra: Partial<Lead>): Lead => ({
   descripcion: null,
   fuente: "Boletín Oficial",
   fuenteUrl: null,
+  fuenteReferencia: null,
   alcanceLicitacion: null,
   ramos: [],
   scoreBase: 70,
