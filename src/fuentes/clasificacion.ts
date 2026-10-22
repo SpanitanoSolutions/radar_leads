@@ -21,7 +21,7 @@ const PALABRAS: [SectorId, RegExp][] = [
     "flotas",
     // Sin "flota" ni "camión" sueltos: en una licitación suelen describir al
     // comprador ("neumáticos para la flota del organismo"), no a la empresa.
-    /\b(transportes?|fletes?|logisticas?|servicios? logisticos?|reparto\w*|mudanzas?|remis\w*|taxis?|colectivos?|omnibus|micros?|pasajeros|traslados? de (pasajeros|personas|cargas|mercaderias|pacientes)|ambulancias?|acarreos?|courier|mensajeria|alquiler de (vehiculos|camionetas|autos))\b/g,
+    /\b(transportes?|fletes?|logisticas?|servicios? logisticos?|reparto\w*|mudanzas?|remis\w*|taxis?|colectivos?|omnibus|micros?|pasajeros|traslados? de (pasajeros|personas|cargas|mercaderias|pacientes)|traslados? sanitarios?|ambulancias?|acarreos?|courier|mensajeria|alquiler de (vehiculos|camionetas|autos))\b/g,
   ],
   [
     "construccion",
@@ -90,7 +90,7 @@ export function clasificarSector(texto: string): SectorId {
   return mejor.sector;
 }
 
-/** Nombre corto del rubro cuando la fuente no trae uno propio. */
+/** Nombre corto del rubro: es la actividad que justifica el sector. */
 export const RUBRO_POR_SECTOR: Record<SectorId, string> = {
   flotas: "Transporte y logística",
   construccion: "Construcción",
@@ -102,7 +102,7 @@ export const RUBRO_POR_SECTOR: Record<SectorId, string> = {
 
 /** Ramos típicos de cada sector (coinciden con la pantalla "Mis sectores"). */
 export const RAMOS_POR_SECTOR: Record<SectorId, string[]> = {
-  flotas: ["Flota", "Carga", "ART"],
+  flotas: ["Flota", "ART"],
   construccion: ["RC", "ART", "Todo riesgo construcción"],
   industria: ["Integral", "ART"],
   gastronomia: ["Integral de comercio", "ART"],
@@ -110,14 +110,99 @@ export const RAMOS_POR_SECTOR: Record<SectorId, string[]> = {
   comercio: ["Integral de comercio", "RC"],
 };
 
+export type TipoTransporte = "carga" | "pasajeros" | "sanitario" | "escolar";
+
+// Ante dos tipos, gana el que el texto menciona primero: el objeto social
+// empieza por la actividad principal ("Transporte de pasajeros: …; traslados
+// sanitarios…; transporte de cargas…").
+const PALABRAS_TRANSPORTE: [TipoTransporte, RegExp][] = [
+  ["escolar", /\b(transporte escolar|escolares|alumnos)\b/g],
+  [
+    "sanitario",
+    /\b(ambulancias?|traslados? sanitarios?|traslados? de pacientes|pacientes|emergencias medicas|urgencias medicas|unidades? de terapia)\b/g,
+  ],
+  [
+    "pasajeros",
+    /\b(pasajeros|remis\w*|taxis?|colectivos?|omnibus|combis?|charter|(traslados?|transportes?) de (pasajeros|personas|personal)|turismo)\b/g,
+  ],
+  [
+    "carga",
+    /\b(cargas?|fletes?|mercaderias|mudanzas?|logisticas?|servicios? logisticos?|distribucion|reparto\w*|camion\w*|contenedores|volquetes|courier|mensajeria|acarreos?|residuos|encomiendas|paqueteria)\b/g,
+  ],
+];
+
+export function tipoDeTransporte(texto: string): TipoTransporte | null {
+  const t = normalizar(texto);
+  let primero: { tipo: TipoTransporte; posicion: number } | null = null;
+  for (const [tipo, patron] of PALABRAS_TRANSPORTE) {
+    const m = patron.exec(t);
+    patron.lastIndex = 0;
+    if (m && (!primero || m.index < primero.posicion)) primero = { tipo, posicion: m.index };
+  }
+  return primero?.tipo ?? null;
+}
+
+export const RUBRO_TRANSPORTE: Record<TipoTransporte, string> = {
+  carga: "Transporte de carga",
+  pasajeros: "Transporte de pasajeros",
+  sanitario: "Transporte sanitario",
+  escolar: "Transporte escolar",
+};
+
+/** Llevar personas no es llevar mercadería: ni pasajeros ni ambulancias necesitan "Carga". */
+export const RAMOS_TRANSPORTE: Record<TipoTransporte, string[]> = {
+  carga: ["Flota", "Carga", "RC", "ART"],
+  pasajeros: ["Flota", "RC transporte de personas", "AP", "ART"],
+  sanitario: ["Flota", "RC transporte de personas", "AP", "ART"],
+  escolar: ["Flota", "RC transporte de personas", "AP"],
+};
+
+export type Clasificacion = {
+  sector: SectorId;
+  transporte: TipoTransporte | null;
+  /** La actividad que justifica el sector, para mostrar junto al lead. */
+  rubro: string;
+  ramos: string[];
+};
+
+/**
+ * Sector, tipo de transporte, rubro y ramos de una empresa a partir del texto
+ * que describe su actividad (objeto social, objeto de la licitación, rubro).
+ * `nombre` (la razón social) suma: "Transportes del Sur", "Constructora X".
+ * `rubroFuente` es el rubro que trae la fuente; se usa solo si la empresa
+ * queda en comercio, donde es más específico que "Comercio".
+ */
+export function clasificar(
+  texto: string,
+  { nombre = "", rubroFuente }: { nombre?: string; rubroFuente?: string } = {},
+): Clasificacion {
+  const sector = clasificarSector(`${nombre}. ${texto}`);
+  if (sector === "flotas") {
+    const transporte = tipoDeTransporte(texto) ?? tipoDeTransporte(nombre);
+    return {
+      sector,
+      transporte,
+      rubro: transporte ? RUBRO_TRANSPORTE[transporte] : RUBRO_POR_SECTOR.flotas,
+      ramos: transporte ? RAMOS_TRANSPORTE[transporte] : RAMOS_POR_SECTOR.flotas,
+    };
+  }
+  const rubro = sector === "comercio" && rubroFuente ? oracion(rubroFuente) : RUBRO_POR_SECTOR[sector];
+  return { sector, transporte: null, rubro, ramos: RAMOS_POR_SECTOR[sector] };
+}
+
 /**
  * Para firmar un contrato con el Estado se pide seguro de caución. Si el
- * servicio es de transporte suma flota; si es una obra, RC, ART y todo riesgo.
+ * servicio es de transporte suma los ramos de ese transporte; si es una obra,
+ * RC, ART y todo riesgo.
  */
-export function ramosLicitacion(sector: SectorId): string[] {
-  if (sector === "flotas") return ["Caución", "Flota"];
-  if (sector === "construccion") return ["Caución", "RC", "ART", "Todo riesgo construcción"];
+export function ramosLicitacion(c: Pick<Clasificacion, "sector" | "ramos">): string[] {
+  if (c.sector === "flotas" || c.sector === "construccion") return ["Caución", ...c.ramos];
   return ["Caución"];
+}
+
+/** Con el cambio de dueño de un fondo de comercio hay que rehacer también la ART. */
+export function ramosTransferencia(c: Pick<Clasificacion, "ramos">): string[] {
+  return c.ramos.includes("ART") ? c.ramos : [...c.ramos, "ART"];
 }
 
 export type TipoEvento = "licitacion" | "sociedad" | "transferencia";

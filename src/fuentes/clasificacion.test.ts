@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calcularScoreBase,
+  clasificar,
   clasificarSector,
   esCuitDeEmpresa,
   formatearCuit,
@@ -8,6 +9,7 @@ import {
   quitarDatosPersonales,
   ramosLicitacion,
   recortar,
+  tipoDeTransporte,
   tituloPropio,
 } from "./clasificacion";
 import { buscarLugar, zonaDeLocalidad } from "./localidades";
@@ -83,11 +85,82 @@ describe("zonas", () => {
   });
 });
 
+describe("tipos de transporte", () => {
+  // Objeto social de Gobblack SA (Boletín Oficial, 22/10/2026), recortado.
+  const GOBBLACK =
+    "Transporte de pasajeros: explotación de servicios de transporte de pasajeros automotor, con vehículos propios, arrendados o de terceros. " +
+    "Transporte de pasajeros con discapacidad y con movilidad reducida: de adultos mayores y de pacientes. " +
+    "Traslados sanitarios, ambulancias y emergencias: prestación de servicios de emergencias de toda clase. " +
+    "Transporte y logística: mercaderías propias o de terceros, transporte de cargas peligrosas y de sustancias y residuos. " +
+    "Transporte y operación de contenedores, volquetes y cajas compactadoras: carga, descarga, movimiento, traslado, acopio y logística.";
+
+  it("Gobblack es transporte de pasajeros: sin el ramo Carga", () => {
+    expect(clasificar(GOBBLACK, { nombre: "Gobblack SA" })).toEqual({
+      sector: "flotas",
+      transporte: "pasajeros",
+      rubro: "Transporte de pasajeros",
+      ramos: ["Flota", "RC transporte de personas", "AP", "ART"],
+    });
+  });
+
+  it("distingue carga, pasajeros, sanitario y escolar por la primera actividad que se menciona", () => {
+    expect(tipoDeTransporte("Traslados sanitarios, ambulancias de alta y baja complejidad")).toBe("sanitario");
+    expect(tipoDeTransporte("Transporte escolar y de pasajeros en general")).toBe("escolar");
+    expect(tipoDeTransporte("Transporte de cargas generales, fletes y mudanzas")).toBe("carga");
+    expect(tipoDeTransporte("Agencia de remises")).toBe("pasajeros");
+    expect(tipoDeTransporte("Servicio de recolección, transporte y disposición final de residuos")).toBe("carga");
+    expect(tipoDeTransporte("Explotación de servicios de transporte")).toBeNull();
+  });
+
+  it("si la actividad no lo dice, mira el nombre", () => {
+    expect(clasificar("Guarda de Camiones", { nombre: "Transporte Lucmar 01 SA" })).toMatchObject({
+      sector: "flotas",
+      transporte: "carga",
+      ramos: ["Flota", "Carga", "RC", "ART"],
+    });
+    expect(clasificar("Explotación de servicios de transporte", { nombre: "Logística Norte SRL" }).transporte).toBe("carga");
+    expect(clasificar("Explotación de servicios de transporte", { nombre: "Vías del Sur SA" })).toMatchObject({
+      transporte: null,
+      rubro: "Transporte y logística",
+      ramos: ["Flota", "ART"],
+    });
+  });
+});
+
+describe("rubro coherente con el sector", () => {
+  it("muestra la actividad que justifica el sector, no el rubro genérico de la fuente", () => {
+    expect(
+      clasificar("Refacción de contrapisos muros y tabiques en sector administrativo", {
+        rubroFuente: "SERV. PROFESIONAL Y COMERCIAL",
+      }),
+    ).toMatchObject({ sector: "construccion", rubro: "Construcción" });
+  });
+
+  it("en comercio el rubro de la fuente es más útil que 'Comercio'", () => {
+    expect(clasificar("Adquisición de neumáticos. REPUESTOS", { rubroFuente: "REPUESTOS" })).toMatchObject({
+      sector: "comercio",
+      rubro: "Repuestos",
+    });
+    expect(clasificar("Venta de bazar")).toMatchObject({ sector: "comercio", rubro: "Comercio" });
+  });
+});
+
 describe("ramos sugeridos para una licitación", () => {
-  it("caución siempre; flota si es transporte; RC, ART y todo riesgo si es obra", () => {
-    expect(ramosLicitacion("comercio")).toEqual(["Caución"]);
-    expect(ramosLicitacion("flotas")).toEqual(["Caución", "Flota"]);
-    expect(ramosLicitacion("construccion")).toEqual(["Caución", "RC", "ART", "Todo riesgo construcción"]);
+  it("caución siempre; los del transporte si es transporte; RC, ART y todo riesgo si es obra", () => {
+    expect(ramosLicitacion(clasificar("Adquisición de víveres"))).toEqual(["Caución"]);
+    expect(ramosLicitacion(clasificar("Servicio de transporte de pasajeros"))).toEqual([
+      "Caución",
+      "Flota",
+      "RC transporte de personas",
+      "AP",
+      "ART",
+    ]);
+    expect(ramosLicitacion(clasificar("Construcción de platea"))).toEqual([
+      "Caución",
+      "RC",
+      "ART",
+      "Todo riesgo construcción",
+    ]);
   });
 });
 

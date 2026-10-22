@@ -1,7 +1,7 @@
 import type { Zona } from "@/db/schema";
 import {
   calcularScoreBase,
-  clasificarSector,
+  clasificar,
   esCuitDeEmpresa,
   fechaLegible,
   formatearCuit,
@@ -136,6 +136,12 @@ export function leerConvocatoria(fila: Record<string, string>): [string, Convoca
 
 const pesos = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
 
+/** Lo que se licitó (nombre, objeto y rubros del proceso): de ahí sale el sector. */
+function textoParaClasificar(adj: Adjudicacion, convocatoria?: Convocatoria): string {
+  const partes = [convocatoria?.nombre, convocatoria?.objeto, adj.rubros.join("; ")];
+  return partes.filter((p, i) => p && partes.indexOf(p) === i).join(". ");
+}
+
 /** Convierte una adjudicación en lead, o null si el contrato es demasiado chico. */
 export function adjudicacionALead(
   adj: Adjudicacion,
@@ -145,19 +151,20 @@ export function adjudicacionALead(
   if (!adj.enDivisa && adj.montoPesos < MONTO_MINIMO) return null;
 
   const objeto = convocatoria?.nombre || convocatoria?.objeto || adj.rubros.join(", ");
-  const sector = clasificarSector(
-    `${adj.empresa}. ${convocatoria?.nombre ?? ""} ${convocatoria?.objeto ?? ""} ${adj.rubros.join(" ")}`,
-  );
+  const textoClasificacion = textoParaClasificar(adj, convocatoria);
+  const c = clasificar(textoClasificacion, { nombre: adj.empresa, rubroFuente: adj.rubros[0] });
+  const sector = c.sector;
   const monto = adj.enDivisa ? "en moneda extranjera" : `por $ ${pesos.format(adj.montoPesos)}`;
 
   return {
     clave: `comprar:${adj.proceso}:${adj.cuit}`,
     empresa: tituloPropio(adj.empresa || proveedor.razonSocial),
     cuit: adj.cuit,
-    rubro: oracion(adj.rubros[0] ?? "Proveedor del Estado"),
+    rubro: c.rubro,
     localidad: proveedor.localidad,
     zona: proveedor.zona,
     sectorId: sector,
+    textoClasificacion,
     motivo: recortar(`Ganó licitación nacional: ${oracion(objeto)}`, 110),
     descripcion:
       `Adjudicataria del proceso ${adj.proceso} (${adj.procedimiento.toLowerCase()}) de ` +
@@ -167,7 +174,7 @@ export function adjudicacionALead(
     fuenteUrl: URL_DATASET,
     alcanceLicitacion: "nacional",
     fechaEvento: adj.fecha,
-    ramos: ramosLicitacion(sector),
+    ramos: ramosLicitacion(c),
     scoreBase: calcularScoreBase("licitacion", {
       sector,
       zona: proveedor.zona,

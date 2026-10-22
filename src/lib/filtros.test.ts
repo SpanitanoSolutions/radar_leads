@@ -50,6 +50,7 @@ const lead = (extra: Partial<Lead>): Lead => ({
   deudaBcra: null,
   esEjemplo: false,
   clave: null,
+  textoClasificacion: null,
   fechaEvento: null,
   detectadoEl: new Date("2026-10-20T12:00:00Z"),
   actualizadoEl: new Date("2026-10-20T12:00:00Z"),

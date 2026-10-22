@@ -26,6 +26,24 @@ Todo está protegido con una contraseña única (`APP_PASSWORD`).
 | **Licitaciones nacionales** (COMPR.AR) | Empresas bonaerenses que ganaron una licitación en los últimos 6 meses, por más de $ 5 millones | CSV de datos abiertos de [datos.gob.ar](https://datos.gob.ar/dataset/sistema-de-contrataciones-electronicas) (CC BY 4.0). El domicilio sale del padrón de proveedores (SiPRO). |
 | **Boletín Oficial de la Provincia** | Sociedades nuevas (SA, SRL, SAS…) y compras de fondos de comercio por una sociedad | PDF de la Sección Oficial de cada día hábil, en [boletinoficial.gba.gob.ar](https://boletinoficial.gba.gob.ar). |
 
+**Sector, rubro y ramos** (`src/fuentes/clasificacion.ts`). El sector sale de
+palabras clave del objeto social o de lo que se licitó, más la razón social.
+El rubro que se muestra es la actividad que justifica ese sector (en comercio,
+el rubro que trae la fuente). Transporte se separa en cuatro tipos, según la
+primera actividad que menciona el texto:
+
+| Tipo | Ramos sugeridos |
+|---|---|
+| Carga (fletes, logística, residuos…) | Flota, Carga, RC, ART |
+| Pasajeros (remises, colectivos, transporte de personal…) | Flota, RC transporte de personas, AP, ART |
+| Sanitario (ambulancias, traslados de pacientes) | Flota, RC transporte de personas, AP, ART |
+| Escolar | Flota, RC transporte de personas, AP |
+
+En una licitación se suma Caución adelante. Cada lead guarda el texto con que
+se clasificó (`texto_clasificacion`, sin datos de personas). Si cambian las
+reglas, `npm run db:reclasificar` muestra qué cambiaría en los leads ya
+guardados y `npm run db:reclasificar -- --aplicar` lo guarda.
+
 Cada lead guarda una `clave` (empresa + evento) para no cargarse dos veces, y
 la tabla `capturas` recuerda qué versión de cada fuente ya se procesó: si no
 hay nada nuevo, no se descarga nada.
@@ -156,6 +174,7 @@ a mano: `npm run captura`.
 | `npm run lint` | ESLint |
 | `npm test` | Tests unitarios (score, filtros, fechas, sesión, captura de fuentes) |
 | `npm run captura` | Trae leads reales de todas las fuentes (`-- licitaciones` o `-- boletin-oficial` para una sola) |
+| `npm run db:reclasificar` | Muestra cómo cambian sector, rubro, ramos y score de los leads guardados con las reglas actuales (`-- --aplicar` para guardar) |
 | `npm run telefonos` | Busca el teléfono de hasta 30 empresas pendientes (`-- 3` para probar, `-- 400` para todas) |
 | `npm run test:e2e` | Prueba de punta a punta de los flujos (ver abajo) |
 | `npm run db:generate` | Genera una migración a partir de `src/db/schema.ts` |

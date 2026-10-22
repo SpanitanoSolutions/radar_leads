@@ -29,6 +29,13 @@
       "when": 1792691304176,
       "tag": "0003_fecha_evento",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792691655870,
+      "tag": "0004_texto_clasificacion",
+      "breakpoints": true
     }
   ]
 }

@@ -50,6 +50,7 @@ export const RAMOS: Record<string, string> = {
   AP: "Accidentes personales de choferes o pasajeros.",
   Caución: "Garantía que exige la licitación o el contrato.",
   RC: "Responsabilidad civil frente a terceros.",
+  "RC transporte de personas": "Responsabilidad civil hacia los pasajeros o pacientes que se trasladan.",
   "Todo riesgo construcción": "Cubre la obra mientras se construye.",
   "Integral de comercio": "Local, mercadería, incendio y robo.",
   Integral: "Cobertura combinada del establecimiento.",

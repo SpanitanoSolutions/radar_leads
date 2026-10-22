@@ -90,7 +90,9 @@ describe("adjudicaciones de COMPR.AR", () => {
       clave: "comprar:68-0001-LPR26:30-71222454-8",
       empresa: "Senderos de la Costa S.A.",
       cuit: "30-71222454-8",
-      rubro: "Serv. profesional y comercial",
+      rubro: "Construcción", // la actividad que justifica el sector, no el rubro genérico del proveedor
+      textoClasificacion:
+        "REFACCIÓN DE CONTRAPISOS  MUROS Y TABIQUES EN SECTOR ADMINISTRATIVO - INE. SERV. PROFESIONAL Y COMERCIAL",
       localidad: "Mar del Plata",
       zona: "mdp",
       sectorId: "construccion",

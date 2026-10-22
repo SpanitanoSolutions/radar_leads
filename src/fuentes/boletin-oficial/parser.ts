@@ -1,15 +1,14 @@
 import {
   calcularScoreBase,
-  clasificarSector,
+  clasificar,
   esCuitDeEmpresa,
   fechaLegible,
   formatearCuit,
   normalizar,
   oracion,
   quitarDatosPersonales,
-  RAMOS_POR_SECTOR,
+  ramosTransferencia,
   recortar,
-  RUBRO_POR_SECTOR,
   tituloPropio,
 } from "../clasificacion";
 import { buscarLugar, zonaDeLocalidad } from "../localidades";
@@ -241,18 +240,21 @@ export function sociedadALead(aviso: Aviso, edicion: Edicion): LeadCapturado | n
   const localidad = lugar?.nombre ?? "Provincia de Buenos Aires";
   const zona = lugar?.zona ?? "provincia";
   // La razón social también cuenta: "Transporte…", "Construcciones…".
-  const sector = clasificarSector(`${empresa}. ${objeto ?? aviso.texto}`);
+  const c = clasificar(objeto ?? aviso.texto, { nombre: empresa });
+  const sector = c.sector;
   const cuit = /\bCUIT\s*:?\s*(3[034]-?\s?\d{8}-?\s?\d)/.exec(aviso.texto.slice(0, 300));
 
   return {
     clave: `bo-pba:sociedad:${claveDe(empresa)}`,
     empresa,
     cuit: cuit ? formatearCuit(cuit[1]) : null,
-    rubro: RUBRO_POR_SECTOR[sector],
+    rubro: c.rubro,
     localidad,
     zona,
     sectorId: sector,
-    motivo: `Sociedad nueva: ${RUBRO_POR_SECTOR[sector].toLowerCase()}`,
+    // Solo el objeto social: el resto del edicto trae datos de los socios.
+    textoClasificacion: objeto,
+    motivo: `Sociedad nueva: ${c.rubro.toLowerCase()}`,
     descripcion:
       `Publicó su constitución en el Boletín Oficial de la Provincia el ${fechaLegible(edicion.fecha)}` +
       (lugar ? `, con sede en ${localidad}` : "") +
@@ -261,7 +263,7 @@ export function sociedadALead(aviso: Aviso, edicion: Edicion): LeadCapturado | n
     fuente: FUENTE,
     fuenteUrl: edicion.urlOficial,
     fechaEvento: edicion.fecha,
-    ramos: RAMOS_POR_SECTOR[sector],
+    ramos: c.ramos,
     scoreBase: calcularScoreBase("sociedad", { sector, zona }),
   };
 }
@@ -274,17 +276,18 @@ export function transferenciaALead(aviso: Aviso, edicion: Edicion): LeadCapturad
   const localidad = encabezado ? tituloPropio(encabezado) : "Provincia de Buenos Aires";
   const zona = zonaDeLocalidad(localidad);
   const rubro = rubroDeTransferencia(aviso.texto);
-  const sector = clasificarSector(`${empresa}. ${rubro ?? aviso.texto}`);
-  const ramos = RAMOS_POR_SECTOR[sector];
+  const c = clasificar(rubro ?? aviso.texto, { nombre: empresa });
+  const sector = c.sector;
 
   return {
     clave: `bo-pba:transferencia:${claveDe(empresa)}:${claveDe(localidad)}`,
     empresa,
     cuit: comprador.cuit,
-    rubro: rubro ? recortar(rubro, 60) : RUBRO_POR_SECTOR[sector],
+    rubro: rubro ? recortar(rubro, 60) : c.rubro,
     localidad,
     zona,
     sectorId: sector,
+    textoClasificacion: rubro,
     motivo: "Compró un fondo de comercio",
     descripcion:
       `Publicó la compra de un fondo de comercio${rubro ? ` (${recortar(rubro, 120).toLowerCase()})` : ""} en ` +
@@ -293,7 +296,7 @@ export function transferenciaALead(aviso: Aviso, edicion: Edicion): LeadCapturad
     fuente: FUENTE,
     fuenteUrl: edicion.urlOficial,
     fechaEvento: edicion.fecha,
-    ramos: ramos.includes("ART") ? ramos : [...ramos, "ART"],
+    ramos: ramosTransferencia(c),
     scoreBase: calcularScoreBase("transferencia", { sector, zona }),
   };
 }

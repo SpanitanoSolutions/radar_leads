@@ -74,6 +74,11 @@ export const leads = pgTable("leads", {
   ramos: text("ramos").array().notNull(),
   /** Score que asigna la fuente antes de aplicar la prioridad del sector. */
   scoreBase: integer("score_base").notNull(),
+  /**
+   * Texto con que se clasificó el lead (objeto social, objeto de la licitación),
+   * sin datos de personas. Permite reclasificar si cambian las reglas.
+   */
+  textoClasificacion: text("texto_clasificacion"),
   /** Cuándo ocurrió el evento (adjudicación, publicación del edicto), no cuándo lo detectamos. */
   fechaEvento: date("fecha_evento", { mode: "string" }),
   estado: estadoEnum("estado").notNull().default("nuevo"),

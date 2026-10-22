@@ -13,6 +13,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx scripts/seed.ts",
     "db:limpiar-ejemplos": "tsx scripts/limpiar-ejemplos.ts",
+    "db:reclasificar": "tsx scripts/reclasificar.ts",
     "captura": "tsx scripts/capturar.ts",
     "telefonos": "tsx scripts/telefonos.ts",
     "test:e2e": "node e2e/flujos.mjs",

@@ -118,12 +118,13 @@ describe("leads del boletín", () => {
     expect(gobblack).toMatchObject({
       clave: "bo-pba:sociedad:gobblack-sa",
       cuit: null,
-      rubro: "Transporte y logística",
-      motivo: "Sociedad nueva: transporte y logística",
+      // Pasajeros y traslados sanitarios: sin el ramo "Carga".
+      rubro: "Transporte de pasajeros",
+      motivo: "Sociedad nueva: transporte de pasajeros",
       fuente: "Boletín Oficial PBA",
       fuenteUrl: EDICION.urlOficial,
       fechaEvento: "2026-10-22", // fecha de publicación del edicto
-      ramos: ["Flota", "Carga", "ART"],
+      ramos: ["Flota", "RC transporte de personas", "AP", "ART"],
     });
     expect(gobblack.descripcion).toMatch(
       /^Publicó su constitución en el Boletín Oficial de la Provincia el 22\/10\/2026, con sede en Mar del Plata\. .* Objeto: Transporte de pasajeros/,
