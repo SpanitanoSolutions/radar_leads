@@ -177,7 +177,7 @@ export function adjudicacionALead(
     fuenteUrl: URL_BUSCAR_PROCESO,
     fuenteReferencia:
       `Proceso N° ${adj.proceso} (${adj.procedimiento.toLowerCase()}), adjudicado el ${fechaLegible(adj.fecha)}. ` +
-      `En COMPR.AR: "Buscar procesos" → número de proceso. Datos abiertos de datos.gob.ar (CC BY 4.0).`,
+      `En COMPR.AR, buscá ese número en "Buscar procesos". Datos abiertos de datos.gob.ar (CC BY 4.0).`,
     alcanceLicitacion: "nacional",
     fechaEvento: adj.fecha,
     ramos: ramosLicitacion(c),

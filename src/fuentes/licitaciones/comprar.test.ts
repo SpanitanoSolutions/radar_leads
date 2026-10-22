@@ -105,8 +105,8 @@ describe("adjudicaciones de COMPR.AR", () => {
       // Sin enlace público por número de proceso: buscador de COMPR.AR y qué buscar.
       fuenteUrl: "https://comprar.gob.ar/BuscarAvanzado.aspx",
       fuenteReferencia:
-        'Proceso N° 68-0001-LPR26 (licitacion privada), adjudicado el 22/06/2026. En COMPR.AR: "Buscar procesos" → ' +
-        "número de proceso. Datos abiertos de datos.gob.ar (CC BY 4.0).",
+        'Proceso N° 68-0001-LPR26 (licitacion privada), adjudicado el 22/06/2026. En COMPR.AR, buscá ese número en "Buscar procesos". ' +
+        "Datos abiertos de datos.gob.ar (CC BY 4.0).",
       alcanceLicitacion: "nacional",
       fechaEvento: "2026-06-22", // la fecha de adjudicación, no la de captura
       ramos: ["Caución", "RC", "ART", "Todo riesgo construcción"],

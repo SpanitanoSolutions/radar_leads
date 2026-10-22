@@ -4,7 +4,7 @@ UPDATE "leads" SET
   "fuente_url" = 'https://comprar.gob.ar/BuscarAvanzado.aspx',
   "fuente_referencia" = 'Proceso N° ' || split_part("clave", ':', 2)
     || CASE WHEN "fecha_evento" IS NULL THEN '' ELSE ', adjudicado el ' || to_char("fecha_evento", 'DD/MM/YYYY') END
-    || '. En COMPR.AR: "Buscar procesos" → número de proceso. Datos abiertos de datos.gob.ar (CC BY 4.0).'
+    || '. En COMPR.AR, buscá ese número en "Buscar procesos". Datos abiertos de datos.gob.ar (CC BY 4.0).'
 WHERE "clave" LIKE 'comprar:%' AND "fuente_referencia" IS NULL;--> statement-breakpoint
 -- Avisos del Boletín capturados antes de guardar la página: fecha y sección.
 UPDATE "leads" SET
