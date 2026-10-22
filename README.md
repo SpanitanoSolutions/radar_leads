@@ -131,6 +131,22 @@ localidad, el objeto o rubro y el CUIT de la sociedad, nunca socios, DNI ni domi
   La página **Resultados** muestra contactados, reuniones, cierres, comisión y
   conversión por fuente y por sector.
 
+## Resumen diario
+
+A las 8 (hora argentina) `/api/cron/resumen` arma el resumen del día: los 5
+mejores leads sin contactar (primero los detectados en las últimas 24 horas),
+con motivo, teléfono y guion, más los recordatorios de hoy y los vencidos. Los
+recordatorios que se cargan en la ficha y los "Para después" entran acá.
+
+- Se envía por email con [Resend](https://resend.com) si están
+  `RESEND_API_KEY` y `RESUMEN_EMAIL_DESTINO` (uno o varios, separados por
+  coma). Sin un dominio verificado en Resend, el remitente por defecto
+  (`onboarding@resend.dev`) solo entrega al email de la cuenta de Resend;
+  con dominio propio, cargá `RESUMEN_EMAIL_REMITENTE`.
+- Sin key, el resumen solo se arma y se ve en **Resumen del día** (`/resumen`).
+- Para sumar WhatsApp: otro canal que implemente `CanalResumen` en
+  `src/resumen/canales.ts` (la versión en texto, `resumenEnTexto`, ya está).
+
 ## Cómo se calcula el score
 
 Cada fuente asigna un `score_base` (0–95) según qué tan urgente es la
@@ -200,13 +216,14 @@ Si cambias `SESSION_SECRET`, todas las sesiones abiertas se cierran.
 
 ### Captura diaria (Vercel Cron)
 
-`vercel.json` programa tres ejecuciones por día, en hora argentina:
+`vercel.json` programa cuatro ejecuciones por día, en hora argentina:
 
 | Hora | Endpoint |
 |---|---|
 | 05:00 | `/api/cron/captura/licitaciones` |
 | 06:00 | `/api/cron/captura/boletin-oficial` |
 | 07:00 | `/api/cron/telefonos` |
+| 08:00 | `/api/cron/resumen` |
 
 Vercel las llama con `Authorization: Bearer <CRON_SECRET>`. Sin esa clave el
 endpoint responde 401. En el plan Hobby, Vercel puede correrlas en cualquier

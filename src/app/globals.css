@@ -940,3 +940,20 @@ textarea.campo {
   color: #5e5e5e;
   white-space: nowrap;
 }
+
+.item-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0;
+  border-top: 1px solid var(--borde-suave);
+}
+.item-resumen:first-of-type {
+  border-top: none;
+}
+.item-resumen .guion {
+  margin: 4px 0;
+}
+.item-resumen .boton {
+  align-self: flex-start;
+}
