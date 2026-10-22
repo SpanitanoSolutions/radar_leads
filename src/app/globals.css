@@ -924,3 +924,19 @@ textarea.campo {
 .estados > .desplegable[open] {
   flex-basis: 100%;
 }
+
+/* Contenido de Google Maps: separado del resto y con su atribución (políticas de Places API). */
+.contenido-google {
+  border-color: var(--borde-campo);
+}
+.atribucion-google {
+  justify-content: space-between;
+  margin: 12px 0 0;
+}
+.GMP-attribution {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #5e5e5e;
+  white-space: nowrap;
+}

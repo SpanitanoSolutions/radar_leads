@@ -101,6 +101,14 @@ export const leads = pgTable("leads", {
   telefonoFuente: text("telefono_fuente"),
   /** Cuándo se buscó el teléfono (aunque no se haya encontrado): no se vuelve a buscar. */
   telefonoBuscadoEl: timestamp("telefono_buscado_el", { withTimezone: true }),
+  /**
+   * Google Maps: solo el place ID se puede guardar (términos de Places API);
+   * teléfono, web y dirección se piden al mostrar la ficha.
+   */
+  placeId: text("place_id"),
+  /** "verificado", "posible" o "sin-resultado" (se buscó y no hubo coincidencia). */
+  contactoEstado: text("contacto_estado"),
+  contactoBuscadoEl: timestamp("contacto_buscado_el", { withTimezone: true }),
   domicilio: text("domicilio"),
   artActual: text("art_actual"),
   deudaBcra: text("deuda_bcra"),

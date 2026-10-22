@@ -55,6 +55,9 @@ const lead = (extra: Partial<Lead>): Lead => ({
   telefono: null,
   telefonoFuente: null,
   telefonoBuscadoEl: null,
+  placeId: null,
+  contactoEstado: null,
+  contactoBuscadoEl: null,
   domicilio: null,
   artActual: null,
   deudaBcra: null,
@@ -114,6 +117,21 @@ describe("leadsVisibles", () => {
       ["Senderos de la Costa S.A.", 62, 122], // 92 + 5 (prioridad alta) − 35 (más de 90 días)
     ]);
     expect(res[1].ramosOrdenados).toEqual(["RC", "ART", "Caución"]);
+  });
+
+  it("un lead sin forma de contacto baja 10 puntos", () => {
+    const res = leadsVisibles(
+      [
+        lead({ empresa: "sin contacto", scoreBase: 80, contactoEstado: "sin-resultado" }),
+        lead({ empresa: "con teléfono", scoreBase: 80, contactoEstado: "sin-resultado", telefono: "0223 495-1234" }),
+      ],
+      sectores,
+      todoActivo,
+    );
+    expect(res.map((l) => [l.empresa, l.score, l.sinContacto])).toEqual([
+      ["con teléfono", 85],
+      ["sin contacto", 75],
+    ].map(([e, s]) => [e, s, e === "sin contacto"]));
   });
 
   it("oculta sectores inactivos, zonas apagadas y descartados", () => {

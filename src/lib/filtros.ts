@@ -1,4 +1,5 @@
 import type { Ajustes, Lead, Sector, Zona } from "@/db/schema";
+import { PENALIZACION_SIN_CONTACTO, sinContacto } from "./contacto";
 import { diasDesde, penalizacionPorAntiguedad, ramosSugeridos, tipoDeEvento, type TipoEvento } from "./evento";
 import { nivelScore, scoreFinal, type NivelScore } from "./score";
 
@@ -11,19 +12,24 @@ export type LeadConScore = Lead & {
   diasEvento: number | null;
   /** Ramos en el orden en que conviene ofrecerlos hoy. */
   ramosOrdenados: string[];
+  /** No se encontró cómo contactarla (ver lib/contacto.ts). */
+  sinContacto: boolean;
 };
 
-/** Score de un lead hoy: score base, prioridad del sector y antigüedad del evento. */
+/** Score de un lead hoy: score base, prioridad del sector, antigüedad del evento y si hay cómo contactarlo. */
 export function puntuarLead(lead: Lead, sector: Sector, ahora: Date = new Date()) {
   const tipoEvento = tipoDeEvento(lead);
   const diasEvento = lead.fechaEvento ? diasDesde(lead.fechaEvento, ahora) : null;
-  const score = scoreFinal(lead.scoreBase, sector.prioridad, penalizacionPorAntiguedad(tipoEvento, diasEvento));
+  const contactoPerdido = sinContacto(lead);
+  const ajuste = penalizacionPorAntiguedad(tipoEvento, diasEvento) + (contactoPerdido ? PENALIZACION_SIN_CONTACTO : 0);
+  const score = scoreFinal(lead.scoreBase, sector.prioridad, ajuste);
   return {
     score,
     nivel: nivelScore(score),
     tipoEvento,
     diasEvento,
     ramosOrdenados: ramosSugeridos(lead.ramos, tipoEvento, diasEvento),
+    sinContacto: contactoPerdido,
   };
 }
 

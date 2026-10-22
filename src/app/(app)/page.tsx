@@ -4,6 +4,7 @@ import { nombreEstado, ZONAS } from "@/lib/catalogos";
 import { obtenerAjustes, obtenerLeads, obtenerSectores } from "@/lib/datos";
 import { etiquetaEvento } from "@/lib/evento";
 import { MOTIVOS_DESCARTE } from "@/lib/cierre";
+import { busquedaManual, enlaceTelefono } from "@/lib/contacto";
 import { diaEnArgentina, diaYMes, fechaLarga, haceCuanto } from "@/lib/fechas";
 import {
   aplicarFiltros,
@@ -189,12 +190,19 @@ export default async function LeadsDelDia({
                       {l.rubro} · {l.localidad}
                     </div>
                     {l.telefono && (
+                      <a href={enlaceTelefono(l.telefono)} className="celda-secundaria" style={{ display: "block" }}>
+                        {l.telefono}
+                      </a>
+                    )}
+                    {l.sinContacto && (
                       <a
-                        href={`tel:${l.telefono.replace(/[^\d+]/g, "")}`}
+                        href={busquedaManual(l.empresa, l.localidad)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="celda-secundaria"
                         style={{ display: "block" }}
                       >
-                        {l.telefono}
+                        Sin contacto encontrado · buscar
                       </a>
                     )}
                   </td>

@@ -10,6 +10,8 @@ import { BotonCopiar } from "@/components/BotonCopiar";
 import { MOTIVOS_DESCARTE, nombreMotivo } from "@/lib/cierre";
 import { guionContacto } from "@/lib/guion";
 import { pesos } from "@/lib/formato";
+import { busquedaManual, dominioDe, enlaceTelefono, enlaceWhatsApp } from "@/lib/contacto";
+import { contactoDeLugar, type ContactoGoogle } from "@/fuentes/enriquecimiento/places";
 import { cambiarEstado, cerrarLead, descartarLead, guardarSeguimiento } from "../../actions";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
@@ -35,7 +37,8 @@ export default async function FichaLead({
   const { lead, sector } = datos;
   const guardado = (await searchParams).guardado === "1";
 
-  const { score, nivel, tipoEvento, diasEvento, ramosOrdenados } = puntuarLead(lead, sector);
+  const { score, nivel, tipoEvento, diasEvento, ramosOrdenados, sinContacto } = puntuarLead(lead, sector);
+  const google = await contactoGoogle(lead.placeId);
   const caucionAlFinal = ramosOrdenados.length > 1 && ramosOrdenados.at(-1) === "Caución";
   const guion = guionContacto({
     empresa: lead.empresa,
@@ -47,7 +50,9 @@ export default async function FichaLead({
     diasEvento,
     productor: process.env.NOMBRE_PRODUCTOR,
   });
-  const telefono = lead.telefono?.replace(/[^\d+]/g, "");
+  // Teléfono: el de Google Maps (en vivo) o el que la empresa publica en su web.
+  const telefono = google?.telefono ?? lead.telefono;
+  const whatsapp = enlaceWhatsApp(google?.telefonoInternacional ?? lead.telefono ?? "", guion);
 
   return (
     <>
@@ -80,15 +85,25 @@ export default async function FichaLead({
         </div>
         <div className="fila-acciones">
           {telefono ? (
-            <a href={`tel:${telefono}`} className="boton boton-primario">
+            <a href={enlaceTelefono(telefono)} className="boton boton-primario">
               <IconoTelefono />
               Llamar
             </a>
           ) : (
-            <span className="boton" aria-disabled="true" title="Todavía no hay teléfono cargado">
+            <a
+              href={busquedaManual(lead.empresa, lead.localidad)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="boton"
+            >
               <IconoTelefono />
-              Sin teléfono
-            </span>
+              Buscar teléfono en Google
+            </a>
+          )}
+          {whatsapp && (
+            <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="boton">
+              WhatsApp
+            </a>
           )}
         </div>
       </header>
@@ -318,7 +333,60 @@ export default async function FichaLead({
               <dt>Fuente</dt>
               <dd>{lead.fuente}</dd>
             </dl>
+            {sinContacto && (
+              <p className="nota-info">
+                Sin contacto encontrado.{" "}
+                <a href={busquedaManual(lead.empresa, lead.localidad)} target="_blank" rel="noopener noreferrer">
+                  Buscarlo en Google
+                </a>
+              </p>
+            )}
           </section>
+
+          {google && (
+            <section className="tarjeta tarjeta-padding contenido-google" aria-labelledby="t-google">
+              <h2 id="t-google" className="titulo-seccion">
+                Contacto{" "}
+                <span className={`pastilla ${lead.contactoEstado === "verificado" ? "pastilla-verde" : "pastilla-ambar"}`}>
+                  {lead.contactoEstado === "verificado" ? "Contacto verificado" : "Posible coincidencia"}
+                </span>
+              </h2>
+              <dl className="datos">
+                {google.nombre && (
+                  <>
+                    <dt>Nombre</dt>
+                    <dd>{google.nombre}</dd>
+                  </>
+                )}
+                <dt>Teléfono</dt>
+                <dd>{google.telefono ? <a href={enlaceTelefono(google.telefono)}>{google.telefono}</a> : <SinDato />}</dd>
+                <dt>Web</dt>
+                <dd>
+                  {google.web ? (
+                    <a href={google.web} target="_blank" rel="noopener noreferrer">
+                      {dominioDe(google.web)}
+                    </a>
+                  ) : (
+                    <SinDato />
+                  )}
+                </dd>
+                <dt>Dirección</dt>
+                <dd>{google.direccion ?? <SinDato />}</dd>
+                <dt>Reseñas</dt>
+                <dd>{google.resenas ?? 0}</dd>
+              </dl>
+              <p className="fila-acciones atribucion-google">
+                {google.mapa && (
+                  <a href={google.mapa} target="_blank" rel="noopener noreferrer">
+                    Ver en el mapa
+                  </a>
+                )}
+                <span className="GMP-attribution" translate="no">
+                  Google Maps
+                </span>
+              </p>
+            </section>
+          )}
 
           <section className="tarjeta tarjeta-padding" aria-labelledby="t-cobertura">
             <h2 id="t-cobertura" className="titulo-seccion">Cobertura y riesgo</h2>
@@ -350,6 +418,21 @@ function textoEnlaceFuente(tipo: TipoEvento, url: string): string {
   if (tipo === "licitacion" && url.includes("comprar.gob.ar")) return "Abrir el buscador de COMPR.AR";
   const pagina = /#page=(\d+)/.exec(url);
   return pagina ? `Ver el edicto (página ${pagina[1]})` : "Ver publicación original";
+}
+
+/**
+ * Contacto de Google Maps, pedido cada vez que se abre la ficha: los términos
+ * de Places no permiten guardarlo. Sin key o si Google falla, no se muestra.
+ */
+async function contactoGoogle(placeId: string | null): Promise<ContactoGoogle | null> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!placeId || !apiKey) return null;
+  try {
+    return await contactoDeLugar(placeId, { apiKey });
+  } catch (err) {
+    console.error("Google Maps:", err);
+    return null;
+  }
 }
 
 function SinDato() {

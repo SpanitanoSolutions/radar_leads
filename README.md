@@ -53,6 +53,33 @@ Cada lead guarda una `clave` (empresa + evento) para no cargarse dos veces, y
 la tabla `capturas` recuerda qué versión de cada fuente ya se procesó: si no
 hay nada nuevo, no se descarga nada.
 
+### Contacto en Google Maps
+
+Después de cada captura, `src/fuentes/enriquecimiento` busca cada empresa
+nueva en Google Maps (Places API, Text Search) por razón social y localidad.
+La coincidencia es prudente: solo se acepta si el nombre se parece y la
+dirección está en la misma localidad o partido. Queda como **contacto
+verificado** (casi todo el nombre) o **posible coincidencia** (la mitad); si no,
+como "sin contacto encontrado", con un enlace para buscarla a mano en Google.
+
+- **Qué se guarda:** solo el *place ID* y el grado de coincidencia. Los términos
+  de Google Maps Platform no permiten guardar el teléfono, la dirección, la
+  web ni las reseñas: la ficha los pide a Google (Place Details) cada vez que
+  se abre, con la atribución "Google Maps".
+- **Con teléfono**, la ficha muestra "Llamar" (`tel:`) y, si es un celular,
+  "WhatsApp" con el guion ya escrito.
+- **Sin contacto** (no está en Google Maps ni hay teléfono por otra vía), el
+  lead baja 10 puntos.
+- **Costo:** `PLACES_LIMITE_DIARIO` (50 por defecto) limita las búsquedas por
+  día; cada ficha abierta hace una consulta más. Una empresa con varios leads se
+  busca una sola vez.
+- Requiere `GOOGLE_PLACES_API_KEY`. Sin ella no busca nada y lo deja registrado
+  en la tabla `capturas` (fuente `contactos-google`).
+
+> **Antes de llamar en frío:** verificá que el número no esté inscripto en el
+> [Registro Nacional No Llame](https://nollame.aaip.gob.ar) (Ley 26.951). Llamar
+> con fines comerciales a un número inscripto puede generar multas.
+
 ### Teléfonos
 
 Después de cada captura, Claude (`claude-haiku-5-5` con búsqueda web) busca
@@ -132,6 +159,9 @@ recalcula solo cada día (`src/lib/evento.ts`):
 Pasados 30 días de una adjudicación la garantía ya se presentó: la caución deja
 de ser el primer ramo sugerido y pasa al final. La lista y la ficha muestran
 "Adjudicada hace X" o "Publicado hace X", y la fecha de detección como dato secundario.
+
+**Sin contacto.** Un lead que no aparece en Google Maps y del que no hay
+teléfono por otra vía baja 10 puntos (`src/lib/contacto.ts`).
 
 ## Stack
 
