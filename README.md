@@ -131,6 +131,19 @@ localidad, el objeto o rubro y el CUIT de la sociedad, nunca socios, DNI ni domi
   La página **Resultados** muestra contactados, reuniones, cierres, comisión y
   conversión por fuente y por sector.
 
+## Mi cartera
+
+En **Mi cartera** (`/cartera`) se sube la planilla de clientes actuales en
+CSV (desde Excel: Guardar como → CSV). Reconoce las columnas Cliente, CUIT,
+Ramo (uno o varios por celda), Compañía y Vencimiento, y muestra:
+
+- las pólizas que vencen en los próximos 60 días, de la más cercana a la más lejana;
+- los clientes con un solo ramo (juntando sus pólizas por CUIT) y qué ofrecerles.
+
+**El archivo se analiza en el momento y no se guarda**: la cartera tiene datos
+de personas (Ley 25.326). Pendiente, si se decide guardarla: sumar los
+vencimientos al resumen diario y aceptar archivos `.xlsx` directamente.
+
 ## Resumen diario
 
 A las 8 (hora argentina) `/api/cron/resumen` arma el resumen del día: los 5
