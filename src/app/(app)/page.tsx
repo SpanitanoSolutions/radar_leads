@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { IconoEstrella, IconoUbicacion } from "@/components/iconos";
 import { nombreEstado, ZONAS } from "@/lib/catalogos";
-import { obtenerAjustes, obtenerLeads, obtenerSectores } from "@/lib/datos";
+import { cuitsDeClientes, yaEsCliente } from "@/lib/cartera";
+import { obtenerAjustes, obtenerCuitsDeCartera, obtenerLeads, obtenerSectores } from "@/lib/datos";
 import { etiquetaEvento } from "@/lib/evento";
 import { MOTIVOS_DESCARTE } from "@/lib/cierre";
 import { busquedaManual, enlaceTelefono } from "@/lib/contacto";
@@ -37,11 +38,13 @@ export default async function LeadsDelDia({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const filtros = leerFiltros(await searchParams);
-  const [sectores, ajustes, todos] = await Promise.all([
+  const [sectores, ajustes, todos, cuitsCartera] = await Promise.all([
     obtenerSectores(),
     obtenerAjustes(),
     obtenerLeads(),
+    obtenerCuitsDeCartera(),
   ]);
+  const clientes = cuitsDeClientes(cuitsCartera);
 
   const visibles = leadsVisibles(todos, sectores, ajustes);
   const hoy = diaEnArgentina(new Date());
@@ -185,7 +188,10 @@ export default async function LeadsDelDia({
                     </span>
                   </td>
                   <td>
-                    <div className="celda-principal">{l.empresa}</div>
+                    <div className="celda-principal">
+                      {l.empresa}
+                      {yaEsCliente(l.cuit, clientes) && <span className="pastilla pastilla-verde"> Ya es cliente</span>}
+                    </div>
                     <div className="celda-secundaria">
                       {l.rubro} · {l.localidad}
                     </div>

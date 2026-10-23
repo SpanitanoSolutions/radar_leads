@@ -6,7 +6,7 @@ import { enlaceTelefono } from "@/lib/contacto";
 import { diaYMes, fechaLarga, haceCuanto } from "@/lib/fechas";
 import { resumenDeHoy, FUENTE_RESUMEN } from "@/resumen";
 import { canalesDisponibles } from "@/resumen/canales";
-import type { ItemResumen } from "@/resumen/armar";
+import { cuandoVence, DIAS_VENCIMIENTOS, type ItemResumen } from "@/resumen/armar";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
 export const instant = false;
@@ -71,6 +71,29 @@ export default async function ResumenDelDia() {
           <p className="vacio">No hay recordatorios para hoy.</p>
         )}
       </section>
+
+      {resumen.vencimientos.length > 0 && (
+        <section className="tarjeta tarjeta-padding" aria-labelledby="t-vencimientos">
+          <h2 id="t-vencimientos" className="titulo-seccion">
+            Vencimientos de la cartera
+          </h2>
+          <ul className="lista-vencimientos">
+            {resumen.vencimientos.map((v, i) => (
+              <li key={`${v.cliente}-${i}`}>
+                <span className="celda-principal">{v.cliente}</span> · {v.ramos.join(", ")}
+                {v.compania && ` · ${v.compania}`}{" "}
+                <span className={`pastilla ${v.dias <= 7 ? "pastilla-ambar" : "pastilla-gris"}`}>{cuandoVence(v)}</span>
+              </li>
+            ))}
+          </ul>
+          {resumen.vencimientosTotal > resumen.vencimientos.length && (
+            <p className="nota-info">
+              Y {resumen.vencimientosTotal - resumen.vencimientos.length} más en los próximos {DIAS_VENCIMIENTOS} días:{" "}
+              <Link href="/cartera">ver Mi cartera</Link>.
+            </p>
+          )}
+        </section>
+      )}
     </>
   );
 }

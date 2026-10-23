@@ -144,3 +144,47 @@ describe("canales del resumen", () => {
     expect(urlDeLaApp({})).toBe("");
   });
 });
+
+describe("vencimientos de la cartera en el resumen", () => {
+  const poliza = (cliente: string, vencimiento: string | null, ramos = ["Auto"]) => ({
+    cliente,
+    cuit: null,
+    ramos,
+    compania: "Compañía A",
+    vencimiento,
+  });
+  const cartera = [
+    poliza("Cliente lejos", "2026-12-30"), // fuera de los 30 días
+    poliza("Cliente mañana", "2026-10-24", ["Flota", "ART"]),
+    poliza("Cliente hoy", HOY),
+    poliza("Cliente vencido", "2026-10-01"), // ya venció: no entra
+    poliza("Cliente sin fecha", null),
+    ...Array.from({ length: 12 }, (_, i) => poliza(`Cliente ${i}`, `2026-11-${String(i + 1).padStart(2, "0")}`)),
+  ];
+  const r = armarResumen([], { dia: HOY, ahora: AHORA, cartera });
+
+  it("los de los próximos 30 días, el más cercano primero, hasta 10", () => {
+    expect(r.vencimientosTotal).toBe(14);
+    expect(r.vencimientos).toHaveLength(10);
+    expect(r.vencimientos.slice(0, 3).map((v) => [v.cliente, v.dias])).toEqual([
+      ["Cliente hoy", 0],
+      ["Cliente mañana", 1],
+      ["Cliente 0", 9],
+    ]);
+  });
+
+  it("aparecen en el título, el texto y el HTML del email", () => {
+    expect(tituloResumen({ ...r, recordatorios: [] })).toBe("Radar de leads · 23/10: 0 leads para hoy y 14 vencimientos");
+    const texto = resumenEnTexto(r);
+    expect(texto).toContain("VENCIMIENTOS DE LA CARTERA");
+    expect(texto).toContain("• Cliente hoy · Auto · Compañía A · Vence hoy");
+    expect(texto).toContain("• Cliente mañana · Flota, ART · Compañía A · Vence mañana");
+    expect(texto).toContain("y 4 más en los próximos 30 días (ver Mi cartera)");
+    expect(resumenEnHtml(r)).toContain("Vencimientos de la cartera");
+  });
+
+  it("título con leads, recordatorios y vencimientos", () => {
+    const completo = { ...r, mejores: r.mejores, recordatorios: [{} as never, {} as never] };
+    expect(tituloResumen(completo)).toBe("Radar de leads · 23/10: 0 leads para hoy, 2 recordatorios y 14 vencimientos");
+  });
+});

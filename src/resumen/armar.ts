@@ -1,3 +1,4 @@
+import { proximosVencimientos, type Poliza } from "@/lib/cartera";
 import { etiquetaEvento } from "@/lib/evento";
 import { diaYMes } from "@/lib/fechas";
 import { estaPospuesto, type LeadConScore } from "@/lib/filtros";
@@ -7,6 +8,9 @@ import { guionContacto } from "@/lib/guion";
 // recordatorios que vencen. Funciones puras: el cron lo envía y /resumen lo muestra.
 
 export const CANTIDAD_MEJORES = 5;
+/** Vencimientos de la cartera que entran al resumen: los de los próximos 30 días, hasta 10. */
+export const DIAS_VENCIMIENTOS = 30;
+export const CANTIDAD_VENCIMIENTOS = 10;
 
 export type ItemResumen = {
   id: number;
@@ -22,11 +26,17 @@ export type ItemResumen = {
 
 export type Recordatorio = ItemResumen & { fecha: string; vencido: boolean; nota: string | null };
 
+export type Vencimiento = Pick<Poliza, "cliente" | "ramos" | "compania"> & { vencimiento: string; dias: number };
+
 export type Resumen = {
   /** AAAA-MM-DD en Argentina. */
   dia: string;
   mejores: ItemResumen[];
   recordatorios: Recordatorio[];
+  /** Pólizas de la cartera que vencen pronto (las más cercanas). */
+  vencimientos: Vencimiento[];
+  /** Cuántas vencen en los próximos DIAS_VENCIMIENTOS días en total. */
+  vencimientosTotal: number;
 };
 
 const UN_DIA_MS = 86_400_000;
@@ -62,7 +72,12 @@ function item(l: LeadConScore, ahora: Date, productor?: string): ItemResumen {
  */
 export function armarResumen(
   visibles: LeadConScore[],
-  { dia, ahora = new Date(), productor }: { dia: string; ahora?: Date; productor?: string },
+  {
+    dia,
+    ahora = new Date(),
+    productor,
+    cartera = [],
+  }: { dia: string; ahora?: Date; productor?: string; cartera?: Poliza[] },
 ): Resumen {
   const mejores = visibles
     .filter((l) => l.estado === "nuevo" && !estaPospuesto(l, dia) && !(l.recordatorio && l.recordatorio <= dia))
@@ -80,13 +95,40 @@ export function armarResumen(
       nota: l.nota,
     }));
 
-  return { dia, mejores, recordatorios };
+  const proximos = proximosVencimientos(cartera, dia, DIAS_VENCIMIENTOS);
+  const vencimientos = proximos.slice(0, CANTIDAD_VENCIMIENTOS).map((p) => ({
+    cliente: p.cliente,
+    ramos: p.ramos,
+    compania: p.compania,
+    vencimiento: p.vencimiento!,
+    dias: p.dias,
+  }));
+
+  return { dia, mejores, recordatorios, vencimientos, vencimientosTotal: proximos.length };
 }
 
 export function tituloResumen(r: Resumen): string {
   const partes = [`${r.mejores.length} leads para hoy`];
   if (r.recordatorios.length) partes.push(`${r.recordatorios.length} recordatorio${r.recordatorios.length > 1 ? "s" : ""}`);
-  return `Radar de leads · ${diaYMes(r.dia)}: ${partes.join(" y ")}`;
+  if (r.vencimientosTotal) partes.push(`${r.vencimientosTotal} vencimiento${r.vencimientosTotal > 1 ? "s" : ""}`);
+  const lista = partes.length > 1 ? `${partes.slice(0, -1).join(", ")} y ${partes.at(-1)}` : partes[0];
+  return `Radar de leads · ${diaYMes(r.dia)}: ${lista}`;
+}
+
+/** "Vence hoy", "Vence mañana", "Vence en 12 días (04/11)". */
+export function cuandoVence(v: Pick<Vencimiento, "dias" | "vencimiento">): string {
+  if (v.dias === 0) return "Vence hoy";
+  if (v.dias === 1) return "Vence mañana";
+  return `Vence en ${v.dias} días (${diaYMes(v.vencimiento)})`;
+}
+
+function lineaVencimiento(v: Vencimiento): string {
+  return `${v.cliente} · ${v.ramos.join(", ") || "sin ramo"}${v.compania ? ` · ${v.compania}` : ""} · ${cuandoVence(v)}`;
+}
+
+function masVencimientos(r: Resumen): string | null {
+  const resto = r.vencimientosTotal - r.vencimientos.length;
+  return resto > 0 ? `y ${resto} más en los próximos ${DIAS_VENCIMIENTOS} días (ver Mi cartera)` : null;
 }
 
 function escapar(texto: string): string {
@@ -116,6 +158,11 @@ export function resumenEnTexto(r: Resumen, baseUrl = ""): string {
       bloques.push(`${linea(rec)}\n  ${rec.vencido ? `Vencido (era para el ${diaYMes(rec.fecha)})` : "Para hoy"}${rec.nota ? ` · Nota: ${rec.nota}` : ""}`);
     }
   }
+  if (r.vencimientos.length) {
+    bloques.push("", "VENCIMIENTOS DE LA CARTERA", ...r.vencimientos.map((v) => `• ${lineaVencimiento(v)}`));
+    const mas = masVencimientos(r);
+    if (mas) bloques.push(mas);
+  }
   return bloques.join("\n");
 }
 
@@ -143,5 +190,12 @@ export function resumenEnHtml(r: Resumen, baseUrl = ""): string {
     <h2 style="font-size:16px;margin:16px 0 8px">Los mejores para llamar hoy</h2>
     ${r.mejores.map((i) => tarjeta(i)).join("") || "<p>No hay leads nuevos sin contactar.</p>"}
     ${recordatorios ? `<h2 style="font-size:16px;margin:16px 0 8px">Recordatorios</h2>${recordatorios}` : ""}
+    ${
+      r.vencimientos.length
+        ? `<h2 style="font-size:16px;margin:16px 0 8px">Vencimientos de la cartera</h2><ul style="padding-left:18px;margin:0">${r.vencimientos
+            .map((v) => `<li style="margin:0 0 4px">${escapar(lineaVencimiento(v))}</li>`)
+            .join("")}</ul>${masVencimientos(r) ? `<p style="color:#5b6472">${escapar(masVencimientos(r)!)}</p>` : ""}`
+        : ""
+    }
   </body></html>`;
 }

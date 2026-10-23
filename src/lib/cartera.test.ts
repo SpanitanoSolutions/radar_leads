@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { analizarCartera, leerCartera, leerFecha, sugerenciasParaRamo } from "./cartera";
+import {
+  analizarCartera,
+  cuitsDeClientes,
+  leerCartera,
+  leerFecha,
+  proximosVencimientos,
+  sugerenciasParaRamo,
+  yaEsCliente,
+} from "./cartera";
 
 // Planilla de ejemplo con datos inventados, como la exporta Excel (separada por ";").
 const CSV = [
@@ -68,5 +76,25 @@ describe("analizarCartera", () => {
     expect(sugerenciasParaRamo("FLOTA")).toEqual(["ART", "RC", "Carga"]);
     expect(sugerenciasParaRamo("Seguro de caución")).toEqual(["RC", "ART", "Todo riesgo construcción"]);
     expect(sugerenciasParaRamo("Otro")).toEqual(["ART", "RC", "Accidentes personales"]);
+  });
+});
+
+describe("cartera guardada", () => {
+  it("vencimientos próximos para el resumen: dentro del plazo, el más cercano primero", async () => {
+    const { polizas } = await leerCartera(CSV);
+    expect(proximosVencimientos(polizas, "2026-10-22", 30).map((p) => [p.cliente, p.dias])).toEqual([
+      ["Cliente Uno", 8],
+      ["Transportes Ejemplo SRL", 24],
+    ]);
+    expect(proximosVencimientos(polizas, "2026-10-22", 5)).toEqual([]);
+  });
+
+  it("reconoce los leads que ya son clientes por CUIT, con o sin guiones", async () => {
+    const { polizas } = await leerCartera(CSV);
+    const clientes = cuitsDeClientes(polizas);
+    expect(yaEsCliente("30-11111111-1", clientes)).toBe(true);
+    expect(yaEsCliente("30111111111", clientes)).toBe(true);
+    expect(yaEsCliente("30-99999999-9", clientes)).toBe(false);
+    expect(yaEsCliente(null, clientes)).toBe(false);
   });
 });

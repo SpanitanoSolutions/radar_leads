@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconoAtras, IconoDocumento, IconoEstrella, IconoTelefono } from "@/components/iconos";
 import { ESTADOS, RAMOS, URL_CONSULTA_ART } from "@/lib/catalogos";
-import { obtenerLead } from "@/lib/datos";
+import { cuitsDeClientes, yaEsCliente } from "@/lib/cartera";
+import { obtenerCuitsDeCartera, obtenerLead } from "@/lib/datos";
 import { DIAS_CAUCION_URGENTE, etiquetaEvento, type TipoEvento } from "@/lib/evento";
 import { haceCuanto } from "@/lib/fechas";
 import { puntuarLead } from "@/lib/filtros";
@@ -32,9 +33,11 @@ export default async function FichaLead({
 }) {
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
-  const datos = await obtenerLead(id);
+  const [datos, cuitsCartera] = await Promise.all([obtenerLead(id), obtenerCuitsDeCartera()]);
   if (!datos) notFound();
   const { lead, sector } = datos;
+  // Si ya es cliente de la cartera, no es una llamada en frío.
+  const esCliente = yaEsCliente(lead.cuit, cuitsDeClientes(cuitsCartera));
   const guardado = (await searchParams).guardado === "1";
 
   const { score, nivel, tipoEvento, diasEvento, ramosOrdenados, sinContacto } = puntuarLead(lead, sector);
@@ -80,6 +83,7 @@ export default async function FichaLead({
                 {lead.rubro} · {lead.localidad}
               </span>
               {lead.esEjemplo && <span className="pastilla pastilla-ambar">Ejemplo</span>}
+              {esCliente && <span className="pastilla pastilla-verde">Ya es cliente</span>}
             </div>
           </div>
         </div>

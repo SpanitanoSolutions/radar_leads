@@ -1,18 +1,22 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { db, schema } from "@/db";
 import { requerirSesion } from "@/lib/auth";
-import { analizarCartera, leerCartera, type AnalisisCartera } from "@/lib/cartera";
-import { diaEnArgentina } from "@/lib/fechas";
+import { leerCartera } from "@/lib/cartera";
 
-export type EstadoCartera = { analisis?: AnalisisCartera; avisos?: string[]; error?: string };
+export type EstadoCartera = { guardadas?: number; avisos?: string[]; error?: string };
 
 const TAMANO_MAXIMO = 2 * 1024 * 1024;
 
-/**
- * Analiza el CSV de la cartera y devuelve el resultado. No guarda nada: la
- * cartera tiene datos de personas (Ley 25.326) y solo se usa en el momento.
- */
-export async function analizarArchivoCartera(_previo: EstadoCartera, formData: FormData): Promise<EstadoCartera> {
+function revalidarCartera() {
+  revalidatePath("/cartera");
+  revalidatePath("/resumen");
+  revalidatePath("/", "layout"); // los leads marcan "Ya es cliente"
+}
+
+/** Lee el CSV de la cartera y reemplaza la que estaba guardada. */
+export async function guardarCartera(_previo: EstadoCartera, formData: FormData): Promise<EstadoCartera> {
   await requerirSesion();
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) return { error: "Elegí un archivo CSV." };
@@ -27,5 +31,20 @@ export async function analizarArchivoCartera(_previo: EstadoCartera, formData: F
 
   const { polizas, avisos } = await leerCartera(texto);
   if (polizas.length === 0) return { error: avisos[0] ?? "El archivo no tiene filas con clientes.", avisos };
-  return { analisis: analizarCartera(polizas, diaEnArgentina(new Date())), avisos: avisos.slice(0, 10) };
+
+  await db.transaction(async (tx) => {
+    await tx.delete(schema.cartera);
+    for (let i = 0; i < polizas.length; i += 500) {
+      await tx.insert(schema.cartera).values(polizas.slice(i, i + 500));
+    }
+  });
+  revalidarCartera();
+  return { guardadas: polizas.length, avisos: avisos.slice(0, 10) };
+}
+
+/** Borra toda la cartera guardada. */
+export async function borrarCartera() {
+  await requerirSesion();
+  await db.delete(schema.cartera);
+  revalidarCartera();
 }

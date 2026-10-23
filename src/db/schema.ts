@@ -126,6 +126,21 @@ export const leads = pgTable("leads", {
     .defaultNow(),
 });
 
+/**
+ * Cartera de clientes actuales del productor, tal como la subió en /cartera
+ * (cada planilla nueva reemplaza la anterior). Tiene datos de personas: solo se
+ * usa dentro de la app, detrás del login.
+ */
+export const cartera = pgTable("cartera", {
+  id: serial("id").primaryKey(),
+  cliente: text("cliente").notNull(),
+  cuit: text("cuit"),
+  ramos: text("ramos").array().notNull(),
+  compania: text("compania"),
+  vencimiento: date("vencimiento", { mode: "string" }),
+  cargadoEl: timestamp("cargado_el", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Última ejecución de cada fuente de captura y la versión de datos que procesó. */
 export const capturas = pgTable("capturas", {
   fuente: text("fuente").primaryKey(),
@@ -141,3 +156,4 @@ export type Lead = typeof leads.$inferSelect;
 export type NuevoLead = typeof leads.$inferInsert;
 export type Ajustes = typeof ajustes.$inferSelect;
 export type Captura = typeof capturas.$inferSelect;
+export type PolizaGuardada = typeof cartera.$inferSelect;

@@ -28,6 +28,17 @@ export async function obtenerLeads() {
   return db.select().from(schema.leads);
 }
 
+export async function obtenerCartera() {
+  await connection();
+  return db.select().from(schema.cartera).orderBy(asc(schema.cartera.cliente));
+}
+
+/** Solo los CUIT de la cartera, para marcar los leads que ya son clientes. */
+export async function obtenerCuitsDeCartera() {
+  await connection();
+  return db.select({ cuit: schema.cartera.cuit }).from(schema.cartera);
+}
+
 export async function obtenerLead(id: number) {
   await connection();
   const [lead] = await db.select().from(schema.leads).where(eq(schema.leads.id, id));

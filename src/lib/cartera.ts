@@ -2,9 +2,10 @@ import { filasCsv } from "@/fuentes/csv";
 import { normalizar } from "@/fuentes/clasificacion";
 import { sumarDias } from "./fechas";
 
-// Cartera de clientes actuales: vencimientos que se acercan y clientes con un
-// solo ramo (oportunidad de venta cruzada). Se analiza en memoria y no se
-// guarda: la cartera tiene datos de personas (Ley 25.326).
+// Cartera de clientes actuales: vencimientos que se acercan, clientes con un
+// solo ramo (oportunidad de venta cruzada) y qué leads ya son clientes.
+// La cartera tiene datos de personas: se guarda solo para usarla dentro de la
+// app, detrás del login.
 
 export type Poliza = {
   cliente: string;
@@ -103,16 +104,34 @@ export type AnalisisCartera = {
   unSoloRamo: { cliente: string; cuit: string | null; ramo: string; sugerencias: string[] }[];
 };
 
-/** Vencimientos de los próximos `dias` días y clientes con un solo ramo. */
-export function analizarCartera(polizas: Poliza[], hoy: string, dias = 60): AnalisisCartera {
+/** Pólizas que vencen entre hoy y dentro de `dias` días, la más cercana primero. */
+export function proximosVencimientos<T extends Poliza>(polizas: T[], hoy: string, dias: number): (T & { dias: number })[] {
   const limite = sumarDias(hoy, dias);
   const diasHasta = (fecha: string) =>
-    Math.round((Date.UTC(+fecha.slice(0, 4), +fecha.slice(5, 7) - 1, +fecha.slice(8, 10)) - Date.UTC(+hoy.slice(0, 4), +hoy.slice(5, 7) - 1, +hoy.slice(8, 10))) / 86_400_000);
-
-  const vencimientos = polizas
+    Math.round(
+      (Date.UTC(+fecha.slice(0, 4), +fecha.slice(5, 7) - 1, +fecha.slice(8, 10)) -
+        Date.UTC(+hoy.slice(0, 4), +hoy.slice(5, 7) - 1, +hoy.slice(8, 10))) /
+        86_400_000,
+    );
+  return polizas
     .filter((p) => p.vencimiento && p.vencimiento >= hoy && p.vencimiento <= limite)
     .map((p) => ({ ...p, dias: diasHasta(p.vencimiento!) }))
     .sort((a, b) => a.dias - b.dias);
+}
+
+/** CUIT sin guiones de los clientes que tienen uno, para reconocerlos entre los leads. */
+export function cuitsDeClientes(polizas: Pick<Poliza, "cuit">[]): Set<string> {
+  return new Set(polizas.map((p) => p.cuit?.replace(/\D/g, "") ?? "").filter((c) => c.length === 11));
+}
+
+export function yaEsCliente(cuit: string | null, clientes: Set<string>): boolean {
+  const digitos = cuit?.replace(/\D/g, "") ?? "";
+  return digitos.length === 11 && clientes.has(digitos);
+}
+
+/** Vencimientos de los próximos `dias` días y clientes con un solo ramo. */
+export function analizarCartera(polizas: Poliza[], hoy: string, dias = 60): AnalisisCartera {
+  const vencimientos = proximosVencimientos(polizas, hoy, dias);
 
   // Un cliente puede tener una fila por póliza: se juntan por CUIT o, si no hay, por nombre.
   const porCliente = new Map<string, { cliente: string; cuit: string | null; ramos: Set<string> }>();

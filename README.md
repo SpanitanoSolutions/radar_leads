@@ -112,10 +112,12 @@ confiable, el lead queda como "La empresa no lo publica" y no se vuelve a buscar
 - **Búsquedas laborales:** los portales de empleo no permiten la extracción
   automática (Computrabajo la bloquea) y no tienen datos abiertos.
 
-**Datos personales (Ley 25.326):** solo se guardan datos de empresas. Las
-personas físicas se descartan por CUIT (20, 23, 24, 27) y por tipo de
-personería. De los edictos del Boletín se guarda la razón social, la
-localidad, el objeto o rubro y el CUIT de la sociedad, nunca socios, DNI ni domicilios.
+**Datos personales (Ley 25.326):** de las fuentes públicas solo se guardan
+datos de empresas. Las personas físicas se descartan por CUIT (20, 23, 24, 27)
+y por tipo de personería. De los edictos del Boletín se guarda la razón social,
+la localidad, el objeto o rubro y el CUIT de la sociedad, nunca socios, DNI ni
+domicilios. La única excepción es **Mi cartera**: los clientes del propio
+productor, que él decide cargar y que solo se ven detrás del login.
 
 ## Uso diario
 
@@ -140,15 +142,20 @@ Ramo (uno o varios por celda), Compañía y Vencimiento, y muestra:
 - las pólizas que vencen en los próximos 60 días, de la más cercana a la más lejana;
 - los clientes con un solo ramo (juntando sus pólizas por CUIT) y qué ofrecerles.
 
-**El archivo se analiza en el momento y no se guarda**: la cartera tiene datos
-de personas (Ley 25.326). Pendiente, si se decide guardarla: sumar los
-vencimientos al resumen diario y aceptar archivos `.xlsx` directamente.
+La cartera **se guarda** (tabla `cartera`) y cada planilla nueva reemplaza la
+anterior; desde la misma pantalla se puede borrar. Con la cartera cargada:
+
+- el resumen diario suma las pólizas que vencen en los próximos 30 días (las 10 más cercanas);
+- los leads cuyo CUIT ya está en la cartera muestran **"Ya es cliente"**, para no llamarlos en frío.
+
+Pendiente: aceptar archivos `.xlsx` directamente.
 
 ## Resumen diario
 
 A las 8 (hora argentina) `/api/cron/resumen` arma el resumen del día: los 5
 mejores leads sin contactar (primero los detectados en las últimas 24 horas),
-con motivo, teléfono y guion, más los recordatorios de hoy y los vencidos. Los
+con motivo, teléfono y guion, más los recordatorios de hoy y los vencidos y, si
+hay cartera cargada, las pólizas que vencen en los próximos 30 días. Los
 recordatorios que se cargan en la ficha y los "Para después" entran acá.
 
 - Se envía por email con [Resend](https://resend.com) si están
