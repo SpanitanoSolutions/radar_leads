@@ -10,8 +10,8 @@ import { ALCANCES, ESTADOS, PRIORIDADES, RAMOS, ZONAS } from "@/lib/catalogos";
 import { esMotivoDescarte, estadoImplicaContacto, motivoImplicaContacto, parsearMonto } from "@/lib/cierre";
 import { diaEnArgentina, sumarDias } from "@/lib/fechas";
 
-/** "Para después": vuelve a aparecer arriba (y en el resumen diario) dentro de una semana. */
-const DIAS_PARA_DESPUES = 7;
+/** "Para después": vuelve a aparecer arriba (y en el resumen diario) dentro de dos semanas. */
+const DIAS_PARA_DESPUES = 14;
 
 const { leads } = schema;
 
@@ -47,7 +47,7 @@ export async function cambiarEstado(formData: FormData) {
   revalidarLead(id);
 }
 
-/** Desde la lista: deja el lead para dentro de una semana, con recordatorio. */
+/** Desde la lista: deja el lead para dentro de dos semanas, con recordatorio. */
 export async function posponerLead(formData: FormData) {
   await requerirSesion();
   const id = idDeLead(formData);

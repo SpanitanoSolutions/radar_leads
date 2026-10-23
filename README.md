@@ -120,7 +120,7 @@ localidad, el objeto o rubro y el CUIT de la sociedad, nunca socios, DNI ni domi
 ## Uso diario
 
 - **En la lista**, sin entrar a la ficha: "Llamé" (pasa a Llamado), "Para
-  después" (recordatorio en 7 días; el lead baja al final de la lista hasta ese
+  después" (recordatorio en 14 días; el lead baja al final de la lista hasta ese
   día) y "Descartar" con motivo.
 - **En la ficha**, "Cómo arrancar la conversación" propone un mensaje corto, de
   usted, según qué pasó (licitación, sociedad nueva, fondo de comercio) y el

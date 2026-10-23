@@ -251,7 +251,7 @@ export default async function LeadsDelDia({
                       {!estaPospuesto(l, hoy) && (
                         <form action={posponerLead}>
                           <input type="hidden" name="id" value={l.id} />
-                          <button type="submit" className="boton boton-chico" title="Recordármelo en una semana">
+                          <button type="submit" className="boton boton-chico" title="Recordármelo en dos semanas">
                             Para después
                           </button>
                         </form>
