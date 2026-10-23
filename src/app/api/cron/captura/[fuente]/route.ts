@@ -1,4 +1,5 @@
 import { buscarFuente, ejecutarCaptura } from "@/fuentes";
+import { enriquecerContactos } from "@/fuentes/enriquecimiento";
 import { cronAutorizado } from "@/lib/cron";
 
 // Las descargas grandes (COMPR.AR) y la lectura de PDFs pueden tardar.
@@ -14,5 +15,10 @@ export async function GET(request: Request, ctx: RouteContext<"/api/cron/captura
   if (!fuente) return Response.json({ error: `No existe la fuente "${id}"` }, { status: 404 });
 
   const resumen = await ejecutarCaptura(fuente);
-  return Response.json(resumen, { status: resumen.estado === "error" ? 500 : 200 });
+  // Después de cada captura se buscan en Google Maps las empresas nuevas (con límite diario).
+  const contactos = await enriquecerContactos().catch((err: unknown) => ({
+    estado: "error" as const,
+    detalle: err instanceof Error ? err.message : String(err),
+  }));
+  return Response.json({ ...resumen, contactos }, { status: resumen.estado === "error" ? 500 : 200 });
 }

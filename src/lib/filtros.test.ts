@@ -5,8 +5,10 @@ import {
   calcularKpis,
   contarPorSector,
   contarPorZona,
+  estaPospuesto,
   leadsVisibles,
   leerFiltros,
+  ordenarParaHoy,
   urlFiltros,
   type Filtros,
 } from "./filtros";
@@ -36,18 +38,33 @@ const lead = (extra: Partial<Lead>): Lead => ({
   descripcion: null,
   fuente: "Boletín Oficial",
   fuenteUrl: null,
+  fuenteReferencia: null,
   alcanceLicitacion: null,
   ramos: [],
   scoreBase: 70,
   estado: "nuevo",
   nota: null,
   recordatorio: null,
+  contactadoEl: null,
+  reunionEl: null,
+  cerradoEl: null,
+  cierreRamos: null,
+  cierrePrima: null,
+  cierreComision: null,
+  motivoDescarte: null,
   telefono: null,
+  telefonoFuente: null,
+  telefonoBuscadoEl: null,
+  placeId: null,
+  contactoEstado: null,
+  contactoBuscadoEl: null,
   domicilio: null,
   artActual: null,
   deudaBcra: null,
   esEjemplo: false,
   clave: null,
+  textoClasificacion: null,
+  fechaEvento: null,
   detectadoEl: new Date("2026-10-20T12:00:00Z"),
   actualizadoEl: new Date("2026-10-20T12:00:00Z"),
   ...extra,
@@ -73,6 +90,48 @@ describe("leadsVisibles", () => {
       ["flotas", 85],
       ["salud", 75],
     ]);
+  });
+
+  it("una adjudicación de hace 4 meses no es el lead más urgente aunque se haya detectado hoy", () => {
+    const ahora = new Date("2026-10-22T15:00:00Z");
+    const res = leadsVisibles(
+      [
+        lead({
+          empresa: "Senderos de la Costa S.A.",
+          sectorId: "flotas",
+          scoreBase: 92,
+          clave: "comprar:68-0001-LPR26:30-71222454-8",
+          alcanceLicitacion: "nacional",
+          fechaEvento: "2026-06-22",
+          ramos: ["Caución", "RC", "ART"],
+          detectadoEl: ahora,
+        }),
+        lead({ empresa: "Gobblack SA", sectorId: "flotas", scoreBase: 87, clave: "bo-pba:sociedad:gobblack-sa", fechaEvento: "2026-10-22" }),
+      ],
+      sectores,
+      todoActivo,
+      ahora,
+    );
+    expect(res.map((l) => [l.empresa, l.score, l.diasEvento])).toEqual([
+      ["Gobblack SA", 92, 0],
+      ["Senderos de la Costa S.A.", 62, 122], // 92 + 5 (prioridad alta) − 35 (más de 90 días)
+    ]);
+    expect(res[1].ramosOrdenados).toEqual(["RC", "ART", "Caución"]);
+  });
+
+  it("un lead sin forma de contacto baja 10 puntos", () => {
+    const res = leadsVisibles(
+      [
+        lead({ empresa: "sin contacto", scoreBase: 80, contactoEstado: "sin-resultado" }),
+        lead({ empresa: "con teléfono", scoreBase: 80, contactoEstado: "sin-resultado", telefono: "0223 495-1234" }),
+      ],
+      sectores,
+      todoActivo,
+    );
+    expect(res.map((l) => [l.empresa, l.score, l.sinContacto])).toEqual([
+      ["con teléfono", 85],
+      ["sin contacto", 75],
+    ].map(([e, s]) => [e, s, e === "sin contacto"]));
   });
 
   it("oculta sectores inactivos, zonas apagadas y descartados", () => {
@@ -178,5 +237,18 @@ describe("calcularKpis", () => {
       enSeguimiento: 2,
       cerrados: 1,
     });
+  });
+});
+
+describe("ordenarParaHoy", () => {
+  it("los leads 'para después' van al final hasta el día del recordatorio", () => {
+    const leads = [
+      { id: 1, recordatorio: "2026-10-29" },
+      { id: 2, recordatorio: null },
+      { id: 3, recordatorio: "2026-10-22" }, // vence hoy: vuelve arriba
+      { id: 4, recordatorio: null },
+    ];
+    expect(ordenarParaHoy(leads, "2026-10-22").map((l) => l.id)).toEqual([2, 3, 4, 1]);
+    expect(estaPospuesto({ recordatorio: "2026-10-29" }, "2026-10-29")).toBe(false);
   });
 });

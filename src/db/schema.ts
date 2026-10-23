@@ -69,15 +69,46 @@ export const leads = pgTable("leads", {
   descripcion: text("descripcion"),
   fuente: text("fuente").notNull(),
   fuenteUrl: text("fuente_url"),
+  /** Cómo encontrar la publicación a mano (boletín, sección y página; número de proceso). */
+  fuenteReferencia: text("fuente_referencia"),
   /** Solo para leads que vienen de una licitación. */
   alcanceLicitacion: alcanceEnum("alcance_licitacion"),
   ramos: text("ramos").array().notNull(),
   /** Score que asigna la fuente antes de aplicar la prioridad del sector. */
   scoreBase: integer("score_base").notNull(),
+  /**
+   * Texto con que se clasificó el lead (objeto social, objeto de la licitación),
+   * sin datos de personas. Permite reclasificar si cambian las reglas.
+   */
+  textoClasificacion: text("texto_clasificacion"),
+  /** Cuándo ocurrió el evento (adjudicación, publicación del edicto), no cuándo lo detectamos. */
+  fechaEvento: date("fecha_evento", { mode: "string" }),
   estado: estadoEnum("estado").notNull().default("nuevo"),
   nota: text("nota"),
   recordatorio: date("recordatorio", { mode: "string" }),
+  /** Primera vez que el productor contactó (o intentó contactar) a la empresa. */
+  contactadoEl: timestamp("contactado_el", { withTimezone: true }),
+  reunionEl: timestamp("reunion_el", { withTimezone: true }),
+  cerradoEl: timestamp("cerrado_el", { withTimezone: true }),
+  /** Al cerrar: qué se vendió y cuánto (aproximado, en pesos). */
+  cierreRamos: text("cierre_ramos").array(),
+  cierrePrima: integer("cierre_prima"),
+  cierreComision: integer("cierre_comision"),
+  /** Al descartar: por qué (ver MOTIVOS_DESCARTE en src/lib/cierre.ts). */
+  motivoDescarte: text("motivo_descarte"),
   telefono: text("telefono"),
+  /** Página donde la empresa publica ese teléfono. */
+  telefonoFuente: text("telefono_fuente"),
+  /** Cuándo se buscó el teléfono (aunque no se haya encontrado): no se vuelve a buscar. */
+  telefonoBuscadoEl: timestamp("telefono_buscado_el", { withTimezone: true }),
+  /**
+   * Google Maps: solo el place ID se puede guardar (términos de Places API);
+   * teléfono, web y dirección se piden al mostrar la ficha.
+   */
+  placeId: text("place_id"),
+  /** "verificado", "posible" o "sin-resultado" (se buscó y no hubo coincidencia). */
+  contactoEstado: text("contacto_estado"),
+  contactoBuscadoEl: timestamp("contacto_buscado_el", { withTimezone: true }),
   domicilio: text("domicilio"),
   artActual: text("art_actual"),
   deudaBcra: text("deuda_bcra"),
@@ -95,6 +126,21 @@ export const leads = pgTable("leads", {
     .defaultNow(),
 });
 
+/**
+ * Cartera de clientes actuales del productor, tal como la subió en /cartera
+ * (cada planilla nueva reemplaza la anterior). Tiene datos de personas: solo se
+ * usa dentro de la app, detrás del login.
+ */
+export const cartera = pgTable("cartera", {
+  id: serial("id").primaryKey(),
+  cliente: text("cliente").notNull(),
+  cuit: text("cuit"),
+  ramos: text("ramos").array().notNull(),
+  compania: text("compania"),
+  vencimiento: date("vencimiento", { mode: "string" }),
+  cargadoEl: timestamp("cargado_el", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Última ejecución de cada fuente de captura y la versión de datos que procesó. */
 export const capturas = pgTable("capturas", {
   fuente: text("fuente").primaryKey(),
@@ -110,3 +156,4 @@ export type Lead = typeof leads.$inferSelect;
 export type NuevoLead = typeof leads.$inferInsert;
 export type Ajustes = typeof ajustes.$inferSelect;
 export type Captura = typeof capturas.$inferSelect;
+export type PolizaGuardada = typeof cartera.$inferSelect;

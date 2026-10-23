@@ -1,18 +1,25 @@
 import Link from "next/link";
 import { IconoEstrella, IconoUbicacion } from "@/components/iconos";
 import { nombreEstado, ZONAS } from "@/lib/catalogos";
-import { obtenerAjustes, obtenerLeads, obtenerSectores } from "@/lib/datos";
-import { fechaLarga, haceCuanto } from "@/lib/fechas";
+import { cuitsDeClientes, yaEsCliente } from "@/lib/cartera";
+import { obtenerAjustes, obtenerCuitsDeCartera, obtenerLeads, obtenerSectores } from "@/lib/datos";
+import { etiquetaEvento } from "@/lib/evento";
+import { MOTIVOS_DESCARTE } from "@/lib/cierre";
+import { busquedaManual, enlaceTelefono } from "@/lib/contacto";
+import { diaEnArgentina, diaYMes, fechaLarga, haceCuanto } from "@/lib/fechas";
 import {
   aplicarFiltros,
   calcularKpis,
   contarPorSector,
   contarPorZona,
   leadsVisibles,
+  estaPospuesto,
   leerFiltros,
+  ordenarParaHoy,
   urlFiltros,
 } from "@/lib/filtros";
 import type { EstadoLead } from "@/db/schema";
+import { cambiarEstado, descartarLead, posponerLead } from "./actions";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
 export const instant = false;
@@ -31,14 +38,17 @@ export default async function LeadsDelDia({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const filtros = leerFiltros(await searchParams);
-  const [sectores, ajustes, todos] = await Promise.all([
+  const [sectores, ajustes, todos, cuitsCartera] = await Promise.all([
     obtenerSectores(),
     obtenerAjustes(),
     obtenerLeads(),
+    obtenerCuitsDeCartera(),
   ]);
+  const clientes = cuitsDeClientes(cuitsCartera);
 
   const visibles = leadsVisibles(todos, sectores, ajustes);
-  const lista = aplicarFiltros(visibles, filtros);
+  const hoy = diaEnArgentina(new Date());
+  const lista = ordenarParaHoy(aplicarFiltros(visibles, filtros), hoy);
   const porSector = contarPorSector(visibles, filtros);
   const porZona = contarPorZona(visibles, filtros);
   const sectoresActivos = sectores.filter((s) => s.activo);
@@ -162,7 +172,7 @@ export default async function LeadsDelDia({
                 <th scope="col">Empresa</th>
                 <th scope="col">Por qué es un lead</th>
                 <th scope="col">Ramos sugeridos</th>
-                <th scope="col">Detectado</th>
+                <th scope="col">Cuándo</th>
                 <th scope="col">Estado</th>
                 <th scope="col">
                   <span className="visualmente-oculto">Acciones</span>
@@ -178,10 +188,29 @@ export default async function LeadsDelDia({
                     </span>
                   </td>
                   <td>
-                    <div className="celda-principal">{l.empresa}</div>
+                    <div className="celda-principal">
+                      {l.empresa}
+                      {yaEsCliente(l.cuit, clientes) && <span className="pastilla pastilla-verde"> Ya es cliente</span>}
+                    </div>
                     <div className="celda-secundaria">
                       {l.rubro} · {l.localidad}
                     </div>
+                    {l.telefono && (
+                      <a href={enlaceTelefono(l.telefono)} className="celda-secundaria" style={{ display: "block" }}>
+                        {l.telefono}
+                      </a>
+                    )}
+                    {l.sinContacto && (
+                      <a
+                        href={busquedaManual(l.empresa, l.localidad)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="celda-secundaria"
+                        style={{ display: "block" }}
+                      >
+                        Sin contacto encontrado · buscar
+                      </a>
+                    )}
                   </td>
                   <td>
                     <div>{l.motivo}</div>
@@ -189,21 +218,70 @@ export default async function LeadsDelDia({
                   </td>
                   <td>
                     <div className="ramos">
-                      {l.ramos.map((r) => (
+                      {l.ramosOrdenados.map((r) => (
                         <span key={r} className="etiqueta-ramo">
                           {r}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td>{haceCuanto(l.detectadoEl)}</td>
                   <td>
-                    <span className={`pastilla ${CLASE_ESTADO[l.estado]}`}>{nombreEstado(l.estado)}</span>
+                    {l.fechaEvento ? (
+                      <>
+                        <div>{etiquetaEvento(l.tipoEvento, l.fechaEvento)}</div>
+                        <div className="celda-secundaria">Detectado: {haceCuanto(l.detectadoEl).toLowerCase()}</div>
+                      </>
+                    ) : (
+                      <>Detectado: {haceCuanto(l.detectadoEl).toLowerCase()}</>
+                    )}
                   </td>
                   <td>
-                    <Link href={`/leads/${l.id}`} className="boton" aria-label={`Ver ${l.empresa}`}>
-                      Ver
-                    </Link>
+                    <span className={`pastilla ${CLASE_ESTADO[l.estado]}`}>{nombreEstado(l.estado)}</span>
+                    {estaPospuesto(l, hoy) && (
+                      <div className="celda-secundaria">Para el {diaYMes(l.recordatorio!)}</div>
+                    )}
+                  </td>
+                  <td>
+                    <div className="acciones-rapidas">
+                      <Link href={`/leads/${l.id}`} className="boton boton-chico" aria-label={`Ver ${l.empresa}`}>
+                        Ver
+                      </Link>
+                      {l.estado === "nuevo" && (
+                        <form action={cambiarEstado}>
+                          <input type="hidden" name="id" value={l.id} />
+                          <button type="submit" name="estado" value="llamado" className="boton boton-chico">
+                            Llamé
+                          </button>
+                        </form>
+                      )}
+                      {!estaPospuesto(l, hoy) && (
+                        <form action={posponerLead}>
+                          <input type="hidden" name="id" value={l.id} />
+                          <button type="submit" className="boton boton-chico" title="Recordármelo en dos semanas">
+                            Para después
+                          </button>
+                        </form>
+                      )}
+                      <details className="desplegable">
+                        <summary className="boton boton-chico">Descartar</summary>
+                        <form action={descartarLead} className="form-columna panel-desplegable">
+                          <input type="hidden" name="id" value={l.id} />
+                          <select name="motivo" className="campo" required defaultValue="" aria-label={`Motivo para descartar ${l.empresa}`}>
+                            <option value="" disabled>
+                              Motivo
+                            </option>
+                            {MOTIVOS_DESCARTE.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.nombre}
+                              </option>
+                            ))}
+                          </select>
+                          <button type="submit" className="boton boton-primario boton-chico">
+                            Descartar
+                          </button>
+                        </form>
+                      </details>
+                    </div>
                   </td>
                 </tr>
               ))}

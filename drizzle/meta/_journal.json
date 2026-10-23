@@ -15,6 +15,55 @@
       "when": 1792685751489,
       "tag": "0001_captura",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792689789191,
+      "tag": "0002_telefonos",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792691304176,
+      "tag": "0003_fecha_evento",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792691655870,
+      "tag": "0004_texto_clasificacion",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792691997884,
+      "tag": "0005_fuente_referencia",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792692188428,
+      "tag": "0006_cierre",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792693228832,
+      "tag": "0007_contacto_google",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792734685627,
+      "tag": "0008_cartera",
+      "breakpoints": true
     }
   ]
 }

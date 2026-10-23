@@ -5,6 +5,11 @@
  *
  * Nunca pisa datos existentes. Sin DATABASE_URL avisa y sigue, para que el
  * build local funcione sin base.
+ *
+ * En los deploys de preview de Vercel no hace nada: DATABASE_URL de Preview es
+ * la misma base que la de producción, y migrarla desde una rama sin mergear
+ * cambiaría producción antes de tiempo. PREPARAR_DB_EN_PREVIEW=1 lo habilita
+ * (por ejemplo, si Preview pasa a tener su propia base).
  */
 import "dotenv/config";
 import { count } from "drizzle-orm";
@@ -14,6 +19,10 @@ import postgres from "postgres";
 import * as schema from "../src/db/schema";
 
 async function main() {
+  if (process.env.VERCEL_ENV === "preview" && process.env.PREPARAR_DB_EN_PREVIEW !== "1") {
+    console.warn("⚠ Deploy de preview: no migro la base (es la misma que la de producción).");
+    return;
+  }
   const url = process.env.DATABASE_URL;
   if (!url) {
     console.warn("⚠ DATABASE_URL no está definida: salteo migraciones y datos iniciales.");
