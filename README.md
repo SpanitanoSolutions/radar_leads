@@ -218,6 +218,8 @@ npm run dev                   # http://localhost:3000
    teléfonos, `ANTHROPIC_API_KEY`.
 4. **Redeploy.** El build aplica las migraciones y, si la base está vacía,
    carga sectores y leads de ejemplo (`scripts/preparar-db.ts`). Nunca pisa datos existentes.
+   Los deploys de **preview** (ramas sin mergear) no migran: en Vercel, Preview
+   usa la misma base que producción. Las migraciones se aplican al mergear a `main`.
 
 Para generar `SESSION_SECRET` y `CRON_SECRET` (uno distinto para cada uno):
 
