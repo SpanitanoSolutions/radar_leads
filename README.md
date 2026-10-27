@@ -4,9 +4,11 @@ Herramienta de trabajo para un productor asesor de seguros independiente:
 organiza asegurados, pólizas, vencimientos y tareas operativas. La captación de
 empresas que podrían necesitar cobertura sigue disponible en una sección aparte.
 
-**Inicio:** `/` redirige a la cartera. Las capturas diarias de leads reales
-(licitaciones nacionales y Boletín Oficial de la Provincia) continúan en segundo
-plano. Los datos de personas de la cartera solo se muestran detrás del login.
+**Inicio:** `/` muestra el dashboard general con cartera, prima anual,
+vencimientos próximos, notificaciones, cobranza y actividad reciente. La cartera
+completa está en `/asegurados`; las capturas diarias de leads reales (licitaciones
+nacionales y Boletín Oficial de la Provincia) continúan en segundo plano. Los
+datos de personas solo se muestran detrás del login.
 
 ## Pantallas
 

@@ -103,7 +103,7 @@ export function Marco({
           {abierto ? <IconoCerrar /> : <IconoMenu />}
           <span className="visualmente-oculto">Menú</span>
         </button>
-        <Link href="/asegurados" className="barra-marca">
+        <Link href="/" className="barra-marca">
           <span className="marca-icono marca-icono-chico" aria-hidden="true">
             <IconoRadar size={16} />
           </span>

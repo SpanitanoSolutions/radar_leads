@@ -59,6 +59,11 @@ function siHay(valor: number, tono: Tono, descripcion: string): ItemMenu["contad
 export function armarMenu(c: ContadoresMenu): GrupoMenu[] {
   return [
     {
+      id: "inicio",
+      titulo: "Inicio",
+      items: [{ href: "/", texto: "Resumen general", icono: "grafico" }],
+    },
+    {
       id: "cartera",
       titulo: "Mi cartera",
       items: [
