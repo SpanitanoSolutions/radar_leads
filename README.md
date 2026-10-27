@@ -1,23 +1,36 @@
-# Radar de leads
+# Radar · Cartera de seguros
 
-Dashboard para un productor asesor de seguros: muestra cada día empresas que
-probablemente necesiten un seguro (sociedades nuevas, licitaciones ganadas,
-habilitaciones, búsquedas de personal), ordenadas por probabilidad de cierre.
+Herramienta de trabajo para un productor asesor de seguros independiente:
+organiza asegurados, pólizas, vencimientos y tareas operativas. La captación de
+empresas que podrían necesitar cobertura sigue disponible en una sección aparte.
 
-**Estado actual:** cada madrugada se cargan leads reales de dos fuentes
-(licitaciones nacionales y Boletín Oficial de la Provincia). Los leads de
-ejemplo se borran solos con la primera captura real.
+**Inicio:** `/` redirige a la cartera. Las capturas diarias de leads reales
+(licitaciones nacionales y Boletín Oficial de la Provincia) continúan en segundo
+plano. Los datos de personas de la cartera solo se muestran detrás del login.
 
 ## Pantallas
 
-- **Leads del día** (`/`): resumen, filtros por sector y por zona que se
-  combinan, búsqueda por empresa, localidad o CUIT, y la lista ordenada por score.
-- **Ficha del lead** (`/leads/[id]`): por qué aparece, ramos sugeridos, datos
-  de la empresa, cobertura actual y seguimiento (estado, notas, recordatorio).
-- **Mis sectores** (`/sectores`): qué sectores mostrar y con qué prioridad,
-  zonas de la provincia y alcance de licitaciones (municipal, provincial, nacional).
+- **Asegurados** (`/asegurados`): cartera, filtros, selección y ficha lateral; cada
+  asegurado también tiene una ficha completa en `/asegurados/[id]`.
+- **Vencimientos** (`/vencimientos`): pólizas próximas, agrupadas por semana.
+- **Importar cartera** (`/importar`): asistente para subir CSV/XLSX, relacionar
+  columnas, revisar problemas y combinar o reemplazar pólizas sin borrar datos.
+- **Cotización** (`/agentes/cotizacion`): solicitudes vinculadas a asegurados o
+  leads, comparativas de precios, filtros, bitácora y desempeño.
+- **Validador de pagos** (`/agentes/validador`): revisión de cuotas y comprobantes.
+- **Cobranza** (`/agentes/cobranza`): borradores para aprobar y seguimiento de cuotas.
+- **Siniestros** (`/agentes/siniestros`): denuncia, documentación, etapas,
+  recordatorios, reclamos y cierre.
+- **Conciliador** (`/agentes/conciliador`): comisiones esperadas, liquidaciones,
+  depósitos, retenciones y reclamos por compañía.
+- **Leads del día** (`/leads`), **Ficha del lead** (`/leads/[id]`) y **Mis sectores**
+  (`/sectores`): captación, seguimiento y preferencias de fuentes.
+- **Configuración** (`/configuracion`): conexiones simuladas y datos del productor.
 
-Todo está protegido con una contraseña única (`APP_PASSWORD`).
+Todo está protegido con una contraseña única (`APP_PASSWORD`). Los agentes usan
+reglas y plantillas; no llaman a modelos de IA. Los conectores de WhatsApp,
+correo, compañías, bancos y calendario son de prueba: no se comunican con
+servicios externos ni envían nada sin una acción explícita del productor.
 
 ## Fuentes de leads
 
@@ -133,22 +146,23 @@ productor, que él decide cargar y que solo se ven detrás del login.
   La página **Resultados** muestra contactados, reuniones, cierres, comisión y
   conversión por fuente y por sector.
 
-## Mi cartera
+## Cartera Y Agentes
 
-En **Mi cartera** (`/cartera`) se sube la planilla de clientes actuales en
-CSV (desde Excel: Guardar como → CSV). Reconoce las columnas Cliente, CUIT,
-Ramo (uno o varios por celda), Compañía y Vencimiento, y muestra:
+En `/importar`, subí el CSV o XLSX que exportás de una compañía. El asistente
+detecta encabezados, permite corregir el mapeo y muestra errores por fila antes
+de guardar. **Combinar** actualiza por DNI/CUIT y número de póliza; **Reemplazar**
+marca como no vigentes las pólizas ausentes del archivo, sin borrarlas. Cada
+importación queda en el historial y en el menú lateral.
 
-- las pólizas que vencen en los próximos 60 días, de la más cercana a la más lejana;
-- los clientes con un solo ramo (juntando sus pólizas por CUIT) y qué ofrecerles.
+La cartera vive en `asegurados`, `polizas` y tablas relacionadas; la antigua
+tabla `cartera` queda sin uso para conservar la historia de migración. Los leads
+que coinciden por CUIT muestran **Ya es cliente** con un enlace a su ficha.
 
-La cartera **se guarda** (tabla `cartera`) y cada planilla nueva reemplaza la
-anterior; desde la misma pantalla se puede borrar. Con la cartera cargada:
-
-- el resumen diario suma las pólizas que vencen en los próximos 30 días (las 10 más cercanas);
-- los leads cuyo CUIT ya está en la cartera muestran **"Ya es cliente"**, para no llamarlos en frío.
-
-Pendiente: aceptar archivos `.xlsx` directamente.
+Las acciones de los agentes que envían mensajes o reclamos pasan por una
+confirmación del productor y dejan registro. El Conciliador exporta un CSV para
+el contador y permite cargar una liquidación por archivo; si ya existe una
+liquidación para esa compañía y período, la carga se rechaza para preservar los
+datos anteriores.
 
 ## Resumen diario
 
@@ -282,8 +296,11 @@ npx playwright install chromium                              # solo la primera v
 npm run test:e2e                                             # en otra terminal
 ```
 
-Revisa login, filtros combinados, búsqueda, cambio de estado, notas,
-configuración de sectores, vista de teléfono sin desborde y cierre de sesión.
+Revisa login → cartera, búsqueda y panel del asegurado, importación CSV en modo
+combinar (con una fila inválida), leads y sectores, solicitud de cotización,
+confirmación de pago, aprobación de cobranza, envío de denuncia y reclamo,
+conexión simulada de WhatsApp, las pantallas principales a 390 px y cierre de
+sesión. El archivo de importación está en `e2e/fixtures/`.
 
 ## Estructura
 

@@ -1,0 +1,3 @@
+Cliente;CUIT;Ramo;Vencimiento;Compania;Numero de poliza
+Empresa Prueba E2E SA;30-00000000-7;Auto;30/11/2026;Mapfre;E2E-IMPORT-001
+Empresa Fila Invalida;30-00000000-7;Auto;31/02/2026;Mapfre;E2E-IMPORT-002
