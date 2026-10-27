@@ -1274,6 +1274,43 @@
   background: #fff;
   box-shadow: 0 8px 24px rgba(20, 26, 38, 0.12);
 }
+.cotizacion-respuestas {
+  position: absolute;
+  z-index: 4;
+  top: 100%;
+  right: 0;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(20, 26, 38, 0.12);
+}
+.cotizacion-respuestas section {
+  display: grid;
+  gap: 7px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--borde);
+}
+.cotizacion-respuestas section:first-child {
+  padding-top: 0;
+}
+.cotizacion-respuestas section > p {
+  margin: 0;
+  color: var(--etiqueta);
+  font-size: 12px;
+}
+.cotizacion-respuestas form {
+  display: grid;
+  gap: 8px;
+  margin-top: 3px;
+}
+.cotizacion-respuestas .texto-suave {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
 .cotizacion-vacia {
   padding: 36px 16px !important;
   color: var(--etiqueta);

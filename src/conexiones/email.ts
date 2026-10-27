@@ -37,8 +37,7 @@ export const emailSimulado: ConexionEmail = {
     await guardarConexion("email", "sin_conectar");
   },
   async enviar() {
-    // Simulado: no sale nada. Queda registrado en la tabla mensajes como enviado.
-    return { ok: true, id: `email-simulado-${Date.now()}` };
+    return { ok: false, error: "El correo no está conectado a un servicio de envío real. El mensaje sigue pendiente." };
   },
   async liquidacionesRecibidas() {
     return [];

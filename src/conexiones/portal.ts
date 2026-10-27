@@ -3,12 +3,12 @@ import { guardarConexion, leerConexion } from "./estado";
 
 /**
  * Portal de productores de cada compañía: cotizar, bajar pólizas y seguir
- * siniestros. Las que no tienen portal (Fianzas y Crédito) trabajan por email.
+ * siniestros en las compañías con acceso de productor.
  *
  * Hoy es SIMULADO: guarda el usuario (no la clave) y no entra a ningún portal.
  * Lo van a reemplazar las integraciones con cada portal de productores
- * (Mapfre, Sancor, Federación Patronal, La Segunda), por API donde la compañía
- * la ofrezca o automatizando el portal. Las claves irán en variables de
+ * (Mapfre, Sancor, Federación Patronal, La Segunda y Fianzas y Crédito),
+ * automatizando el portal. Las claves irán en variables de
  * entorno por compañía (PORTAL_MAPFRE_CLAVE, …), nunca en la base.
  */
 export interface ConexionPortal {
@@ -17,8 +17,16 @@ export interface ConexionPortal {
   /** Compañías sin portal: el agente les escribe a esta dirección. */
   porEmail(compania: string, email: string): Promise<void>;
   desconectar(compania: string): Promise<void>;
-  /** Pide precio para una solicitud; el precio llega después (o null si no cotiza). */
-  pedirCotizacion(compania: string, pedido: { ramo: string; bien: string | null }): Promise<{ referencia: string }>;
+  /** Envía la solicitud al portal. El resultado llegará por el proceso receptor. */
+  pedirCotizacion(compania: string, pedido: {
+    solicitudId: number;
+    solicitudNumero: number;
+    cliente: string;
+    tipo: "renovacion" | "mejora" | "nueva";
+    ramo: string;
+    bien: string | null;
+    motivo: string | null;
+  }): Promise<{ referencia: string }>;
 }
 
 export const portalSimulado: ConexionPortal = {
@@ -36,7 +44,7 @@ export const portalSimulado: ConexionPortal = {
     await guardarConexion(`portal:${compania}`, "sin_conectar");
   },
   async pedirCotizacion(compania) {
-    return { referencia: `simulado-${compania}-${Date.now()}` };
+    throw new Error(`El portal de ${compania} no tiene un conector real configurado; no se solicitó ninguna cotización.`);
   },
 };
 

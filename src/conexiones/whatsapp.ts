@@ -48,17 +48,13 @@ export const whatsappSimulado: ConexionWhatsApp = {
   },
   async verificar(codigo) {
     if (!/^\d{6}$/.test(codigo.trim())) return { ok: false, error: "El código tiene 6 números." };
-    const actual = await this.estado();
-    const numero = actual.paso === "sin_conectar" ? "" : actual.numero;
-    await guardarConexion("whatsapp", "conectado", { numero, verificadoEl: new Date().toISOString() });
-    return { ok: true };
+    return { ok: false, error: "La integración real con WhatsApp Business todavía no está conectada; no pudimos validar el código." };
   },
   async desconectar() {
     await guardarConexion("whatsapp", "sin_conectar");
   },
   async enviar() {
-    // Simulado: no sale nada. Queda registrado en la tabla mensajes como enviado.
-    return { ok: true, id: `wa-simulado-${Date.now()}` };
+    return { ok: false, error: "WhatsApp Business no está conectado a un servicio de envío real. El mensaje sigue pendiente." };
   },
 };
 

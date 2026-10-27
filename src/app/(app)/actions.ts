@@ -4,7 +4,7 @@ import { eq, sql, type AnyColumn } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
-import { crearSolicitud } from "@/agentes/cotizacion/solicitudes";
+import { crearSolicitud, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
 import type { AlcanceLicitacion, EstadoLead, Prioridad, Zona } from "@/db/schema";
 import { requerirSesion } from "@/lib/auth";
 import { ALCANCES, ESTADOS, PRIORIDADES, RAMOS, ZONAS } from "@/lib/catalogos";
@@ -120,13 +120,19 @@ export async function pedirCotizacionLead(formData: FormData) {
   if (!ramo || !(ramo in RAMOS)) throw new Error("Elegí un ramo válido.");
   const [lead] = await db.select({ id: leads.id, cliente: leads.empresa, estado: leads.estado }).from(leads).where(eq(leads.id, id));
   if (!lead || lead.estado === "descartado") throw new Error("Este lead no puede recibir una solicitud de cotización.");
-  const numero = await crearSolicitud({
-    leadId: id,
-    cliente: lead.cliente,
-    tipo: "nueva",
-    ramo,
-    motivo: "Solicitud creada desde la ficha del lead",
-  });
+  let numero: number;
+  try {
+    numero = await crearSolicitud({
+      leadId: id,
+      cliente: lead.cliente,
+      tipo: "nueva",
+      ramo,
+      motivo: "Solicitud creada desde la ficha del lead",
+    });
+  } catch (error) {
+    if (error instanceof SinCompaniasCotizablesError) redirect(`/leads/${id}?aviso=cotizacion-sin-companias`);
+    throw error;
+  }
   revalidatePath("/agentes/cotizacion");
   revalidatePath("/", "layout");
   redirect(`/leads/${id}?cotizacion=${numero}`);

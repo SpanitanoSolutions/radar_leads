@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
 import { borrarEjemplosDeCartera } from "@/db/ejemplos";
-import { crearSolicitud } from "@/agentes/cotizacion/solicitudes";
+import { crearSolicitud, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
 import { contactoDe, esVigente, gruposDeVencimiento, textoAvisoVencimiento } from "@/lib/asegurados";
 import { requerirSesion } from "@/lib/auth";
 import { diaEnArgentina, diaYMes } from "@/lib/fechas";
@@ -114,14 +114,20 @@ export async function prepararRenovacion(formData: FormData) {
   const polizas = a.polizas.filter((p) => esVigente(p, hoy) && p.vigenciaHasta === fecha);
   if (!polizas.length) volver(formData);
   const ramos = [...new Set(polizas.map((p) => p.ramo))];
-  const numero = await crearSolicitud({
-    aseguradoId: a.id,
-    cliente: a.nombre,
-    tipo: "renovacion",
-    ramo: ramos.join(" y "),
-    bien: polizas.length === 1 ? polizas[0].bien : `${polizas.length} pólizas`,
-    motivo: `Vence el ${diaYMes(fecha)}`,
-  });
+  let numero: number;
+  try {
+    numero = await crearSolicitud({
+      aseguradoId: a.id,
+      cliente: a.nombre,
+      tipo: "renovacion",
+      ramo: ramos.join(" y "),
+      bien: polizas.length === 1 ? polizas[0].bien : `${polizas.length} pólizas`,
+      motivo: `Vence el ${diaYMes(fecha)}`,
+    });
+  } catch (error) {
+    if (error instanceof SinCompaniasCotizablesError) volver(formData, "cotizacion-sin-companias");
+    throw error;
+  }
   revalidarCartera();
   volver(formData, `solicitud-${numero}`);
 }
@@ -139,14 +145,20 @@ export async function pedirCotizacionOportunidad(formData: FormData) {
   );
   if (!oportunidad?.ramo) volver(formData);
   const poliza = vigentes.find((p) => p.id === oportunidad.polizaId);
-  const numero = await crearSolicitud({
-    aseguradoId: a.id,
-    cliente: a.nombre,
-    tipo: "mejora",
-    ramo: oportunidad.ramo,
-    bien: poliza?.bien ?? null,
-    motivo: oportunidad.titulo,
-  });
+  let numero: number;
+  try {
+    numero = await crearSolicitud({
+      aseguradoId: a.id,
+      cliente: a.nombre,
+      tipo: "mejora",
+      ramo: oportunidad.ramo,
+      bien: poliza?.bien ?? null,
+      motivo: oportunidad.titulo,
+    });
+  } catch (error) {
+    if (error instanceof SinCompaniasCotizablesError) volver(formData, "cotizacion-sin-companias");
+    throw error;
+  }
   revalidarCartera();
   volver(formData, `solicitud-${numero}`);
 }
