@@ -1,0 +1,260 @@
+.estadisticas-encabezado {
+  align-items: flex-end;
+}
+.estadisticas-filtro-anio {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.estadisticas-filtro-anio label {
+  color: var(--gris-texto);
+  font-size: 13px;
+  font-weight: 600;
+}
+.estadisticas-filtro-anio select {
+  min-width: 100px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--borde-campo);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--texto);
+  font: inherit;
+}
+.estadisticas-kpis {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+.estadisticas-kpis .kpi {
+  min-width: 0;
+  gap: 8px;
+}
+.estadisticas-kpis .kpi-valor {
+  overflow-wrap: anywhere;
+  font-size: 25px;
+}
+.estadisticas-aclaracion {
+  margin: -8px 0 0;
+  color: var(--etiqueta);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.estadisticas-dos-columnas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  min-width: 0;
+}
+.estadisticas-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+.estadisticas-panel-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--borde-suave);
+}
+.estadisticas-panel-cabecera h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.estadisticas-panel-cabecera p {
+  margin: 4px 0 0;
+  color: var(--etiqueta);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.estadisticas-lista-barras {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+}
+.estadisticas-fila-barra {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.estadisticas-fila-titulo,
+.estadisticas-fila-detalle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.estadisticas-fila-titulo strong,
+.estadisticas-fila-detalle span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.estadisticas-fila-titulo strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.estadisticas-fila-titulo > span,
+.estadisticas-fila-detalle {
+  color: var(--etiqueta);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.estadisticas-fila-detalle span:first-child {
+  color: var(--gris-texto);
+  font-weight: 600;
+}
+.estadisticas-barra {
+  width: 100%;
+  height: 7px;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--gris-suave);
+}
+.estadisticas-barra-valor {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+}
+.estadisticas-barra-valor.acento {
+  background: var(--acento);
+}
+.estadisticas-barra-valor.verde {
+  background: var(--verde-texto);
+}
+.estadisticas-barra-valor.rojo {
+  background: var(--rojo-texto);
+}
+.estadisticas-barra-valor.ambar {
+  background: #b87912;
+}
+.estadisticas-tabla {
+  min-width: 820px;
+}
+.estadisticas-tabla tfoot th {
+  border-top: 2px solid var(--borde);
+  font-weight: 700;
+}
+.estadisticas-meses-barras {
+  height: 110px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  padding: 0 18px 14px;
+}
+.estadisticas-meses-barras > div {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.estadisticas-meses-barras > div > span {
+  width: min(100%, 28px);
+  min-height: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--acento);
+}
+.estadisticas-meses-barras small {
+  color: var(--etiqueta);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.estadisticas-renovaciones {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 18px 10px;
+}
+.estadisticas-renovaciones > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 46px;
+  border-bottom: 1px solid var(--borde-suave);
+  font-size: 13px;
+}
+.estadisticas-renovaciones > div:last-child {
+  border-bottom: 0;
+}
+.estadisticas-renovaciones span {
+  color: var(--gris-texto);
+  font-variant-numeric: tabular-nums;
+}
+.estadisticas-siniestros-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+  gap: 1px;
+  background: var(--borde-suave);
+  border-bottom: 1px solid var(--borde-suave);
+}
+.estadisticas-siniestros-resumen > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  background: #fff;
+}
+.estadisticas-siniestros-resumen span,
+.estadisticas-cotizaciones-resumen span {
+  color: var(--etiqueta);
+  font-size: 11px;
+}
+.estadisticas-siniestros-resumen strong {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.estadisticas-cotizaciones-resumen {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 14px 18px 0;
+}
+.estadisticas-cotizaciones-resumen strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.estadisticas-cotizacion-fila {
+  min-height: 24px;
+}
+.estadisticas-cotizacion-fila span {
+  color: var(--gris-texto);
+  font-size: 13px;
+}
+.estadisticas-cotizacion-fila strong {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 760px) {
+  .estadisticas-dos-columnas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 420px) {
+  .estadisticas-meses-barras {
+    gap: 4px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .estadisticas-meses-barras small {
+    font-size: 9px;
+  }
+  .estadisticas-panel-cabecera,
+  .estadisticas-lista-barras {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+  .estadisticas-renovaciones {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+}
