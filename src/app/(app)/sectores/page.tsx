@@ -141,19 +141,22 @@ export default async function MisSectores({
         >
           <h2 id="t-fuentes" className="titulo-seccion">Fuentes de datos</h2>
           <ul className="lista-fuentes">
-            {FUENTES.map((f) => (
-              <li key={f.nombre}>
-                <span>
-                  <span className="opcion-nombre" style={{ display: "block" }}>
-                    {f.nombre}
+            {FUENTES.map((f) => {
+              const estado = f.requiere && !process.env[f.requiere] ? "por-configurar" : f.estado;
+              return (
+                <li key={f.nombre}>
+                  <span>
+                    <span className="opcion-nombre" style={{ display: "block" }}>
+                      {f.nombre}
+                    </span>
+                    <span className="opcion-detalle">{f.detalle}</span>
                   </span>
-                  <span className="opcion-detalle">{f.detalle}</span>
-                </span>
-                <span className={`pastilla ${ESTADO_FUENTE[f.estado].clase}`}>
-                  {ESTADO_FUENTE[f.estado].texto}
-                </span>
-              </li>
-            ))}
+                  <span className={`pastilla ${ESTADO_FUENTE[estado].clase}`}>
+                    {ESTADO_FUENTE[estado].texto}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </section>
       </div>

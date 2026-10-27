@@ -860,3 +860,109 @@ textarea.campo {
 .login-card .boton {
   margin-top: 8px;
 }
+
+/* Desplegables sin JavaScript: cerrar y descartar un lead, acciones rápidas. */
+.desplegable > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.desplegable > summary::-webkit-details-marker {
+  display: none;
+}
+.desplegable[open] > summary {
+  border-color: var(--acento);
+}
+.panel-desplegable {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: #fff;
+  min-width: min(320px, 100%);
+}
+.opciones-en-linea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.opcion-chica {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.kpi-detalle {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--texto-2);
+}
+
+.acciones-rapidas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 220px;
+}
+.boton-chico {
+  padding: 4px 10px;
+  font-size: 13px;
+  min-height: 0;
+}
+
+.guion {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--acento);
+  background: var(--fondo);
+  border-radius: 0 var(--radio) var(--radio) 0;
+  line-height: 1.55;
+}
+.estados > .desplegable[open] {
+  flex-basis: 100%;
+}
+
+/* Contenido de Google Maps: separado del resto y con su atribución (políticas de Places API). */
+.contenido-google {
+  border-color: var(--borde-campo);
+}
+.atribucion-google {
+  justify-content: space-between;
+  margin: 12px 0 0;
+}
+.GMP-attribution {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #5e5e5e;
+  white-space: nowrap;
+}
+
+.item-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0;
+  border-top: 1px solid var(--borde-suave);
+}
+.item-resumen:first-of-type {
+  border-top: none;
+}
+.item-resumen .guion {
+  margin: 4px 0;
+}
+.item-resumen .boton {
+  align-self: flex-start;
+}
+
+.lista-vencimientos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

@@ -1,7 +1,7 @@
 import type { Zona } from "@/db/schema";
 import {
   calcularScoreBase,
-  clasificarSector,
+  clasificar,
   esCuitDeEmpresa,
   fechaLegible,
   formatearCuit,
@@ -19,6 +19,7 @@ import type { LeadCapturado } from "../tipos";
 // de proveedores (SiPRO) para saber si la empresa es de la provincia.
 
 export const URL_DATASET = "https://datos.gob.ar/dataset/sistema-de-contrataciones-electronicas";
+export const URL_BUSCAR_PROCESO = "https://comprar.gob.ar/BuscarAvanzado.aspx";
 const BASE = "https://infra.datos.gob.ar/catalog/jgm/dataset/4/distribution";
 export const URL_ADJUDICACIONES = `${BASE}/4.22/download/Adjudicaciones.csv`;
 export const URL_CONVOCATORIAS = `${BASE}/4.21/download/Convocatorias.csv`;
@@ -136,6 +137,12 @@ export function leerConvocatoria(fila: Record<string, string>): [string, Convoca
 
 const pesos = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
 
+/** Lo que se licitó (nombre, objeto y rubros del proceso): de ahí sale el sector. */
+function textoParaClasificar(adj: Adjudicacion, convocatoria?: Convocatoria): string {
+  const partes = [convocatoria?.nombre, convocatoria?.objeto, adj.rubros.join("; ")];
+  return partes.filter((p, i) => p && partes.indexOf(p) === i).join(". ");
+}
+
 /** Convierte una adjudicación en lead, o null si el contrato es demasiado chico. */
 export function adjudicacionALead(
   adj: Adjudicacion,
@@ -145,28 +152,35 @@ export function adjudicacionALead(
   if (!adj.enDivisa && adj.montoPesos < MONTO_MINIMO) return null;
 
   const objeto = convocatoria?.nombre || convocatoria?.objeto || adj.rubros.join(", ");
-  const sector = clasificarSector(
-    `${adj.empresa}. ${convocatoria?.nombre ?? ""} ${convocatoria?.objeto ?? ""} ${adj.rubros.join(" ")}`,
-  );
+  const textoClasificacion = textoParaClasificar(adj, convocatoria);
+  const c = clasificar(textoClasificacion, { nombre: adj.empresa, rubroFuente: adj.rubros[0] });
+  const sector = c.sector;
   const monto = adj.enDivisa ? "en moneda extranjera" : `por $ ${pesos.format(adj.montoPesos)}`;
 
   return {
     clave: `comprar:${adj.proceso}:${adj.cuit}`,
     empresa: tituloPropio(adj.empresa || proveedor.razonSocial),
     cuit: adj.cuit,
-    rubro: oracion(adj.rubros[0] ?? "Proveedor del Estado"),
+    rubro: c.rubro,
     localidad: proveedor.localidad,
     zona: proveedor.zona,
     sectorId: sector,
+    textoClasificacion,
     motivo: recortar(`Ganó licitación nacional: ${oracion(objeto)}`, 110),
     descripcion:
       `Adjudicataria del proceso ${adj.proceso} (${adj.procedimiento.toLowerCase()}) de ` +
       `${adj.organismo}, el ${fechaLegible(adj.fecha)}, ${monto}. ` +
       `Para firmar el contrato suele exigirse seguro de caución.`,
     fuente: "COMPR.AR – adjudicaciones",
-    fuenteUrl: URL_DATASET,
+    // COMPR.AR no tiene un enlace público por número de proceso: se abre su
+    // buscador y la referencia dice qué buscar.
+    fuenteUrl: URL_BUSCAR_PROCESO,
+    fuenteReferencia:
+      `Proceso N° ${adj.proceso} (${adj.procedimiento.toLowerCase()}), adjudicado el ${fechaLegible(adj.fecha)}. ` +
+      `En COMPR.AR, buscá ese número en "Buscar procesos". Datos abiertos de datos.gob.ar (CC BY 4.0).`,
     alcanceLicitacion: "nacional",
-    ramos: ramosLicitacion(sector),
+    fechaEvento: adj.fecha,
+    ramos: ramosLicitacion(c),
     scoreBase: calcularScoreBase("licitacion", {
       sector,
       zona: proveedor.zona,

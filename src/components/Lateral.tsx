@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cerrarSesion } from "@/app/login/actions";
-import { IconoGrilla, IconoLista, IconoRadar } from "./iconos";
+import { IconoCampana, IconoCarpeta, IconoGrafico, IconoGrilla, IconoLista, IconoRadar } from "./iconos";
 
 const ITEMS = [
   { href: "/", texto: "Leads del día", Icono: IconoLista, activo: (p: string) => p === "/" || p.startsWith("/leads") },
+  { href: "/resumen", texto: "Resumen del día", Icono: IconoCampana, activo: (p: string) => p.startsWith("/resumen") },
+  { href: "/resultados", texto: "Resultados", Icono: IconoGrafico, activo: (p: string) => p.startsWith("/resultados") },
+  { href: "/cartera", texto: "Mi cartera", Icono: IconoCarpeta, activo: (p: string) => p.startsWith("/cartera") },
   { href: "/sectores", texto: "Mis sectores", Icono: IconoGrilla, activo: (p: string) => p.startsWith("/sectores") },
 ];
 

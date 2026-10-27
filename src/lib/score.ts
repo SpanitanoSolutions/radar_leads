@@ -7,8 +7,9 @@ export const AJUSTE_POR_PRIORIDAD: Record<Prioridad, number> = {
   baja: -15,
 };
 
-export function scoreFinal(scoreBase: number, prioridad: Prioridad): number {
-  const valor = scoreBase + AJUSTE_POR_PRIORIDAD[prioridad];
+/** `ajuste`: otras correcciones del día, como la antigüedad del evento (ver lib/evento.ts). */
+export function scoreFinal(scoreBase: number, prioridad: Prioridad, ajuste = 0): number {
+  const valor = scoreBase + AJUSTE_POR_PRIORIDAD[prioridad] + ajuste;
   return Math.max(0, Math.min(100, Math.round(valor)));
 }
 

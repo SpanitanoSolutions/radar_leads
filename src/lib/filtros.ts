@@ -1,11 +1,37 @@
 import type { Ajustes, Lead, Sector, Zona } from "@/db/schema";
+import { PENALIZACION_SIN_CONTACTO, sinContacto } from "./contacto";
+import { diasDesde, penalizacionPorAntiguedad, ramosSugeridos, tipoDeEvento, type TipoEvento } from "./evento";
 import { nivelScore, scoreFinal, type NivelScore } from "./score";
 
 export type LeadConScore = Lead & {
   score: number;
   nivel: NivelScore;
   sector: Sector;
+  tipoEvento: TipoEvento;
+  /** Días desde el evento; null si no se conoce la fecha. */
+  diasEvento: number | null;
+  /** Ramos en el orden en que conviene ofrecerlos hoy. */
+  ramosOrdenados: string[];
+  /** No se encontró cómo contactarla (ver lib/contacto.ts). */
+  sinContacto: boolean;
 };
+
+/** Score de un lead hoy: score base, prioridad del sector, antigüedad del evento y si hay cómo contactarlo. */
+export function puntuarLead(lead: Lead, sector: Sector, ahora: Date = new Date()) {
+  const tipoEvento = tipoDeEvento(lead);
+  const diasEvento = lead.fechaEvento ? diasDesde(lead.fechaEvento, ahora) : null;
+  const contactoPerdido = sinContacto(lead);
+  const ajuste = penalizacionPorAntiguedad(tipoEvento, diasEvento) + (contactoPerdido ? PENALIZACION_SIN_CONTACTO : 0);
+  const score = scoreFinal(lead.scoreBase, sector.prioridad, ajuste);
+  return {
+    score,
+    nivel: nivelScore(score),
+    tipoEvento,
+    diasEvento,
+    ramosOrdenados: ramosSugeridos(lead.ramos, tipoEvento, diasEvento),
+    sinContacto: contactoPerdido,
+  };
+}
 
 export type Filtros = {
   sector: string; // "todos" o id de sector
@@ -34,6 +60,7 @@ export function leadsVisibles(
   leads: Lead[],
   sectores: Sector[],
   ajustes: Pick<Ajustes, "zonas" | "licitaciones">,
+  ahora: Date = new Date(),
 ): LeadConScore[] {
   const porId = new Map(sectores.map((s) => [s.id, s]));
   const resultado: LeadConScore[] = [];
@@ -43,8 +70,7 @@ export function leadsVisibles(
     if (lead.estado === "descartado") continue;
     if (!ajustes.zonas[lead.zona]) continue;
     if (lead.alcanceLicitacion && !ajustes.licitaciones[lead.alcanceLicitacion]) continue;
-    const score = scoreFinal(lead.scoreBase, sector.prioridad);
-    resultado.push({ ...lead, sector, score, nivel: nivelScore(score) });
+    resultado.push({ ...lead, sector, ...puntuarLead(lead, sector, ahora) });
   }
   return resultado.sort(
     (a, b) => b.score - a.score || b.detectadoEl.getTime() - a.detectadoEl.getTime(),
@@ -110,4 +136,14 @@ export function urlFiltros(actual: Filtros, cambios: Partial<Filtros>): string {
   if (f.q) p.set("q", f.q);
   const qs = p.toString();
   return qs ? `/?${qs}` : "/";
+}
+
+/** Un lead "para después" tiene recordatorio a futuro: hasta ese día no compite por la atención. */
+export function estaPospuesto(lead: Pick<Lead, "recordatorio">, hoy: string): boolean {
+  return lead.recordatorio !== null && lead.recordatorio > hoy;
+}
+
+/** Los pospuestos van al final, manteniendo el orden por score dentro de cada grupo. */
+export function ordenarParaHoy<T extends Pick<Lead, "recordatorio">>(leads: T[], hoy: string): T[] {
+  return [...leads].sort((a, b) => Number(estaPospuesto(a, hoy)) - Number(estaPospuesto(b, hoy)));
 }
