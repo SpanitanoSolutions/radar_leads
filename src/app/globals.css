@@ -334,6 +334,19 @@ a:hover {
   flex-direction: column;
   gap: 20px;
 }
+.firma-app {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 8px;
+  color: var(--etiqueta);
+  font-size: 11px;
+}
+.firma-app strong {
+  color: var(--texto-2);
+  font-weight: 600;
+}
 .contenido:focus {
   outline: none;
 }

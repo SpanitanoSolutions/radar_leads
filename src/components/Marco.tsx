@@ -163,6 +163,10 @@ export function Marco({
         </nav>
         <main id="contenido" className="contenido" tabIndex={-1}>
           {children}
+          <footer className="firma-app">
+            <span>Powered by</span>
+            <strong>Spanitano Solutions</strong>
+          </footer>
         </main>
       </div>
     </div>
