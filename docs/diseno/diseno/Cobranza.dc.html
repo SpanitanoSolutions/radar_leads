@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agente de cobranza</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1A3FA8}a:hover{color:#132F7E}
+</style>
+</helmet>
+<div style="min-height: 1400px; display: flex; flex-direction: column; background: #F4F5F7; font-family: Inter, system-ui, sans-serif; color: #141A26">
+
+  <header style="height: 56px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 20px; background: #FFFFFF; border-bottom: 1px solid #E3E6EB; box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 10px; flex: none">
+      <div style="width: 28px; height: 28px; border-radius: 7px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle><path d="M12 12l6-6"></path></svg>
+      </div>
+      <span style="font-weight: 700; font-size: 16px">Radar</span>
+      <span style="font-size: 15px; color: #4B5466">Cartera de seguros</span>
+    </div>
+    <div aria-hidden="true" style="width: 1px; height: 24px; background: #E3E6EB; flex: none"></div>
+    <span style="font-size: 14px; color: #2F3747; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">[Nombre del productor] · HR Productores</span>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 4px; flex: none">
+      <a href="#" aria-label="Ayuda" style="width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; color: #4B5466">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"></path></svg>
+      </a>
+      <a href="#" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 8px; color: #1A3FA8; font-size: 14px; font-weight: 600; text-decoration: none">Salir</a>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; min-width: 0">
+
+    <nav aria-label="Navegación principal" style="flex: 1 1 232px; background: #FFFFFF; border-right: 1px solid #E3E6EB; padding: 16px 12px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="padding: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5C6577; text-transform: uppercase">Mi cartera</div>
+        <a href="Cartera.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"></path></svg>
+          <span>Asegurados</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #EEF0F3; color: #2F3747">16</span>
+        </a>
+        <a href="Cartera.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+          <span>Vencimientos</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">7</span>
+        </a>
+        <a href="Importar.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5M12 3v12"></path></svg>
+          <span>Importar cartera</span>
+        </a>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="padding: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5C6577; text-transform: uppercase">Agentes</div>
+        <a href="Cotizacion.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4"></path></svg>
+          <span>Cotización</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">2</span>
+        </a>
+        <a href="Validador.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20M7 15h3"></path></svg>
+          <span>Validador de pagos</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FDE2DE; color: #A1271A">2</span>
+        </a>
+        <a href="Siniestros.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M12 8v4M12 16h.01"></path></svg>
+          <span>Siniestros</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FDE2DE; color: #A1271A">3</span>
+        </a>
+        <a href="Cobranza.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; background: #E8EEFC; color: #1A3FA8; font-weight: 600">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.5 0-2.7-.6-3.2-1.6M12 6v2M12 16v2"></path></svg>
+          <span>Cobranza</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFFFFF; color: #1A3FA8">{{paraAprobar}}</span>
+        </a>
+        <a href="Conciliador.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14l-4-4M20 17H6l4 4"></path></svg>
+          <span>Conciliador</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">3</span>
+        </a>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="padding: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5C6577; text-transform: uppercase">Captación de clientes</div>
+        <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle><path d="M12 12l6-6"></path></svg>
+          <span>Leads del día</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #EEF0F3; color: #2F3747">10</span>
+        </a>
+        <a href="Sectores.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+          <span>Mis sectores</span>
+        </a>
+      </div>
+      <div style="margin-top: auto; padding: 12px; border-radius: 8px; background: #F8F9FB; font-size: 12px; color: #4B5466; line-height: 1.5">
+        <div style="font-weight: 600; color: #2F3747">Última importación</div>
+        <div>24/10/2026 · cartera_octubre.csv</div>
+      </div>
+      <a href="Configuracion.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747; border-top: 1px solid #E3E6EB; margin-top: -8px; padding-top: 4px">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+        <span>Configuración</span>
+        <span aria-label="1 conexión pendiente" style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">1</span>
+      </a>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.01em">Agente de cobranza</h1>
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: #E6F4EA; color: #1E6B34">
+              <span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #1E8E3E"></span>
+              Activo · te pide aprobación antes de enviar
+            </span>
+          </div>
+          <p style="margin: 0; font-size: 14px; color: #4B5466; max-width: 720px; line-height: 1.5">Avisa a tus asegurados antes de que venza la cuota, sigue las que quedaron impagas y te avisa cuándo te toca llamar a vos. Cuando el Validador de pagos confirma un pago, la secuencia de ese cliente se corta sola.</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button type="button" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 6px; border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Actividad</button>
+          <button type="button" onClick="{{irSecuencia}}" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 6px; border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Editar secuencia</button>
+          <button type="button" onClick="{{aprobarTodos}}" style="{{btnTodosStyle}}">{{btnTodosTexto}}</button>
+        </div>
+      </div>
+
+      <sc-if value="{{hayAviso}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 8px; background: #E6F4EA; color: #1E6B34; font-size: 14px; font-weight: 500">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          {{aviso}}
+        </div>
+      </sc-if>
+
+      <section aria-label="Resumen del mes" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: #E3E6EB; border: 1px solid #E3E6EB; border-radius: 8px; overflow: hidden">
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; background: #FFFFFF">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #4B5466">Por cobrar en octubre</span>
+          <span style="font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums">$ 4.812.300</span>
+          <span style="font-size: 12px; color: #5C6577">38 cuotas de 16 asegurados</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; background: #FFFFFF">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #4B5466">Cobrado</span>
+          <span style="font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; color: #1E6B34">$ 3.369.000</span>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <div aria-hidden="true" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF0F3; overflow: hidden"><div style="width: 70%; height: 100%; background: #1E8E3E"></div></div>
+            <span style="font-size: 12px; color: #5C6577">70 %</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; background: #FFFFFF">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #4B5466">Cuotas vencidas</span>
+          <span style="font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums">5</span>
+          <span style="font-size: 12px; color: #5C6577">$ 412.600 sin cobrar</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; background: #FFFFFF">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #4B5466">Cerca de quedar sin cobertura</span>
+          <span style="font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; color: #A1271A">1</span>
+          <span style="font-size: 12px; color: #5C6577">Sosa, Ricardo · 12 días de atraso</span>
+        </div>
+      </section>
+
+      <div role="tablist" aria-label="Secciones del agente" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #E3E6EB">
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+          <button type="button" role="tab" aria-selected="{{t.selected}}" onClick="{{t.pick}}" style="{{t.style}}">
+            {{t.texto}}
+            <sc-if value="{{t.conN}}" hint-placeholder-val="{{true}}"><span style="{{t.countStyle}}">{{t.n}}</span></sc-if>
+          </button>
+        </sc-for>
+      </div>
+
+      <!-- PARA APROBAR -->
+      <sc-if value="{{verAprobar}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <sc-for list="{{mensajes}}" as="m" hint-placeholder-count="4">
+            <article style="display: flex; flex-wrap: wrap; gap: 20px; padding: 18px 20px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 8px; {{m.borde}}">
+              <div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+                  <span style="{{m.etapaStyle}}">{{m.etapa}}</span>
+                  <span style="font-size: 12px; color: #5C6577">{{m.canal}}</span>
+                </div>
+                <h2 style="margin: 0; font-size: 16px; font-weight: 600">{{m.cliente}}</h2>
+                <div style="font-size: 13px; color: #2F3747">{{m.poliza}}</div>
+                <div style="font-size: 13px; color: #2F3747"><span style="font-weight: 600; font-variant-numeric: tabular-nums">{{m.monto}}</span> · {{m.vence}}</div>
+                <p style="margin: 4px 0 0; font-size: 13px; color: #4B5466; line-height: 1.5"><strong style="font-weight: 600; color: #2F3747">Por qué ahora:</strong> {{m.porque}}</p>
+              </div>
+
+              <div style="flex: 2 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+                <sc-if value="{{m.esLlamada}}" hint-placeholder-val="{{false}}">
+                  <div style="padding: 14px 16px; border-radius: 8px; background: #FFF4E0; display: flex; flex-direction: column; gap: 8px">
+                    <div style="font-size: 14px; font-weight: 600; color: #5C3B00">Te toca llamar a vos</div>
+                    <div style="font-size: 13px; color: #2F3747; line-height: 1.5">{{m.texto}}</div>
+                    <div style="font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums">{{m.telefono}}</div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{m.esMensaje}}" hint-placeholder-val="{{true}}">
+                  <sc-if value="{{m.editando}}" hint-placeholder-val="{{false}}">
+                    <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #2F3747">
+                      Mensaje
+                      <textarea rows="6" value="{{m.texto}}" onChange="{{m.onTexto}}" style="width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #C9CED6; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 400; line-height: 1.5; color: #141A26; resize: vertical"></textarea>
+                    </label>
+                  </sc-if>
+                  <sc-if value="{{m.leyendo}}" hint-placeholder-val="{{true}}">
+                    <div style="{{m.burbuja}}">{{m.texto}}</div>
+                  </sc-if>
+                </sc-if>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                  <sc-for list="{{m.acciones}}" as="a" hint-placeholder-count="3">
+                    <button type="button" onClick="{{a.run}}" style="{{a.style}}">{{a.texto}}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </article>
+          </sc-for>
+          <sc-if value="{{sinMensajes}}" hint-placeholder-val="{{false}}">
+            <div style="padding: 40px 20px; text-align: center; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 8px">
+              <div style="font-size: 16px; font-weight: 600">No hay nada para aprobar</div>
+              <p style="margin: 6px 0 0; font-size: 14px; color: #4B5466">El agente vuelve a revisar las cuotas mañana a las 9:00.</p>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- SEGUIMIENTO -->
+      <sc-if value="{{verSeguimiento}}" hint-placeholder-val="{{false}}">
+        <section aria-label="Seguimiento de cuotas" style="background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 8px; min-width: 0">
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; border-bottom: 1px solid #E3E6EB">
+            <sc-for list="{{filtros}}" as="f" hint-placeholder-count="4">
+              <button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.texto}}</button>
+            </sc-for>
+          </div>
+          <div style="overflow-x: auto">
+            <div style="min-width: 1060px">
+              <div style="display: grid; grid-template-columns: minmax(190px, 1.5fr) 120px 128px 150px minmax(170px, 1.3fr) minmax(190px, 1.4fr); gap: 14px; align-items: center; padding: 0 16px; min-height: 44px; background: #EEF0F3; font-size: 13px; font-weight: 600; color: #2F3747">
+                <div>Cliente</div><div style="text-align: right">Monto</div><div>Vencimiento</div><div>Secuencia</div><div>Última novedad</div><div>Próximo paso</div>
+              </div>
+              <sc-for list="{{seguimiento}}" as="s" hint-placeholder-count="8">
+                <div style="display: grid; grid-template-columns: minmax(190px, 1.5fr) 120px 128px 150px minmax(170px, 1.3fr) minmax(190px, 1.4fr); gap: 14px; align-items: center; padding: 10px 16px; min-height: 60px; border-top: 1px solid #EEF0F3">
+                  <div style="min-width: 0">
+                    <div style="font-size: 14px; font-weight: 600">{{s.cliente}}</div>
+                    <div style="font-size: 12px; color: #5C6577; margin-top: 2px">{{s.poliza}}</div>
+                  </div>
+                  <div style="font-size: 13px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums">{{s.monto}}</div>
+                  <div><span style="{{s.venceStyle}}">{{s.vence}}</span></div>
+                  <div style="display: flex; flex-direction: column; gap: 4px">
+                    <div aria-hidden="true" style="display: flex; gap: 4px">
+                      <sc-for list="{{s.pasos}}" as="p" hint-placeholder-count="5"><span style="{{p.style}}"></span></sc-for>
+                    </div>
+                    <span style="font-size: 12px; color: #5C6577">{{s.pasoTexto}}</span>
+                  </div>
+                  <div style="font-size: 13px; line-height: 1.4">
+                    <span style="{{s.estadoStyle}}">{{s.estado}}</span>
+                    <div style="font-size: 12px; color: #5C6577; margin-top: 3px">{{s.ultimo}}</div>
+                  </div>
+                  <div style="font-size: 13px; color: #2F3747; line-height: 1.4">{{s.proximo}}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <!-- SECUENCIA -->
+      <sc-if value="{{verSecuencia}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+          <ol style="flex: 2 1 520px; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+            <sc-for list="{{pasos}}" as="p" hint-placeholder-count="5">
+              <li style="display: flex; gap: 16px; padding: 18px 20px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 8px">
+                <div style="flex: none; width: 32px; height: 32px; border-radius: 50%; background: #E8EEFC; color: #1A3FA8; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700">{{p.n}}</div>
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+                  <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px">
+                    <h2 style="margin: 0; font-size: 16px; font-weight: 600">{{p.titulo}}</h2>
+                    <span style="font-size: 13px; color: #4B5466">{{p.cuando}} · {{p.canal}}</span>
+                  </div>
+                  <div style="{{p.plantillaStyle}}">{{p.plantilla}}</div>
+                  <label style="{{p.toggleLabelStyle}}">
+                    <input type="checkbox" checked="{{p.auto}}" onChange="{{p.toggle}}" disabled="{{p.esTarea}}" style="width: 18px; height: 18px; margin: 0; accent-color: {{accent}}">
+                    {{p.toggleTexto}}
+                  </label>
+                </div>
+              </li>
+            </sc-for>
+          </ol>
+          <aside style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 12px">
+            <section style="padding: 18px 20px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 8px; display: flex; flex-direction: column; gap: 12px">
+              <h2 style="margin: 0; font-size: 16px; font-weight: 600">Reglas</h2>
+              <sc-for list="{{reglas}}" as="r" hint-placeholder-count="4">
+                <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #2F3747; line-height: 1.5; cursor: pointer">
+                  <input type="checkbox" checked="{{r.on}}" onChange="{{r.toggle}}" style="flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: {{accent}}">
+                  {{r.texto}}
+                </label>
+              </sc-for>
+            </section>
+            <section style="padding: 16px 18px; background: #F8F9FB; border: 1px solid #E3E6EB; border-radius: 8px; font-size: 13px; color: #2F3747; line-height: 1.5">
+              <div style="font-weight: 600; margin-bottom: 4px">Plazos de gracia</div>
+              Cada compañía tiene su propio plazo antes de suspender la cobertura por falta de pago. El agente toma el de cada póliza para calcular el paso 5; podés revisarlo en la ficha del asegurado.
+            </section>
+            <section style="padding: 16px 18px; background: #F8F9FB; border: 1px solid #E3E6EB; border-radius: 8px; font-size: 13px; color: #2F3747; line-height: 1.5">
+              <div style="font-weight: 600; margin-bottom: 4px">Variables de los mensajes</div>
+              {nombre}, {compañía}, {ramo}, {cuota}, {monto}, {vence}, {medios de pago}, {productor}
+            </section>
+          </aside>
+        </div>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#1F4FD1","options":["#1F4FD1","#0F766E","#B4361A"]},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  mensajesBase() {
+    return [
+      { id: 'gomez', cliente: 'Gómez, Lucía', poliza: 'Mapfre · Auto · cuota 6 de 12', monto: '$ 80.000', vence: 'vence el jueves 29/10',
+        etapa: 'Paso 2 · Vence en 2 días', tono: 'aviso', canal: 'WhatsApp · 223 554-1290',
+        porque: 'Ayer le llegó el recordatorio por email y no abrió el mensaje.',
+        texto: 'Hola Lucía, ¿cómo estás? Te recuerdo que el jueves 29/10 vence la cuota 6 del seguro de tu auto con Mapfre ($ 80.000). Podés pagarla por transferencia o en Rapipago con el código de siempre. Cuando pagues, mandame el comprobante por acá y queda registrado. Saludos, [Nombre del productor]' },
+      { id: 'atlantico', cliente: 'Transportes Del Atlántico SRL', poliza: 'Mapfre · Flota · cuota 10 de 12', monto: 'Faltan $ 34.000', vence: 'vence el 31/10',
+        etapa: 'Pago incompleto', tono: 'problema', canal: 'Email · Marcela Ruiz (administración)',
+        porque: 'El Validador de pagos encontró que transfirieron $ 640.000 y la cuota es $ 674.000.',
+        texto: 'Hola Marcela, ¿cómo estás? Recibimos la transferencia de $ 640.000 por la cuota 10 de la flota con Mapfre, muchas gracias. La cuota es de $ 674.000, así que quedan $ 34.000 pendientes antes del 31/10. ¿Podrás transferir la diferencia a la misma cuenta? Cualquier duda, avisame. Saludos, [Nombre del productor]' },
+      { id: 'pereyra', cliente: 'Pereyra, Martín', poliza: 'Sancor · Auto · cuota 8 de 12', monto: '$ 58.400', vence: 'venció el 22/10',
+        etapa: 'Paso 3 · Vencida hace 5 días', tono: 'vencida', canal: 'WhatsApp · 223 601-4477',
+        porque: 'Leyó el aviso del día del vencimiento y no respondió.',
+        texto: 'Hola Martín, ¿cómo andás? Te escribo porque la cuota 8 del seguro de tu auto con Sancor ($ 58.400) venció el 22/10 y todavía no me figura el pago. Si ya la pagaste, mandame el comprobante y lo reviso. Si necesitás que te pase otra vez los datos para pagar, decime. Saludos, [Nombre del productor]' },
+      { id: 'sosa', cliente: 'Sosa, Ricardo', poliza: 'Federación Patronal · Auto · cuota 5 de 12', monto: '$ 96.200', vence: 'venció el 15/10',
+        etapa: 'Paso 4 · Vencida hace 12 días', tono: 'llamada', canal: 'Llamada tuya', llamada: true, telefono: '223 478-3021',
+        porque: 'No respondió los dos mensajes anteriores y se acerca el plazo de gracia de la compañía.',
+        texto: 'El agente ya le escribió el 18/10 y el 22/10 y los dos mensajes figuran como leídos. Una llamada tuya suele destrabarlo más rápido que otro mensaje.' },
+      { id: 'tito', cliente: 'Distribuidora Tito Hnos. SRL', poliza: 'La Segunda · Flota de reparto · cuota 4 de 6', monto: '$ 312.500', vence: 'vence el viernes 30/10',
+        etapa: 'Paso 1 · Vence en 3 días', tono: 'aviso', canal: 'Email · Tito Aguirre',
+        porque: 'Es el primer recordatorio de esta cuota. Siempre paga por transferencia.',
+        texto: 'Hola Tito, ¿cómo estás? Te recuerdo que el viernes 30/10 vence la cuota 4 de la flota de reparto con La Segunda ($ 312.500). Te dejo los datos para transferir: [CBU de la compañía]. Cuando la pagues, respondé este email con el comprobante. Saludos, [Nombre del productor]' }
+    ];
+  }
+
+  segBase() {
+    return [
+      { cliente: 'Sosa, Ricardo', poliza: 'Federación Patronal · Auto', monto: 96200, dias: -12, paso: 3, estado: 'Leído, sin respuesta', tipo: 'mal', ultimo: 'WhatsApp · 22/10', proximo: 'Llamada tuya · hoy', grupo: 'vencidas' },
+      { cliente: 'Molina, Hernán', poliza: 'La Segunda · Integral de comercio', monto: 65000, dias: -8, paso: 3, estado: 'Pagó a una cuenta equivocada', tipo: 'mal', ultimo: 'Detectado por el Validador · 24/10', proximo: 'En pausa hasta que hables con él', grupo: 'pausadas' },
+      { cliente: 'Clínica Dental Costa Azul SRL', poliza: 'Sancor · RC profesional', monto: 54800, dias: -6, paso: 3, estado: 'Promesa de pago: viernes 30/10', tipo: 'ok', ultimo: 'Respondió por WhatsApp · 26/10', proximo: 'En pausa hasta el 30/10', grupo: 'pausadas' },
+      { cliente: 'Pereyra, Martín', poliza: 'Sancor · Auto', monto: 58400, dias: -5, paso: 2, estado: 'Leído, sin respuesta', tipo: 'neutro', ultimo: 'WhatsApp · 22/10', proximo: 'Mensaje de cuota vencida · para aprobar', grupo: 'vencidas' },
+      { cliente: 'Fernández, Rocío', poliza: 'Federación Patronal · Auto y Vida', monto: 93300, dias: -3, paso: 0, estado: 'Sin teléfono ni email', tipo: 'mal', ultimo: 'No se le pudo avisar', proximo: 'Completar el contacto en la ficha', grupo: 'vencidas' },
+      { cliente: 'Gómez, Lucía', poliza: 'Mapfre · Auto', monto: 80000, dias: 2, paso: 1, estado: 'Email sin abrir', tipo: 'neutro', ultimo: 'Recordatorio · 26/10', proximo: 'Aviso por WhatsApp · para aprobar', grupo: 'porvencer' },
+      { cliente: 'Distribuidora Tito Hnos. SRL', poliza: 'La Segunda · Flota de reparto', monto: 312500, dias: 3, paso: 0, estado: 'Todavía sin avisos', tipo: 'neutro', ultimo: '—', proximo: 'Recordatorio por email · para aprobar', grupo: 'porvencer' },
+      { cliente: 'Transportes Del Atlántico SRL', poliza: 'Mapfre · Flota', monto: 34000, dias: 4, paso: 1, estado: 'Pago incompleto', tipo: 'mal', ultimo: 'Pagó $ 640.000 de $ 674.000 · 26/10', proximo: 'Pedir la diferencia · para aprobar', grupo: 'porvencer' },
+      { cliente: 'Hotel Brisas del Sur SA', poliza: 'Sancor · Integral', monto: 1075000, dias: 9, paso: 0, estado: 'Todavía sin avisos', tipo: 'neutro', ultimo: '—', proximo: 'Recordatorio el 02/11', grupo: 'porvencer' },
+      { cliente: 'Escuela de Conducir Faro SRL', poliza: 'Federación Patronal · Flota', monto: 158300, dias: 12, paso: 0, estado: 'Todavía sin avisos', tipo: 'neutro', ultimo: '—', proximo: 'Recordatorio el 05/11', grupo: 'porvencer' }
+    ];
+  }
+
+  renderVals() {
+    var self = this;
+    var accent = this.props.accent || '#1F4FD1';
+    var st = Object.assign({ tab: 'aprobar', hechos: {}, editando: null, textos: {}, filtro: 'todas', autos: { 1: true, 2: false, 3: false, 5: false }, reglas: { cortar: true, horario: true, admin: true, avisarme: true }, aviso: '' }, this.state || {});
+    function set(c) { self.setState(Object.assign({}, st, c)); }
+    function plata(n) { return '$ ' + n.toLocaleString('es-AR'); }
+    var pill = 'display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; ';
+    var btnPrim = 'min-height: 40px; padding: 0 16px; border-radius: 6px; border: none; background: ' + accent + '; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;';
+    var btnSec = 'min-height: 40px; padding: 0 16px; border-radius: 6px; border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;';
+    var btnTer = 'min-height: 40px; padding: 0 12px; border-radius: 6px; border: none; background: none; color: #4B5466; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;';
+
+    var pendientes = this.mensajesBase().filter(function (m) { return !st.hechos[m.id]; });
+    function marcar(m, aviso) {
+      var h = Object.assign({}, st.hechos); h[m.id] = true;
+      set({ hechos: h, editando: null, aviso: aviso });
+    }
+    var TONO = {
+      aviso: 'background: #FFF4E0; color: #8A4B00;',
+      vencida: 'background: #FDE2DE; color: #A1271A;',
+      llamada: 'background: #FDE2DE; color: #A1271A;',
+      problema: 'background: #FDE2DE; color: #A1271A;'
+    };
+    var mensajes = pendientes.map(function (m) {
+      var editando = st.editando === m.id;
+      var texto = st.textos[m.id] != null ? st.textos[m.id] : m.texto;
+      var esWa = m.canal.indexOf('WhatsApp') === 0;
+      var acciones;
+      if (m.llamada) {
+        acciones = [
+          { texto: 'Registrar promesa de pago', run: function () { marcar(m, 'Promesa de pago registrada para ' + m.cliente + '. La secuencia queda en pausa hasta esa fecha.'); }, style: btnPrim },
+          { texto: 'Llamé y no atendió', run: function () { marcar(m, 'Anotado. El agente te lo vuelve a proponer mañana.'); }, style: btnSec },
+          { texto: 'Posponer', run: function () { marcar(m, 'Pospuesto para mañana.'); }, style: btnTer }
+        ];
+      } else if (editando) {
+        acciones = [
+          { texto: 'Guardar y enviar', run: function () { marcar(m, 'Mensaje enviado a ' + m.cliente + ' por ' + (esWa ? 'WhatsApp' : 'email') + '.'); }, style: btnPrim },
+          { texto: 'Cancelar', run: function () { var t = Object.assign({}, st.textos); delete t[m.id]; set({ editando: null, textos: t }); }, style: btnSec }
+        ];
+      } else {
+        acciones = [
+          { texto: 'Aprobar y enviar', run: function () { marcar(m, 'Mensaje enviado a ' + m.cliente + ' por ' + (esWa ? 'WhatsApp' : 'email') + '.'); }, style: btnPrim },
+          { texto: 'Editar', run: function () { set({ editando: m.id }); }, style: btnSec },
+          { texto: 'Omitir', run: function () { marcar(m, 'Omitido. ' + m.cliente + ' sigue en seguimiento.'); }, style: btnTer }
+        ];
+      }
+      return {
+        cliente: m.cliente, poliza: m.poliza, monto: m.monto, vence: m.vence, porque: m.porque, canal: m.canal, telefono: m.telefono || '',
+        etapa: m.etapa, etapaStyle: pill + TONO[m.tono],
+        borde: m.tono === 'llamada' ? 'border-left: 4px solid #C5221F;' : '',
+        esLlamada: !!m.llamada, esMensaje: !m.llamada,
+        editando: editando, leyendo: !editando,
+        texto: texto,
+        onTexto: function (e) { var t = Object.assign({}, st.textos); t[m.id] = e.target.value; set({ textos: t }); },
+        burbuja: 'padding: 12px 14px; border-radius: 10px; font-size: 14px; line-height: 1.55; color: #141A26; white-space: pre-wrap; ' + (esWa ? 'background: #E7F6E9; border-top-left-radius: 2px;' : 'background: #F8F9FB; border: 1px solid #E3E6EB;'),
+        acciones: acciones
+      };
+    });
+    var nMsgs = pendientes.filter(function (m) { return !m.llamada; }).length;
+
+    var seg = this.segBase();
+    var TABS = [
+      { id: 'aprobar', texto: 'Para aprobar', n: pendientes.length, rojo: true },
+      { id: 'seguimiento', texto: 'Seguimiento', n: seg.length },
+      { id: 'secuencia', texto: 'Secuencia' }
+    ];
+    var tabs = TABS.map(function (t) {
+      var a = t.id === st.tab;
+      return {
+        texto: t.texto, n: String(t.n == null ? '' : t.n), conN: t.n != null,
+        selected: a ? 'true' : 'false',
+        countStyle: 'margin-left: 6px; font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 999px; ' + (t.rojo && t.n > 0 ? 'background: #FDE2DE; color: #A1271A;' : 'background: #EEF0F3; color: #2F3747;'),
+        style: 'display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border: none; background: none; font: inherit; font-size: 14px; cursor: pointer; margin-bottom: -1px; ' +
+          (a ? 'color: #141A26; font-weight: 600; border-bottom: 2px solid #141A26;' : 'color: #4B5466; font-weight: 500; border-bottom: 2px solid transparent;'),
+        pick: function () { set({ tab: t.id, aviso: '' }); }
+      };
+    });
+
+    var FILTROS = [['todas', 'Todas'], ['vencidas', 'Vencidas'], ['porvencer', 'Por vencer'], ['pausadas', 'En pausa']];
+    var filtros = FILTROS.map(function (f) {
+      var a = st.filtro === f[0];
+      var n = f[0] === 'todas' ? seg.length : seg.filter(function (s) { return s.grupo === f[0]; }).length;
+      return {
+        texto: f[1] + ' · ' + n, pressed: a ? 'true' : 'false',
+        pick: function () { set({ filtro: f[0] }); },
+        style: 'min-height: 36px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer; ' + (a ? 'border: 1px solid #141A26; background: #141A26; color: #FFFFFF; font-weight: 600;' : 'border: 1px solid #C9CED6; background: #FFFFFF; color: #2F3747; font-weight: 500;')
+      };
+    });
+    var EST = { ok: 'color: #1E6B34; font-weight: 600;', mal: 'color: #A1271A; font-weight: 600;', neutro: 'color: #2F3747; font-weight: 500;' };
+    var seguimiento = seg.filter(function (s) { return st.filtro === 'todas' || s.grupo === st.filtro; }).map(function (s) {
+      var vence, venceStyle;
+      if (s.dias < 0) { vence = 'Hace ' + (-s.dias) + ' días'; venceStyle = pill + 'background: #FDE2DE; color: #A1271A;'; }
+      else { vence = 'En ' + s.dias + ' días'; venceStyle = pill + (s.dias <= 7 ? 'background: #FFF4E0; color: #8A4B00;' : 'background: #EEF0F3; color: #2F3747;'); }
+      var pasos = [1, 2, 3, 4, 5].map(function (i) {
+        return { style: 'width: 22px; height: 6px; border-radius: 999px; background: ' + (i <= s.paso ? (s.dias < 0 ? '#C5221F' : accent) : '#E3E6EB') + ';' };
+      });
+      return {
+        cliente: s.cliente, poliza: s.poliza, monto: plata(s.monto), vence: vence, venceStyle: venceStyle,
+        pasos: pasos, pasoTexto: s.paso === 0 ? 'Sin empezar' : 'Paso ' + s.paso + ' de 5',
+        estado: s.estado, estadoStyle: EST[s.tipo], ultimo: s.ultimo, proximo: s.proximo
+      };
+    });
+
+    var PASOS = [
+      { n: 1, titulo: 'Recordatorio', cuando: '3 días antes del vencimiento', canal: 'Email y WhatsApp',
+        plantilla: 'Hola {nombre}, te recuerdo que el {vence} vence la cuota {cuota} de tu seguro de {ramo} con {compañía} ({monto}). Podés pagarla por {medios de pago}. Saludos, {productor}' },
+      { n: 2, titulo: 'Vence hoy', cuando: 'El día del vencimiento', canal: 'WhatsApp',
+        plantilla: 'Hola {nombre}, hoy vence la cuota {cuota} de tu seguro de {ramo} ({monto}). Si ya la pagaste, mandame el comprobante por acá. Saludos, {productor}' },
+      { n: 3, titulo: 'Cuota vencida', cuando: '3 días después', canal: 'WhatsApp',
+        plantilla: 'Hola {nombre}, la cuota {cuota} de tu seguro de {ramo} venció el {vence} y todavía no me figura el pago. Si ya pagaste, mandame el comprobante y lo reviso. Saludos, {productor}' },
+      { n: 4, titulo: 'Llamada tuya', cuando: '10 días después', canal: 'Tarea para vos', tarea: true,
+        plantilla: 'El agente no escribe: te deja el cliente en "Para aprobar" con el teléfono y el historial de mensajes para que lo llames.' },
+      { n: 5, titulo: 'Aviso de riesgo de cobertura', cuando: '5 días antes del fin del plazo de gracia', canal: 'WhatsApp y email',
+        plantilla: 'Hola {nombre}, la cuota {cuota} de tu seguro de {ramo} sigue impaga. Si no se regulariza antes del {fin de gracia}, {compañía} puede suspender la cobertura. Escribime y lo resolvemos. Saludos, {productor}' }
+    ];
+    var pasos = PASOS.map(function (p) {
+      var auto = !!st.autos[p.n];
+      return {
+        n: p.n, titulo: p.titulo, cuando: p.cuando, canal: p.canal, plantilla: p.plantilla,
+        esTarea: !!p.tarea, auto: auto,
+        plantillaStyle: 'padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; ' + (p.tarea ? 'color: #4B5466; font-style: italic;' : 'background: #F8F9FB; border: 1px solid #E3E6EB; color: #2F3747;'),
+        toggleTexto: p.tarea ? 'Siempre la hacés vos' : (auto ? 'Se envía sin pedirte aprobación' : 'Te pide aprobación antes de enviar'),
+        toggleLabelStyle: 'display: inline-flex; align-items: center; gap: 8px; min-height: 32px; font-size: 13px; color: #2F3747; ' + (p.tarea ? 'opacity: 0.6;' : 'cursor: pointer;'),
+        toggle: function () { var a = Object.assign({}, st.autos); a[p.n] = !a[p.n]; set({ autos: a }); }
+      };
+    });
+    var REGLAS = [
+      ['cortar', 'Cortar la secuencia cuando el Validador de pagos confirma el pago.'],
+      ['horario', 'Enviar solo de lunes a sábado, entre las 9 y las 20 h.'],
+      ['admin', 'En empresas, escribirle al contacto de administración.'],
+      ['avisarme', 'Avisarme por WhatsApp cuando alguien responde.']
+    ];
+    var reglas = REGLAS.map(function (r) {
+      return { texto: r[1], on: !!st.reglas[r[0]], toggle: function () { var g = Object.assign({}, st.reglas); g[r[0]] = !g[r[0]]; set({ reglas: g }); } };
+    });
+
+    return {
+      accent: accent,
+      paraAprobar: String(pendientes.length),
+      tabs: tabs,
+      verAprobar: st.tab === 'aprobar', verSeguimiento: st.tab === 'seguimiento', verSecuencia: st.tab === 'secuencia',
+      mensajes: mensajes,
+      sinMensajes: pendientes.length === 0,
+      btnTodosTexto: nMsgs > 0 ? 'Aprobar y enviar ' + nMsgs + ' mensajes' : 'Nada para enviar',
+      btnTodosStyle: 'display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 6px; border: none; font: inherit; font-size: 14px; font-weight: 600; ' + (nMsgs > 0 ? 'background: ' + accent + '; color: #FFFFFF; cursor: pointer;' : 'background: #E3E6EB; color: #5C6577; cursor: default;'),
+      aprobarTodos: function () {
+        if (!nMsgs) return;
+        var h = Object.assign({}, st.hechos);
+        pendientes.forEach(function (m) { if (!m.llamada) h[m.id] = true; });
+        set({ hechos: h, editando: null, tab: 'aprobar', aviso: nMsgs + ' mensajes enviados. Queda la llamada a Sosa, Ricardo.' });
+      },
+      irSecuencia: function () { set({ tab: 'secuencia', aviso: '' }); },
+      hayAviso: !!st.aviso, aviso: st.aviso,
+      filtros: filtros,
+      seguimiento: seguimiento,
+      pasos: pasos,
+      reglas: reglas
+    };
+  }
+}
+</script>
+</body>
+</html>
