@@ -14,10 +14,11 @@ const item = (texto: string, c = CONTADORES) =>
   armarMenu(c).flatMap((g) => g.items).find((i) => i.texto === texto)!;
 
 describe("armarMenu", () => {
-  it("arma los tres grupos en el orden del diseño", () => {
+  it("arma los grupos con el dashboard antes de la cartera", () => {
     const grupos = armarMenu(CONTADORES);
-    expect(grupos.map((g) => g.titulo)).toEqual(["Mi cartera", "Agentes", "Captación de clientes"]);
-    expect(grupos[1].items.map((i) => i.texto)).toEqual([
+    expect(grupos.map((g) => g.titulo)).toEqual(["Inicio", "Mi cartera", "Agentes", "Captación de clientes"]);
+    expect(grupos[0].items[0]).toMatchObject({ href: "/", texto: "Resumen general" });
+    expect(grupos[2].items.map((i) => i.texto)).toEqual([
       "Cotización",
       "Validador de pagos",
       "Siniestros",

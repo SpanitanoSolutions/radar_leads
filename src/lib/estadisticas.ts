@@ -211,6 +211,7 @@ export function calcularEstadisticas(datos: DatosEstadisticas, anio: number) {
   return {
     anio,
     asegurados: datos.asegurados.length,
+    polizasTotal: datos.polizas.length,
     polizasVigentes: vigentes.length,
     primaAnual,
     primaPromedio: vigentes.length ? Math.round(primaAnual / vigentes.length) : 0,

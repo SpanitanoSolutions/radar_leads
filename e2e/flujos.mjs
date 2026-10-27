@@ -38,11 +38,18 @@ ok("contraseña incorrecta muestra error");
 // 3. Login correcto
 await page.fill("#clave", CLAVE);
 await page.click("button[type=submit]");
-await page.waitForURL(/\/asegurados(?:\?|$)/, { waitUntil: "commit" });
-await page.getByRole("heading", { name: "Asegurados", level: 1 }).waitFor();
-ok("login correcto, inicio en la cartera");
+await page.waitForURL(BASE + "/", { waitUntil: "commit" });
+await page.getByRole("heading", { name: "Resumen general", level: 1 }).waitFor();
+await page.getByText("Prima anual vigente").waitFor();
+await page.getByRole("heading", { name: "Cartera por aseguradora" }).waitFor();
+await page.getByRole("heading", { name: "Próximos vencimientos" }).waitFor();
+await page.getByRole("heading", { name: "Actividad reciente" }).waitFor();
+ok("login correcto, inicio en el dashboard general");
+if (SHOTS) await page.screenshot({ path: `${SHOTS}/0-dashboard.png`, fullPage: true });
 
 // 4. Búsqueda en cartera, panel lateral y ficha completa
+await page.getByRole("link", { name: "Asegurados" }).click();
+await page.getByRole("heading", { name: "Asegurados", level: 1 }).waitFor();
 await page.getByRole("searchbox", { name: "Buscar por nombre, DNI, CUIT o número de póliza" }).fill("Gómez, Lucía");
 await page.waitForFunction(() => new URL(location.href).searchParams.get("q") === "Gómez, Lucía");
 await page.getByRole("link", { name: "Gómez, Lucía" }).first().click();
