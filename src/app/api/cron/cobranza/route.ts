@@ -1,4 +1,5 @@
 import { generarBorradores } from "@/agentes/cobranza";
+import { agenteConfigurado } from "@/lib/datos-agentes";
 import { diaEnArgentina } from "@/lib/fechas";
 import { cronAutorizado } from "@/lib/cron";
 
@@ -10,6 +11,9 @@ import { cronAutorizado } from "@/lib/cron";
 export async function GET(request: Request) {
   if (!cronAutorizado(request.headers.get("authorization"), process.env.CRON_SECRET)) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
+  }
+  if (!(await agenteConfigurado("cobranza"))) {
+    return Response.json({ desactivado: true, mensaje: "El agente de cobranza está desactivado." });
   }
   const ahora = new Date();
   const resultado = await generarBorradores(diaEnArgentina(ahora), ahora);
