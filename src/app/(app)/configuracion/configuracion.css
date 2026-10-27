@@ -1,32 +1,5 @@
 /* ---------- Configuración ---------- */
 
-.aviso-conexion {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  border: 1px solid var(--ambar-borde);
-  border-radius: var(--radio);
-  background: var(--ambar-claro);
-}
-.aviso-conexion-icono {
-  width: 40px;
-  height: 40px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: #fff;
-  color: var(--ambar-texto);
-  font-size: 13px;
-  font-weight: 700;
-}
-.aviso-conexion-texto {
-  flex: 1 1 320px;
-  min-width: 0;
-}
 .grupo-cabecera {
   flex-direction: column;
   align-items: flex-start;

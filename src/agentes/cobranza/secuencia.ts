@@ -58,7 +58,8 @@ export const PASOS_COBRANZA: DefinicionPaso[] = [
   },
 ];
 
+// Ningún paso sale solo hasta que el productor lo activa en "Secuencia".
 export const CONFIG_COBRANZA_INICIAL: ConfigCobranza = {
-  pasos: PASOS_COBRANZA.map((p) => ({ paso: p.paso, plantilla: p.plantilla, automatico: p.paso === 1 })),
+  pasos: PASOS_COBRANZA.map((p) => ({ paso: p.paso, plantilla: p.plantilla, automatico: false })),
   reglas: { cortarAlConfirmar: true, horario: true, contactoAdministracion: true, avisarRespuestas: true },
 };
