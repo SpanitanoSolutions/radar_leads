@@ -1,8 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { registrarResultadoCotizacion } from "@/agentes/cotizacion/solicitudes";
 
-export const runtime = "nodejs";
-
 function autorizado(authorization: string | null, secreto: string | undefined): boolean {
   if (!secreto || !authorization?.startsWith("Bearer ")) return false;
   const recibido = Buffer.from(authorization.slice(7));
