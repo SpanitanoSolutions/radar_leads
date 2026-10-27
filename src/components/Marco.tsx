@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -83,6 +84,32 @@ export function Marco({
     return () => document.removeEventListener("keydown", alTeclear);
   }, [abierto]);
 
+  useEffect(() => {
+    const cerrarFuera = (evento: PointerEvent) => {
+      const destino = evento.target;
+      if (!(destino instanceof Node)) return;
+      document.querySelectorAll<HTMLDetailsElement>("details[open]").forEach((detalle) => {
+        if (!detalle.contains(destino)) detalle.open = false;
+      });
+    };
+    const cerrarConEscape = (evento: KeyboardEvent) => {
+      if (evento.key !== "Escape") return;
+      const abiertas = Array.from(document.querySelectorAll<HTMLDetailsElement>("details[open]"));
+      if (!abiertas.length) return;
+      evento.preventDefault();
+      evento.stopImmediatePropagation();
+      const activa = abiertas.find((detalle) => detalle.contains(document.activeElement)) ?? abiertas.at(-1)!;
+      abiertas.forEach((detalle) => { detalle.open = false; });
+      activa.querySelector<HTMLElement>("summary")?.focus();
+    };
+    document.addEventListener("pointerdown", cerrarFuera, true);
+    document.addEventListener("keydown", cerrarConEscape, true);
+    return () => {
+      document.removeEventListener("pointerdown", cerrarFuera, true);
+      document.removeEventListener("keydown", cerrarConEscape, true);
+    };
+  }, []);
+
   const productor = [cuenta.nombre, cuenta.organizacion].filter(Boolean).join(" · ");
   const importacion = contadores.ultimaImportacion;
 
@@ -107,13 +134,25 @@ export function Marco({
           <span className="marca-icono marca-icono-chico" aria-hidden="true">
             <IconoRadar size={16} />
           </span>
-          <span className="barra-nombre">Radar</span>
-          <span className="barra-producto">Cartera de seguros</span>
+          <span className="barra-nombre">UNIQO</span>
+          <span className="barra-producto">Administración de seguros</span>
         </Link>
-        {productor && (
+        {(productor || cuenta.logoEmpresa) && (
           <>
             <span className="barra-separador" aria-hidden="true" />
-            <span className="barra-productor">{productor}</span>
+            <span className="barra-cuenta">
+              {cuenta.logoEmpresa && (
+                <Image
+                  src="/api/logo-empresa"
+                  alt={cuenta.organizacion ? `Logo de ${cuenta.organizacion}` : "Logo de la empresa"}
+                  width={32}
+                  height={32}
+                  unoptimized
+                  className="barra-logo-empresa"
+                />
+              )}
+              {productor && <span className="barra-productor">{productor}</span>}
+            </span>
           </>
         )}
         <div className="barra-acciones">

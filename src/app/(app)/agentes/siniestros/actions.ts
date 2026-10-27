@@ -113,17 +113,19 @@ export async function actualizarTramite(formData: FormData) {
 export async function cargarSiniestro(formData: FormData) {
   await requerirSesion();
   const polizaId = idDe(formData, "polizaId");
+  const compania = formData.get("compania");
   const fecha = fechaDe(formData, "fecha");
   const tipo = formData.get("tipo");
   const descripcion = formData.get("descripcion");
-  if (!fecha || typeof tipo !== "string" || typeof descripcion !== "string" || !descripcion.trim()) {
-    throw new Error("Completá la póliza, el tipo, la fecha y la descripción.");
+  if (typeof compania !== "string" || !compania.trim() || !fecha || typeof tipo !== "string" || typeof descripcion !== "string" || !descripcion.trim()) {
+    throw new Error("Completá la empresa, la póliza, el tipo, la fecha y la descripción.");
   }
   const lugar = formData.get("lugar");
   const relato = formData.get("relato");
   const avisoDe = formData.get("avisoDe");
   const id = await cargarSiniestroAgente({
     polizaId,
+    compania: compania.trim(),
     tipo,
     descripcion: descripcion.trim(),
     fecha,

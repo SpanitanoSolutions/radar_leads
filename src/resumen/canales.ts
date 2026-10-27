@@ -43,7 +43,7 @@ export function canalEmail({
 }
 
 /** Remitente por defecto de Resend: solo entrega al dueño de la cuenta hasta verificar un dominio. */
-export const REMITENTE_POR_DEFECTO = "Radar de leads <onboarding@resend.dev>";
+export const REMITENTE_POR_DEFECTO = "UNIQO <onboarding@resend.dev>";
 
 /** Canales con su configuración completa en el entorno. */
 export function canalesDisponibles(env: Record<string, string | undefined> = process.env): CanalResumen[] {

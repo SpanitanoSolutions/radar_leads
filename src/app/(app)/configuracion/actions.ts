@@ -16,6 +16,19 @@ import { AJUSTES_POR_DEFECTO } from "@/lib/datos";
 
 const texto = (formData: FormData, campo: string, max = 120) => String(formData.get(campo) ?? "").trim().slice(0, max);
 
+const MAX_LOGO_BYTES = 512 * 1024;
+
+function tipoLogo(bytes: Uint8Array): "image/png" | "image/jpeg" | "image/webp" | null {
+  if (bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((byte, i) => bytes[i] === byte)) return "image/png";
+  if (bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) return "image/jpeg";
+  if (
+    bytes.length >= 12 &&
+    String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+  ) return "image/webp";
+  return null;
+}
+
 function refrescar() {
   // El menú muestra cuántas conexiones faltan.
   revalidatePath("/", "layout");
@@ -107,6 +120,16 @@ export async function desconectar(formData: FormData) {
 
 export async function guardarCuenta(_previo: EstadoFormulario, formData: FormData): Promise<EstadoFormulario> {
   await requerirSesion();
+  const archivoLogo = formData.get("logoEmpresa");
+  let logoEmpresa: string | undefined;
+  if (archivoLogo instanceof File && archivoLogo.size > 0) {
+    if (archivoLogo.size > MAX_LOGO_BYTES) return { error: "El logo no puede superar los 512 KB." };
+    const bytes = new Uint8Array(await archivoLogo.arrayBuffer());
+    const mime = tipoLogo(bytes);
+    if (!mime) return { error: "Usá un logo en formato PNG, JPG o WebP." };
+    logoEmpresa = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+  }
+  const quitarLogo = formData.get("quitarLogo") === "on";
   const correo = texto(formData, "email");
   if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return { error: "El email no parece válido." };
   const nombres = [formData.get("nombre"), ...formData.getAll("productoresNombre")];
@@ -132,10 +155,14 @@ export async function guardarCuenta(_previo: EstadoFormulario, formData: FormDat
     productorEmail: correo || null,
     actualizadoEl: new Date(),
   };
+  const cambios = {
+    ...datos,
+    ...(logoEmpresa !== undefined ? { productorLogo: logoEmpresa } : quitarLogo ? { productorLogo: null } : {}),
+  };
   await db
     .insert(schema.ajustes)
-    .values({ id: 1, ...AJUSTES_POR_DEFECTO, ...datos })
-    .onConflictDoUpdate({ target: schema.ajustes.id, set: datos });
+    .values({ id: 1, ...AJUSTES_POR_DEFECTO, ...cambios })
+    .onConflictDoUpdate({ target: schema.ajustes.id, set: cambios });
   refrescar();
   redirect("/configuracion?tab=cuenta&aviso=guardado");
 }

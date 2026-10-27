@@ -37,7 +37,7 @@ export default function Ayuda() {
       <header className="encabezado">
         <div className="encabezado-texto">
           <h1 className="titulo">Ayuda</h1>
-          <p className="subtitulo">Qué hace cada sección de Radar.</p>
+          <p className="subtitulo">Qué hace cada sección de UNIQO.</p>
         </div>
       </header>
       {SECCIONES.map((s) => (

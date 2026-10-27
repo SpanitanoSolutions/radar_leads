@@ -5,5 +5,5 @@ import { PLANTILLA_CARTERA } from "@/lib/importacion";
 /** Planilla modelo para armar la cartera en Excel. */
 export async function GET() {
   await requerirSesion();
-  return respuestaCsv(aCsv(PLANTILLA_CARTERA), "plantilla_cartera_radar.csv");
+  return respuestaCsv(aCsv(PLANTILLA_CARTERA), "plantilla_seguros_uniqo.csv");
 }

@@ -134,6 +134,19 @@ a:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.barra-cuenta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.barra-logo-empresa {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+}
 .barra-acciones {
   margin-left: auto;
   display: flex;
@@ -386,7 +399,7 @@ a:hover {
 @media (max-width: 640px) {
   .barra-producto,
   .barra-separador,
-  .barra-productor {
+  .barra-cuenta {
     display: none;
   }
   .contenido {

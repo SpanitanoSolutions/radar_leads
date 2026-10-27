@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { ConexionCatalogo } from "@/conexiones/catalogo";
@@ -143,7 +144,7 @@ export function ContenidoWhatsApp({
               ))}
             </div>
             <p className="nota-pie">
-              Meta cobra los mensajes de plantilla que envía tu negocio. Radar te va a mostrar el consumo en Facturación.
+              Meta cobra los mensajes de plantilla que envía tu negocio. UNIQO te va a mostrar el consumo en Facturación.
             </p>
             <div className="fila-acciones">
               <Link href="/configuracion" className="boton">
@@ -214,7 +215,7 @@ export function ContenidoConexion({
           )}
           {conexion.tipo === "google_calendar" && campo("calendario", "Calendario", { placeholder: "principal" })}
           <p className="nota-pie">
-            No pedimos claves: Radar nunca guarda contraseñas. Por ahora esta conexión es simulada y no se comunica con
+            No pedimos claves: UNIQO nunca guarda contraseñas. Por ahora esta conexión es simulada y no se comunica con
             ningún servicio.
           </p>
           <Error estado={estado} />
@@ -250,7 +251,7 @@ export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
     const guardados = cuenta.productores.slice(1);
     return [...guardados, ...Array.from({ length: Math.max(0, 1 - guardados.length) }, () => ({ nombre: "", matricula: "" }))];
   });
-  const campo = (nombre: Exclude<keyof Cuenta, "productores">, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
+  const campo = (nombre: Exclude<keyof Cuenta, "productores" | "logoEmpresa">, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <div className="form-columna">
       <label htmlFor={`cuenta-${nombre}`} className="etiqueta">
         {etiqueta}
@@ -269,7 +270,7 @@ export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
     </div>
   );
   return (
-    <form action={guardar} className="tarjeta tarjeta-padding form-cuenta">
+    <form action={guardar} encType="multipart/form-data" className="tarjeta tarjeta-padding form-cuenta">
       <p className="texto-suave">
         Agregá todas las personas físicas que trabajan con esta cuenta y sus matrículas. La primera persona aparece arriba
         y firma los mensajes que preparan los agentes.
@@ -281,6 +282,45 @@ export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
         {campo("telefono", "Teléfono", { type: "tel", autoComplete: "tel" })}
         {campo("email", "Email", { type: "email", autoComplete: "email" })}
       </div>
+      <section className="cuenta-logo" aria-labelledby="cuenta-logo-titulo">
+        <div>
+          <h2 id="cuenta-logo-titulo">Logo de la empresa</h2>
+          <p className="texto-suave">Se muestra junto al nombre de tu organización en la barra superior.</p>
+        </div>
+        <div className="cuenta-logo-contenido">
+          <div className="cuenta-logo-vista">
+            {cuenta.logoEmpresa ? (
+              <Image
+                src="/api/logo-empresa"
+                alt={cuenta.organizacion ? `Logo de ${cuenta.organizacion}` : "Logo de la empresa"}
+                width={160}
+                height={96}
+                unoptimized
+                className="cuenta-logo-imagen"
+              />
+            ) : (
+              <span className="nota-pie">Todavía no cargaste un logo.</span>
+            )}
+          </div>
+          <div className="form-columna">
+            <label htmlFor="cuenta-logo-empresa" className="etiqueta">Subir o reemplazar logo</label>
+            <input
+              id="cuenta-logo-empresa"
+              name="logoEmpresa"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="campo"
+            />
+            <p className="nota-pie">PNG, JPG o WebP · máximo 512 KB.</p>
+            {cuenta.logoEmpresa && (
+              <label className="cuenta-logo-quitar">
+                <input type="checkbox" name="quitarLogo" />
+                Quitar el logo actual al guardar
+              </label>
+            )}
+          </div>
+        </div>
+      </section>
       <section className="cuenta-productores" aria-labelledby="cuenta-productores-titulo">
         <div className="cuenta-productores-cabecera">
           <div>

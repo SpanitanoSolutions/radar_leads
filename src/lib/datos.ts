@@ -66,6 +66,7 @@ export type Cuenta = {
   matricula: string | null;
   productores: Productor[];
   organizacion: string | null;
+  logoEmpresa: boolean;
   telefono: string | null;
   email: string | null;
 };
@@ -88,9 +89,17 @@ export async function obtenerCuenta(): Promise<Cuenta> {
     matricula: a?.productorMatricula ?? null,
     productores: productoresDe(a?.productores, a?.productorNombre ?? null, a?.productorMatricula ?? null),
     organizacion: a ? a.productorOrganizacion : "HR Productores",
+    logoEmpresa: Boolean(a?.productorLogo),
     telefono: a?.productorTelefono ?? null,
     email: a?.productorEmail ?? null,
   };
+}
+
+/** Devuelve el logo guardado para servirlo desde un Route Handler autenticado. */
+export async function obtenerLogoEmpresa(): Promise<string | null> {
+  await connection();
+  const [a] = await db.select({ logo: schema.ajustes.productorLogo }).from(schema.ajustes).where(eq(schema.ajustes.id, 1));
+  return a?.logo ?? null;
 }
 
 type FilaMarco = {
@@ -108,6 +117,7 @@ type FilaMarco = {
   matricula: string | null;
   productores: Productor[] | null;
   organizacion: string | null;
+  logo_empresa: boolean | null;
   telefono: string | null;
   email: string | null;
 };
@@ -148,6 +158,7 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
       a.productor_matricula as matricula,
       a.productores as productores,
       a.productor_organizacion as organizacion,
+      (a.productor_logo is not null) as logo_empresa,
       a.productor_telefono as telefono,
       a.productor_email as email
     from (select 1) uno
@@ -166,6 +177,7 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
       matricula: f.matricula,
       productores: productoresDe(f.productores, f.nombre, f.matricula),
       organizacion: f.organizacion,
+      logoEmpresa: Boolean(f.logo_empresa),
       telefono: f.telefono,
       email: f.email,
     },

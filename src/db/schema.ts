@@ -62,6 +62,7 @@ export const ajustes = pgTable("ajustes", {
   productorMatricula: text("productor_matricula"),
   productores: jsonb("productores").$type<Productor[]>().notNull().default([]),
   productorOrganizacion: text("productor_organizacion").default("HR Productores"),
+  productorLogo: text("productor_logo"),
   productorTelefono: text("productor_telefono"),
   productorEmail: text("productor_email"),
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true })

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { IconoRadar } from "@/components/iconos";
 import { FormLogin } from "./FormLogin";
 
-export const metadata: Metadata = { title: "Entrar · Radar" };
+export const metadata: Metadata = { title: "Entrar · UNIQO" };
 
 export default function LoginPage() {
   return (
@@ -12,8 +12,8 @@ export default function LoginPage() {
           <span className="marca-icono" aria-hidden="true">
             <IconoRadar />
           </span>
-          <span className="marca-nombre">Radar</span>
-          <span className="barra-producto">Cartera de seguros</span>
+          <span className="marca-nombre">UNIQO</span>
+          <span className="barra-producto">Administración de seguros</span>
         </div>
         <h1 className="login-titulo">Entrar</h1>
         <FormLogin />

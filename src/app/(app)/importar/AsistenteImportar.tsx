@@ -131,7 +131,7 @@ export function AsistenteImportar({
               <li>Si sale en Excel, podés subirlo así (.xlsx) o usar &quot;Guardar como&quot; → CSV.</li>
             </ol>
             <p className="texto-suave">
-              Podés importar un archivo por compañía, uno detrás de otro. Radar junta las pólizas de cada asegurado.
+              Podés importar un archivo por compañía, uno detrás de otro. UNIQO junta las pólizas de cada asegurado.
             </p>
             <a href="/importar/plantilla" download className="enlace-fuerte">
               Descargar plantilla de ejemplo
@@ -161,7 +161,7 @@ export function AsistenteImportar({
             )}
           </div>
           <p className="texto-suave texto-con-margen">
-            Revisá a qué dato de Radar corresponde cada columna. Radar sugirió las que reconoció por el nombre; cambiá las
+            Revisá a qué dato de UNIQO corresponde cada columna. UNIQO sugirió las que reconoció por el nombre; cambiá las
             que no estén bien.
           </p>
           <TablaMapeo

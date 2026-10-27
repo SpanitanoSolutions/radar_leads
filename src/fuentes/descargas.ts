@@ -1,7 +1,7 @@
-// Pedidos a las fuentes públicas. Se identifican como el radar, no reintentan
+// Pedidos a las fuentes públicas. Se identifican como UNIQO, no reintentan
 // en loop y respetan una pausa entre descargas del mismo sitio.
 
-const AGENTE = "RadarLeads/1.0 (captura diaria de datos publicos)";
+const AGENTE = "UNIQO/1.0 (captura diaria de datos publicos)";
 
 export async function pedir(url: string, opciones: RequestInit & { timeoutMs?: number } = {}) {
   const { timeoutMs = 120_000, headers, ...resto } = opciones;

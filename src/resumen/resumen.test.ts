@@ -90,7 +90,7 @@ describe("armarResumen", () => {
   });
 
   it("texto y HTML para el email, con enlaces a la ficha y el contenido escapado", () => {
-    expect(tituloResumen(r)).toBe("Radar de leads · 23/10: 3 leads para hoy y 2 recordatorios");
+    expect(tituloResumen(r)).toBe("UNIQO · 23/10: 3 leads para hoy y 2 recordatorios");
     const texto = resumenEnTexto(r, "https://radar.example");
     expect(texto).toContain("• Nueva A (score 70)");
     expect(texto).toContain("Tel. (0223) 15-555-1234");
@@ -112,13 +112,13 @@ describe("canales del resumen", () => {
       pedidos.push({ url, init });
       return new Response(JSON.stringify({ id: "x" }));
     }) as unknown as typeof fetch;
-    const canal = canalEmail({ apiKey: "re_123", destinos: ["papa@example.com"], remitente: "Radar <r@example.com>", fetch: fetchFalso });
+    const canal = canalEmail({ apiKey: "re_123", destinos: ["papa@example.com"], remitente: "UNIQO <r@example.com>", fetch: fetchFalso });
     const resumen = armarResumen(visibles([lead({ empresa: "Gobblack SA" })]), { dia: HOY, ahora: AHORA });
     await canal.enviar(resumen, "https://radar.example");
     expect(pedidos[0].url).toBe("https://api.resend.com/emails");
     expect(pedidos[0].init.headers).toMatchObject({ Authorization: "Bearer re_123" });
     const cuerpo = JSON.parse(String(pedidos[0].init.body));
-    expect(cuerpo).toMatchObject({ from: "Radar <r@example.com>", to: ["papa@example.com"], subject: tituloResumen(resumen) });
+    expect(cuerpo).toMatchObject({ from: "UNIQO <r@example.com>", to: ["papa@example.com"], subject: tituloResumen(resumen) });
     expect(cuerpo.html).toContain("Gobblack SA");
     expect(cuerpo.text).toContain("Gobblack SA");
   });
@@ -174,7 +174,7 @@ describe("vencimientos de la cartera en el resumen", () => {
   });
 
   it("aparecen en el título, el texto y el HTML del email", () => {
-    expect(tituloResumen({ ...r, recordatorios: [] })).toBe("Radar de leads · 23/10: 0 leads para hoy y 14 vencimientos");
+    expect(tituloResumen({ ...r, recordatorios: [] })).toBe("UNIQO · 23/10: 0 leads para hoy y 14 vencimientos");
     const texto = resumenEnTexto(r);
     expect(texto).toContain("VENCIMIENTOS DE LA CARTERA");
     expect(texto).toContain("• Cliente hoy · Auto · Compañía A · Vence hoy");
@@ -185,6 +185,6 @@ describe("vencimientos de la cartera en el resumen", () => {
 
   it("título con leads, recordatorios y vencimientos", () => {
     const completo = { ...r, mejores: r.mejores, recordatorios: [{} as never, {} as never] };
-    expect(tituloResumen(completo)).toBe("Radar de leads · 23/10: 0 leads para hoy, 2 recordatorios y 14 vencimientos");
+    expect(tituloResumen(completo)).toBe("UNIQO · 23/10: 0 leads para hoy, 2 recordatorios y 14 vencimientos");
   });
 });
