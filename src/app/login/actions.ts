@@ -23,7 +23,7 @@ export async function iniciarSesion(
     path: "/",
     maxAge: DURACION_SESION_MS / 1000,
   });
-  redirect("/");
+  redirect("/asegurados");
 }
 
 export async function cerrarSesion() {

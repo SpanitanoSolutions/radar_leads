@@ -59,7 +59,7 @@ export default async function FichaLead({
 
   return (
     <>
-      <Link href="/" className="volver">
+      <Link href="/leads" className="volver">
         <IconoAtras />
         Volver a leads del día
       </Link>

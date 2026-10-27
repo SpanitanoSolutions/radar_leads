@@ -89,7 +89,7 @@ export default async function ResumenDelDia() {
           {resumen.vencimientosTotal > resumen.vencimientos.length && (
             <p className="nota-info">
               Y {resumen.vencimientosTotal - resumen.vencimientos.length} más en los próximos {DIAS_VENCIMIENTOS} días:{" "}
-              <Link href="/cartera">ver Mi cartera</Link>.
+              <Link href="/asegurados">ver tus asegurados</Link>.
             </p>
           )}
         </section>

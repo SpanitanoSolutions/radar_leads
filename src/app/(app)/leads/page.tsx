@@ -19,7 +19,7 @@ import {
   urlFiltros,
 } from "@/lib/filtros";
 import type { EstadoLead } from "@/db/schema";
-import { cambiarEstado, descartarLead, posponerLead } from "./actions";
+import { cambiarEstado, descartarLead, posponerLead } from "../actions";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
 export const instant = false;
@@ -77,8 +77,12 @@ export default async function LeadsDelDia({
           <p className="subtitulo">
             {fechaLarga()} · Provincia de Buenos Aires · ordenados por probabilidad de cierre
           </p>
+          <p className="subtitulo enlaces-secundarios">
+            <Link href="/resumen">Resumen del día</Link>
+            <Link href="/resultados">Resultados</Link>
+          </p>
         </div>
-        <form className="buscador" action="/" role="search">
+        <form className="buscador" action="/leads" role="search">
           {filtros.sector !== "todos" && <input type="hidden" name="sector" value={filtros.sector} />}
           {filtros.zona !== "todas" && <input type="hidden" name="zona" value={filtros.zona} />}
           <label htmlFor="q" className="visualmente-oculto">

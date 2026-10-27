@@ -64,6 +64,13 @@
       "when": 1792734685627,
       "tag": "0008_cartera",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793101095225,
+      "tag": "0009_cuenta",
+      "breakpoints": true
     }
   ]
 }

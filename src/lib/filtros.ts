@@ -135,7 +135,7 @@ export function urlFiltros(actual: Filtros, cambios: Partial<Filtros>): string {
   if (f.zona !== "todas") p.set("zona", f.zona);
   if (f.q) p.set("q", f.q);
   const qs = p.toString();
-  return qs ? `/?${qs}` : "/";
+  return qs ? `/leads?${qs}` : "/leads";
 }
 
 /** Un lead "para después" tiene recordatorio a futuro: hasta ese día no compite por la atención. */

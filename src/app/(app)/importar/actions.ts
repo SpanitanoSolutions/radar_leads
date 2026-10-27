@@ -10,9 +10,8 @@ export type EstadoCartera = { guardadas?: number; avisos?: string[]; error?: str
 const TAMANO_MAXIMO = 2 * 1024 * 1024;
 
 function revalidarCartera() {
-  revalidatePath("/cartera");
-  revalidatePath("/resumen");
-  revalidatePath("/", "layout"); // los leads marcan "Ya es cliente"
+  // El menú cuenta asegurados y vencimientos; los leads marcan "Ya es cliente".
+  revalidatePath("/", "layout");
 }
 
 /** Lee el CSV de la cartera y reemplaza la que estaba guardada. */

@@ -41,13 +41,22 @@ export const sectores = pgTable("sectores", {
   orden: integer("orden").notNull().default(0),
 });
 
-/** Una sola fila (id = 1) con las preferencias de zona y alcance de licitaciones. */
+/**
+ * Una sola fila (id = 1) con las preferencias de zona y alcance de licitaciones,
+ * y los datos del productor ("Mi cuenta"): se muestran en la barra superior y
+ * firman los mensajes.
+ */
 export const ajustes = pgTable("ajustes", {
   id: integer("id").primaryKey().default(1),
   zonas: jsonb("zonas").$type<Record<Zona, boolean>>().notNull(),
   licitaciones: jsonb("licitaciones")
     .$type<Record<AlcanceLicitacion, boolean>>()
     .notNull(),
+  productorNombre: text("productor_nombre"),
+  productorMatricula: text("productor_matricula"),
+  productorOrganizacion: text("productor_organizacion").default("HR Productores"),
+  productorTelefono: text("productor_telefono"),
+  productorEmail: text("productor_email"),
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true })
     .notNull()
     .defaultNow(),

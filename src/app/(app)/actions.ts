@@ -19,7 +19,7 @@ const { leads } = schema;
 const primeraVez = (columna: AnyColumn) => sql`coalesce(${columna}, now())`;
 
 function revalidarLead(id: number) {
-  revalidatePath("/");
+  revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath("/resultados");
 }

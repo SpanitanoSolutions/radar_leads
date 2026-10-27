@@ -212,8 +212,8 @@ describe("leerFiltros y urlFiltros", () => {
 
   it("mantiene los otros filtros al cambiar uno", () => {
     const actual: Filtros = { sector: "flotas", zona: "mdp", q: "" };
-    expect(urlFiltros(actual, { zona: "costa" })).toBe("/?sector=flotas&zona=costa");
-    expect(urlFiltros(actual, { sector: "todos", zona: "todas" })).toBe("/");
+    expect(urlFiltros(actual, { zona: "costa" })).toBe("/leads?sector=flotas&zona=costa");
+    expect(urlFiltros(actual, { sector: "todos", zona: "todas" })).toBe("/leads");
   });
 });
 
