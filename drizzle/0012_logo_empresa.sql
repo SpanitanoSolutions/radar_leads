@@ -1,0 +1,1 @@
+ALTER TABLE "ajustes" ADD COLUMN "productor_logo" text;

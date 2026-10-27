@@ -206,6 +206,7 @@ export async function actualizarTramite(
 /** "Cargar siniestro": alta manual con la documentación que pide ese tipo. */
 export async function cargarSiniestro(datos: {
   polizaId: number;
+  compania: string;
   tipo: string;
   descripcion: string;
   fecha: Date;
@@ -215,11 +216,22 @@ export async function cargarSiniestro(datos: {
 }) {
   const [p] = await db.select().from(schema.polizas).where(eq(schema.polizas.id, datos.polizaId));
   if (!p) throw new Error("Póliza inexistente");
+  if (!p.compania || p.compania.trim() !== datos.compania.trim()) throw new Error("La empresa no coincide con la póliza elegida");
   const [a] = await db.select().from(schema.asegurados).where(eq(schema.asegurados.id, p.aseguradoId));
   const denuncia = redactor.armar({ tipo: datos.tipo, fecha: datos.fecha, domicilio: datos.lugar ?? a.domicilio, bien: p.bien, relato: datos.relato, fotos: 0 });
   const [s] = await db
     .insert(schema.siniestros)
-    .values({ ...datos, etapa: "aviso", denuncia })
+    .values({
+      polizaId: datos.polizaId,
+      tipo: datos.tipo,
+      descripcion: datos.descripcion,
+      fecha: datos.fecha,
+      lugar: datos.lugar,
+      relato: datos.relato,
+      avisoDe: datos.avisoDe,
+      etapa: "aviso",
+      denuncia,
+    })
     .returning({ id: schema.siniestros.id });
   await db.insert(schema.siniestroDocumentos).values(documentosPara(datos.tipo).map((nombre) => ({ siniestroId: s.id, nombre })));
   await evento(s.id, "Vos", "Cargaste el siniestro.");

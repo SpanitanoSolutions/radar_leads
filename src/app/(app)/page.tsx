@@ -46,7 +46,7 @@ export default async function Dashboard() {
       <header className="encabezado dashboard-encabezado">
         <div className="encabezado-texto">
           <h1 className="titulo">Resumen general</h1>
-          <p className="subtitulo">{fechaLarga()} · El estado de tu cartera y lo que requiere atención.</p>
+          <p className="subtitulo">{fechaLarga()} · Estado de tus pólizas y tareas que requieren atención.</p>
         </div>
         <div className="dashboard-acciones">
           <Link href="/asegurados" className="boton boton-primario">Ver asegurados</Link>

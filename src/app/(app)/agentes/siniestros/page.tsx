@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PanelLateral } from "@/components/PanelLateral";
 import { EncabezadoAgente } from "@/components/agentes/Agente";
 import { agenteConfigurado, obtenerPolizasParaSiniestro, obtenerSiniestros } from "@/lib/datos-agentes";
 import { diaEnArgentina, diaYMes, fechaCorta } from "@/lib/fechas";
@@ -10,18 +11,17 @@ import {
   nombreEtapa,
   requiereAtencion,
   textoReclamo,
-  TIPOS_SINIESTRO,
   ETAPAS,
 } from "@/lib/siniestros";
 import {
   actualizarTramite,
-  cargarSiniestro,
   enviarDenuncia,
   enviarReclamo,
   guardarDenuncia,
   mandarRecordatorio,
   marcarDocumento,
 } from "./actions";
+import { FormularioCarga as PanelFormularioCarga } from "./FormularioCarga";
 import "../agentes.css";
 
 export const instant = false;
@@ -133,54 +133,6 @@ function accionesPara(registro: Registro, ahora: Accion) {
         );
     }
   });
-}
-
-function FormularioCarga({ polizas }: { polizas: Awaited<ReturnType<typeof obtenerPolizasParaSiniestro>> }) {
-  return (
-    <details className="siniestro-cargar">
-      <summary className="boton boton-primario">Cargar siniestro</summary>
-      <form action={cargarSiniestro} className="siniestro-form siniestro-form-carga">
-        <label>
-          <span>Póliza</span>
-          <select name="polizaId" required defaultValue="">
-            <option value="" disabled>Elegí una póliza</option>
-            {polizas.map((poliza) => (
-              <option key={poliza.id} value={poliza.id}>
-                {poliza.asegurado} · {poliza.ramo} · {poliza.compania ?? "Sin compañía"} · {poliza.numero ?? "Sin número"}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Tipo de siniestro</span>
-          <select name="tipo" required defaultValue="otro">
-            {TIPOS_SINIESTRO.map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Descripción</span>
-          <input name="descripcion" type="text" maxLength={250} required />
-        </label>
-        <label>
-          <span>Fecha y hora del hecho</span>
-          <input name="fecha" type="datetime-local" required />
-        </label>
-        <label>
-          <span>Lugar</span>
-          <input name="lugar" type="text" maxLength={250} />
-        </label>
-        <label>
-          <span>Quién avisó y por qué medio</span>
-          <input name="avisoDe" type="text" placeholder="Ej.: Carolina por WhatsApp" maxLength={160} />
-        </label>
-        <label className="siniestro-campo-ancho">
-          <span>Relato del hecho</span>
-          <textarea name="relato" rows={4} maxLength={4000} />
-        </label>
-        <button type="submit" className="boton boton-primario">Guardar siniestro</button>
-      </form>
-    </details>
-  );
 }
 
 function Detalle({ registro, ahora }: { registro: Registro; ahora: Accion }) {
@@ -335,6 +287,13 @@ export default async function Siniestros({
     obtenerPolizasParaSiniestro(),
     agenteConfigurado("siniestros"),
   ]);
+  if (sp.panel === "cargar") {
+    return (
+      <PanelLateral tituloId="panel-cargar-siniestro-titulo" cerrarHref={`/agentes/siniestros?tab=${pestaña}`} ancho={600}>
+        <PanelFormularioCarga polizas={polizas} />
+      </PanelLateral>
+    );
+  }
   const todos = registros.map((registro) => {
     const { siniestro, poliza, asegurado, documentos } = registro;
     const contacto = asegurado.tipo === "empresa" ? asegurado.contactoNombre ?? asegurado.nombre : asegurado.nombre;
@@ -390,7 +349,9 @@ export default async function Siniestros({
         descripcion="Cuando un asegurado te avisa de un siniestro, el agente arma la denuncia, pide lo que falta y sigue el trámite hasta el pago."
       >
         <Link href="/configuracion" className="boton">Configuración</Link>
-        <FormularioCarga polizas={polizas} />
+        <Link href={`/agentes/siniestros?tab=${pestaña}&panel=cargar`} scroll={false} className="boton boton-primario">
+          Cargar siniestro
+        </Link>
       </EncabezadoAgente>
 
       {typeof sp.aviso === "string" && AVISOS[sp.aviso] && (

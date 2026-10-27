@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Aviso } from "@/components/Aviso";
+import { IconoConexion } from "@/components/IconoConexion";
 import { PanelLateral } from "@/components/PanelLateral";
 import { CONEXIONES, GRUPOS_CONEXIONES, vistaConexion } from "@/conexiones/catalogo";
 import { PLANTILLAS_WHATSAPP } from "@/conexiones/whatsapp";
@@ -37,7 +38,7 @@ export default async function Configuracion({
         <div className="encabezado-texto">
           <h1 className="titulo">Configuración</h1>
           <p className="subtitulo">
-            Conectá las herramientas que usan tus agentes. Radar no guarda contraseñas y podés desconectar cualquier cuenta
+            Conectá las herramientas que usan tus agentes. UNIQO no guarda contraseñas y podés desconectar cualquier cuenta
             cuando quieras.
           </p>
         </div>
@@ -68,7 +69,7 @@ export default async function Configuracion({
           {!waConectado && (
             <section className="aviso-conexion" aria-labelledby="t-wa">
               <div className="aviso-conexion-icono" aria-hidden="true">
-                WA
+                <IconoConexion tipo="whatsapp" />
               </div>
               <div className="aviso-conexion-texto">
                 <h2 id="t-wa" className="titulo-tarjeta">
@@ -97,8 +98,8 @@ export default async function Configuracion({
                 const v = vistaConexion(c, fila(c.clave));
                 return (
                   <div key={c.clave} className="conexion">
-                    <div className={`conexion-sigla ${v.estado === "conectado" ? "conexion-sigla-activa" : ""}`} aria-hidden="true">
-                      {c.sigla}
+                    <div className={`conexion-icono ${v.estado === "conectado" ? "conexion-icono-activa" : ""}`} aria-hidden="true">
+                      <IconoConexion tipo={c.tipo} compania={c.compania} />
                     </div>
                     <div className="conexion-texto">
                       <div className="titulo-fila">

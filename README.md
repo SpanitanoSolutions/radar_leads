@@ -1,4 +1,4 @@
-# Radar · Cartera de seguros
+# UNIQO · Administración de seguros
 
 Herramienta de trabajo para un productor asesor de seguros independiente:
 organiza asegurados, pólizas, vencimientos y tareas operativas. La captación de

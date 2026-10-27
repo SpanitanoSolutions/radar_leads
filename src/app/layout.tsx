@@ -3,8 +3,8 @@ import "@fontsource-variable/inter";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Radar · Cartera de seguros",
-  description: "Tu cartera de seguros organizada, con agentes que te sacan trabajo operativo.",
+  title: "UNIQO · Administración de seguros",
+  description: "Administración de seguros para productores asesores: asegurados, pólizas, vencimientos y tareas operativas.",
   robots: { index: false, follow: false },
 };
 

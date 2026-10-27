@@ -1,10 +1,10 @@
-# Radar: de radar de leads a gestión de cartera con agentes
+# UNIQO: de radar de leads a gestión de cartera con agentes
 
 Este documento es el encargo completo. Leelo entero antes de escribir código y trabajá fase por fase, en orden, con un commit por fase. Si algo de lo que sigue no coincide con lo que encontrás en el repo, gana el repo: adaptá el plan y anotá la decisión en el mensaje del commit.
 
 ## 1. Contexto
 
-Radar es una app para un **productor asesor de seguros independiente de Mar del Plata** (miembro de HR Productores). Hoy la app es un radar de leads: detecta empresas que podrían necesitar seguros (licitaciones de COMPR.AR, Boletín Oficial de PBA) y las muestra como "Leads del día".
+UNIQO es una app para un **productor asesor de seguros independiente de Mar del Plata** (miembro de HR Productores). Hoy la app es un radar de leads: detecta empresas que podrían necesitar seguros (licitaciones de COMPR.AR, Boletín Oficial de PBA) y las muestra como "Leads del día".
 
 **Cambia el foco del producto.** Lo principal pasa a ser:
 
@@ -84,7 +84,7 @@ Pasalo a componentes de React, con clases CSS en vez de estilos en línea.
 Reemplazá el lateral oscuro (`src/components/Lateral.tsx`) por la estructura de los diseños.
 
 - **Barra superior blanca** de 56px con:
-  - logo y "Radar · Cartera de seguros";
+  - logo y "UNIQO · Administración de seguros";
   - nombre del productor y "HR Productores", leídos de la configuración (no hardcodeados);
   - Ayuda;
   - Salir.

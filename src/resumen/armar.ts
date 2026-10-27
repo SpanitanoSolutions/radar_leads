@@ -112,7 +112,7 @@ export function tituloResumen(r: Resumen): string {
   if (r.recordatorios.length) partes.push(`${r.recordatorios.length} recordatorio${r.recordatorios.length > 1 ? "s" : ""}`);
   if (r.vencimientosTotal) partes.push(`${r.vencimientosTotal} vencimiento${r.vencimientosTotal > 1 ? "s" : ""}`);
   const lista = partes.length > 1 ? `${partes.slice(0, -1).join(", ")} y ${partes.at(-1)}` : partes[0];
-  return `Radar de leads · ${diaYMes(r.dia)}: ${lista}`;
+  return `UNIQO · ${diaYMes(r.dia)}: ${lista}`;
 }
 
 /** "Vence hoy", "Vence mañana", "Vence en 12 días (04/11)". */

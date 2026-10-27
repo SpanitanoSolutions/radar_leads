@@ -91,7 +91,7 @@ export function ZonaArchivo({
   );
 }
 
-/** Columna del archivo → dato de Radar, con un ejemplo y si es obligatorio. */
+/** Columna del archivo → dato de UNIQO, con un ejemplo y si es obligatorio. */
 export function TablaMapeo<Id extends string>({
   tabla,
   campos,
@@ -111,7 +111,7 @@ export function TablaMapeo<Id extends string>({
           <tr>
             <th scope="col">Columna del archivo</th>
             <th scope="col">Ejemplo</th>
-            <th scope="col">Dato en Radar</th>
+            <th scope="col">Dato en UNIQO</th>
             <th scope="col">Estado</th>
           </tr>
         </thead>
@@ -126,7 +126,7 @@ export function TablaMapeo<Id extends string>({
                 <td>
                   <select
                     className="campo campo-angosto"
-                    aria-label={`Dato en Radar para la columna ${encabezado || i + 1}`}
+                    aria-label={`Dato en UNIQO para la columna ${encabezado || i + 1}`}
                     value={mapeo[i] ?? ""}
                     onChange={(e) => alCambiar(i, e.target.value as Id | "")}
                   >

@@ -65,7 +65,7 @@ export function armarMenu(c: ContadoresMenu): GrupoMenu[] {
     },
     {
       id: "cartera",
-      titulo: "Mi cartera",
+      titulo: "Administración",
       items: [
         {
           href: "/asegurados",

@@ -74,7 +74,7 @@ export default async function Asegurados({
             {hayEjemplos && <span className="pastilla pastilla-ambar">Datos de ejemplo</span>}
           </div>
           <p className="subtitulo">
-            Toda tu cartera en un lugar, ordenada por próximo vencimiento. Hacé clic en un asegurado para ver su detalle.
+            Administrá asegurados y pólizas desde un solo lugar. Consultá vencimientos, contacto y primas de cada persona.
           </p>
         </div>
         <div className="fila-acciones">
