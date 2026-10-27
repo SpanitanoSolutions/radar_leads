@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { IconoEstrella, IconoUbicacion } from "@/components/iconos";
 import { nombreEstado, ZONAS } from "@/lib/catalogos";
-import { cuitsDeClientes, yaEsCliente } from "@/lib/cartera";
+import { clientePorCuit } from "@/lib/cartera";
 import { obtenerAjustes, obtenerCuitsDeCartera, obtenerLeads, obtenerSectores } from "@/lib/datos";
 import { etiquetaEvento } from "@/lib/evento";
 import { MOTIVOS_DESCARTE } from "@/lib/cierre";
@@ -44,8 +44,6 @@ export default async function LeadsDelDia({
     obtenerLeads(),
     obtenerCuitsDeCartera(),
   ]);
-  const clientes = cuitsDeClientes(cuitsCartera);
-
   const visibles = leadsVisibles(todos, sectores, ajustes);
   const hoy = diaEnArgentina(new Date());
   const lista = ordenarParaHoy(aplicarFiltros(visibles, filtros), hoy);
@@ -194,7 +192,9 @@ export default async function LeadsDelDia({
                   <td>
                     <div className="celda-principal">
                       {l.empresa}
-                      {yaEsCliente(l.cuit, clientes) && <span className="pastilla pastilla-verde"> Ya es cliente</span>}
+                      {clientePorCuit(l.cuit, cuitsCartera) && (
+                        <Link href={`/asegurados/${clientePorCuit(l.cuit, cuitsCartera)!.id}`} className="pastilla pastilla-verde cartera-link">Ya es cliente</Link>
+                      )}
                     </div>
                     <div className="celda-secundaria">
                       {l.rubro} · {l.localidad}
