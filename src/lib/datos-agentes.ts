@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import type { Comprobante, CuentaCompania } from "@/db/schema";
@@ -193,4 +193,129 @@ export async function obtenerCuotasDelMes(hoy: string): Promise<CuotaConPoliza[]
     .innerJoin(polizas, eq(polizas.id, cuotas.polizaId))
     .innerJoin(asegurados, eq(asegurados.id, polizas.aseguradoId))
     .where(and(isNull(asegurados.bajaEl), gte(cuotas.vencimiento, desde), lte(cuotas.vencimiento, hasta)));
+}
+
+/** Siniestros con su póliza, asegurado, documentación e historial. */
+export async function obtenerSiniestros() {
+  await connection();
+  const filas = await db
+    .select({ siniestro: schema.siniestros, poliza: schema.polizas, asegurado: schema.asegurados })
+    .from(schema.siniestros)
+    .innerJoin(schema.polizas, eq(schema.polizas.id, schema.siniestros.polizaId))
+    .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
+    .where(and(isNull(schema.asegurados.bajaEl), isNull(schema.polizas.bajaEl)))
+    .orderBy(desc(schema.siniestros.fecha));
+  if (!filas.length) return [];
+
+  const ids = filas.map((f) => f.siniestro.id);
+  const [documentos, eventos] = await Promise.all([
+    db.select().from(schema.siniestroDocumentos).where(inArray(schema.siniestroDocumentos.siniestroId, ids)),
+    db
+      .select()
+      .from(schema.siniestroEventos)
+      .where(inArray(schema.siniestroEventos.siniestroId, ids))
+      .orderBy(desc(schema.siniestroEventos.fecha)),
+  ]);
+  const docsPorSiniestro = new Map<number, typeof documentos>();
+  const eventosPorSiniestro = new Map<number, typeof eventos>();
+  for (const doc of documentos) docsPorSiniestro.set(doc.siniestroId, [...(docsPorSiniestro.get(doc.siniestroId) ?? []), doc]);
+  for (const evento of eventos) eventosPorSiniestro.set(evento.siniestroId, [...(eventosPorSiniestro.get(evento.siniestroId) ?? []), evento]);
+
+  return filas.map(({ siniestro, poliza, asegurado }) => ({
+    siniestro,
+    poliza,
+    asegurado,
+    documentos: docsPorSiniestro.get(siniestro.id) ?? [],
+    eventos: eventosPorSiniestro.get(siniestro.id) ?? [],
+  }));
+}
+
+/** Pólizas vigentes disponibles para cargar un siniestro manual. */
+export async function obtenerPolizasParaSiniestro() {
+  await connection();
+  return db
+    .select({
+      id: schema.polizas.id,
+      ramo: schema.polizas.ramo,
+      compania: schema.polizas.compania,
+      numero: schema.polizas.numero,
+      bien: schema.polizas.bien,
+      asegurado: schema.asegurados.nombre,
+    })
+    .from(schema.polizas)
+    .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
+    .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl)))
+    .orderBy(asegurados.nombre);
+}
+
+/** Cuotas pagadas, acuerdos y liquidaciones para conciliar un mes. */
+export async function obtenerDatosConciliacion(periodo: string) {
+  await connection();
+  const desde = new Date(`${periodo}-01T00:00:00-03:00`);
+  const hasta = new Date(desde);
+  hasta.setMonth(hasta.getMonth() + 1);
+  const [cuotasMes, acuerdos, liquidaciones] = await Promise.all([
+    db
+      .select({
+        asegurado: asegurados.nombre,
+        polizaNumero: polizas.numero,
+        polizaId: polizas.id,
+        cuotaNumero: cuotas.numero,
+        ramo: polizas.ramo,
+        compania: polizas.compania,
+        monto: cuotas.monto,
+        pagadaEl: cuotas.pagadaEl,
+      })
+      .from(cuotas)
+      .innerJoin(polizas, eq(polizas.id, cuotas.polizaId))
+      .innerJoin(asegurados, eq(asegurados.id, polizas.aseguradoId))
+      .where(and(eq(cuotas.estado, "pagada"), gte(cuotas.pagadaEl, desde), lt(cuotas.pagadaEl, hasta), isNull(asegurados.bajaEl)))
+      .orderBy(cuotas.pagadaEl),
+    db.select().from(schema.acuerdosComision),
+    db.select().from(schema.liquidacionesComision).where(eq(schema.liquidacionesComision.periodo, periodo)),
+  ]);
+  const liquidacionIds = liquidaciones.map((liquidacion) => liquidacion.id);
+  const items = liquidacionIds.length
+    ? await db.select().from(schema.liquidacionItems).where(inArray(schema.liquidacionItems.liquidacionId, liquidacionIds))
+    : [];
+  const itemsPorLiquidacion = new Map<number, typeof items>();
+  for (const item of items) itemsPorLiquidacion.set(item.liquidacionId, [...(itemsPorLiquidacion.get(item.liquidacionId) ?? []), item]);
+
+  return {
+    cuotas: cuotasMes.flatMap((cuota) =>
+      cuota.polizaNumero && cuota.compania && cuota.pagadaEl
+        ? [{ ...cuota, polizaNumero: cuota.polizaNumero, compania: cuota.compania, pagadaEl: cuota.pagadaEl }]
+        : [],
+    ),
+    acuerdos,
+    liquidaciones: liquidaciones.map((liquidacion) => ({
+      ...liquidacion,
+      items: itemsPorLiquidacion.get(liquidacion.id) ?? [],
+    })),
+  };
+}
+
+/** Solicitudes con el vínculo actual a asegurados o leads. */
+export async function obtenerSolicitudesCotizacion() {
+  await connection();
+  return db
+    .select({ solicitud: schema.solicitudesCotizacion, asegurado: schema.asegurados.nombre, lead: schema.leads.empresa })
+    .from(schema.solicitudesCotizacion)
+    .leftJoin(schema.asegurados, eq(schema.asegurados.id, schema.solicitudesCotizacion.aseguradoId))
+    .leftJoin(schema.leads, eq(schema.leads.id, schema.solicitudesCotizacion.leadId))
+    .orderBy(desc(schema.solicitudesCotizacion.actualizadoEl));
+}
+
+/** Opciones de origen para cargar solicitudes desde Cotización. */
+export async function obtenerOpcionesSolicitud() {
+  await connection();
+  const [aseguradosActivos, leadsActivos] = await Promise.all([
+    db.select({ id: schema.asegurados.id, nombre: schema.asegurados.nombre }).from(schema.asegurados).where(isNull(schema.asegurados.bajaEl)).orderBy(schema.asegurados.nombre),
+    db
+      .select({ id: schema.leads.id, nombre: schema.leads.empresa })
+      .from(schema.leads)
+      .where(sql`${schema.leads.estado} <> 'descartado'`)
+      .orderBy(schema.leads.empresa),
+  ]);
+  return { asegurados: aseguradosActivos, leads: leadsActivos };
 }
