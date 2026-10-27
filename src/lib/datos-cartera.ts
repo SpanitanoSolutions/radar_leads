@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import type { AseguradoConPolizas } from "./asegurados";
@@ -90,4 +90,26 @@ export async function obtenerAvisosPendientes() {
     .leftJoin(asegurados, eq(asegurados.id, schema.mensajes.aseguradoId))
     .where(and(eq(schema.mensajes.agente, "cartera"), eq(schema.mensajes.estado, "borrador")))
     .orderBy(asc(schema.mensajes.creadoEl));
+}
+
+/** Documentos (solo dígitos) de los asegurados cargados: el paso 3 de la importación muestra cuáles son nuevos. */
+export async function obtenerDocumentosCargados(): Promise<string[]> {
+  await connection();
+  const filas = await db
+    .select({ d: asegurados.documentoDigitos })
+    .from(asegurados)
+    .where(and(isNull(asegurados.bajaEl), isNotNull(asegurados.documentoDigitos)));
+  return filas.map((f) => f.d!);
+}
+
+export async function obtenerImportaciones(cuantas = 5) {
+  await connection();
+  return db.select().from(schema.importaciones).orderBy(desc(schema.importaciones.fecha)).limit(cuantas);
+}
+
+/** Si hay asegurados de ejemplo (para ofrecer quitarlos al importar). */
+export async function obtenerHayEjemplos(): Promise<boolean> {
+  await connection();
+  const [fila] = await db.select({ id: asegurados.id }).from(asegurados).where(eq(asegurados.esEjemplo, true)).limit(1);
+  return Boolean(fila);
 }

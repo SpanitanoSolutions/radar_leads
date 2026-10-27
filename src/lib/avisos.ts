@@ -23,6 +23,13 @@ export function textoAviso(codigo: string | undefined): { texto: string; tono: "
       tono: "ok",
     };
   }
+  const importado = /^importado-(\d+)$/.exec(codigo);
+  if (importado) {
+    return {
+      texto: `Cartera importada: ${importado[1] === "1" ? "1 póliza" : `${importado[1]} pólizas`}. Los vencimientos y las oportunidades ya están al día.`,
+      tono: "ok",
+    };
+  }
   const enviados = /^enviados-(\d+)$/.exec(codigo);
   if (enviados) return { texto: `${enviados[1] === "1" ? "1 mensaje enviado" : `${enviados[1]} mensajes enviados`}.`, tono: "ok" };
   return AVISOS[codigo] ?? null;

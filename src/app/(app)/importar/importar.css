@@ -1,0 +1,237 @@
+/* ---------- Importar cartera (y el asistente de liquidaciones) ---------- */
+
+.pasos-asistente {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.paso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 8px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--texto-2);
+  font-size: 14px;
+  font-weight: 500;
+}
+.paso-numero {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gris-suave);
+  color: var(--gris-texto);
+  font-size: 13px;
+  font-weight: 700;
+}
+.paso-actual {
+  border-color: var(--acento-suave);
+  background: var(--acento-suave);
+  color: var(--acento-texto);
+  font-weight: 600;
+}
+.paso-actual .paso-numero {
+  background: var(--acento);
+  color: #fff;
+}
+.paso-hecho {
+  color: var(--verde-texto);
+}
+.paso-hecho .paso-numero {
+  background: var(--verde-suave);
+  color: var(--verde-texto);
+}
+
+.importar-paso-uno {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+.importar-principal {
+  flex: 2 1 520px;
+  min-width: 0;
+}
+.importar-ayuda {
+  flex: 1 1 280px;
+  min-width: 0;
+  gap: 12px;
+}
+.zona-archivo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  border: 2px dashed #b8c4e6;
+  border-radius: 10px;
+  background: #f7f9ff;
+  text-align: center;
+}
+.zona-archivo-encima {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+}
+.zona-archivo-icono {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--acento-suave);
+  color: var(--acento-texto);
+}
+.zona-archivo-titulo {
+  font-size: 17px;
+  font-weight: 600;
+}
+.lista-pasos-ayuda {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--gris-texto);
+}
+.enlace-fuerte {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.archivo-elegido {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.archivo-icono {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radio);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--verde-suave);
+  color: var(--verde-texto);
+  font-size: 11px;
+  font-weight: 700;
+}
+.texto-con-margen {
+  padding: 14px 20px 0;
+}
+.tabla-mapeo {
+  min-width: 760px;
+  margin-top: 12px;
+}
+.tabla-mapeo td {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+.columna-archivo {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 600;
+}
+.ejemplo-columna {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto-2);
+}
+.campo-angosto {
+  width: 100%;
+  min-width: 200px;
+  height: 40px;
+  font-size: 13px;
+}
+.vista-previa {
+  padding: 12px 20px 20px;
+}
+.vista-previa[open] > summary {
+  margin-bottom: 8px;
+}
+.tabla-previa {
+  min-width: 600px;
+}
+.tabla-previa td {
+  white-space: nowrap;
+}
+
+.resumen-importacion {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.tarjeta-cifra {
+  padding: 16px 18px;
+}
+.cifra {
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lista-problemas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lista-problemas li {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--borde-suave);
+  font-size: 14px;
+}
+.problema-advertencia {
+  color: var(--texto-2);
+}
+.ramos-desconocidos,
+.modo-importacion {
+  padding-top: 12px;
+  border-top: 1px solid var(--borde-suave);
+}
+.ramos-desconocidos .fila-dato {
+  flex-wrap: wrap;
+}
+
+.acciones-asistente {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+.empujar-derecha {
+  margin-left: auto;
+}
+
+.lista-importaciones {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px;
+}
+.lista-importaciones li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--borde-suave);
+  font-size: 14px;
+}
+.lista-importaciones li:last-child {
+  border-bottom: none;
+}

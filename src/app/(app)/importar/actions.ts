@@ -1,49 +1,66 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db, schema } from "@/db";
+import { redirect } from "next/navigation";
+import { guardarImportacion } from "@/db/importar-cartera";
 import { requerirSesion } from "@/lib/auth";
-import { leerCartera } from "@/lib/cartera";
+import {
+  CAMPOS_CARTERA,
+  leerArchivoTabla,
+  TAMANO_MAXIMO_ARCHIVO,
+  validarCartera,
+  type CampoCartera,
+} from "@/lib/importacion";
+import { RAMOS_CARTERA } from "@/lib/ramos";
 
-export type EstadoCartera = { guardadas?: number; avisos?: string[]; error?: string };
+export type EstadoImportacion = { error?: string };
 
-const TAMANO_MAXIMO = 2 * 1024 * 1024;
+const CAMPOS = new Set<string>(CAMPOS_CARTERA.map((c) => c.id));
+const RAMOS = new Set<string>(RAMOS_CARTERA.map((r) => r.id));
 
-function revalidarCartera() {
-  // El menú cuenta asegurados y vencimientos; los leads marcan "Ya es cliente".
-  revalidatePath("/", "layout");
+function leerJson<T>(valor: FormDataEntryValue | null, porDefecto: T): T {
+  try {
+    return typeof valor === "string" ? (JSON.parse(valor) as T) : porDefecto;
+  } catch {
+    return porDefecto;
+  }
 }
 
-/** Lee el CSV de la cartera y reemplaza la que estaba guardada. */
-export async function guardarCartera(_previo: EstadoCartera, formData: FormData): Promise<EstadoCartera> {
+/**
+ * Último paso del asistente. El navegador ya mostró la revisión, pero acá se
+ * vuelve a leer y validar el archivo: lo que se guarda es lo que valida el
+ * servidor.
+ */
+export async function importarCartera(_previo: EstadoImportacion, formData: FormData): Promise<EstadoImportacion> {
   await requerirSesion();
   const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Elegí un archivo CSV." };
-  if (archivo.size > TAMANO_MAXIMO) return { error: "El archivo es muy grande (máximo 2 MB)." };
-  if (!/\.(csv|txt)$/i.test(archivo.name)) {
-    return { error: 'Subí la cartera como CSV. En Excel: Archivo → Guardar como → "CSV (delimitado por comas)".' };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Elegí el archivo de nuevo." };
+  if (archivo.size > TAMANO_MAXIMO_ARCHIVO) return { error: "El archivo es muy grande (máximo 4 MB)." };
+
+  let tabla;
+  try {
+    tabla = await leerArchivoTabla(archivo);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No pude leer el archivo." };
   }
-  const bytes = await archivo.arrayBuffer();
-  // Excel en Windows guarda los CSV en Windows-1252: si no es UTF-8 válido, se relee así.
-  let texto = new TextDecoder("utf-8").decode(bytes);
-  if (texto.includes("�")) texto = new TextDecoder("windows-1252").decode(bytes);
+  const mapeo = leerJson<string[]>(formData.get("mapeo"), []).map((c) => (CAMPOS.has(c) ? c : "")) as (CampoCartera | "")[];
+  if (mapeo.length !== tabla.encabezados.length) return { error: "Las columnas cambiaron. Volvé a elegir el archivo." };
+  const ramos = Object.fromEntries(
+    Object.entries(leerJson<Record<string, string>>(formData.get("ramos"), {})).filter(([, r]) => RAMOS.has(r)),
+  );
 
-  const { polizas, avisos } = await leerCartera(texto);
-  if (polizas.length === 0) return { error: avisos[0] ?? "El archivo no tiene filas con clientes.", avisos };
+  const validacion = validarCartera(tabla, mapeo, ramos);
+  if (validacion.faltanObligatorios.length) {
+    return { error: `Falta relacionar: ${validacion.faltanObligatorios.join(", ")}.` };
+  }
+  if (!validacion.filas.length) return { error: "No quedó ninguna fila para importar. Revisá los problemas." };
 
-  await db.transaction(async (tx) => {
-    await tx.delete(schema.cartera);
-    for (let i = 0; i < polizas.length; i += 500) {
-      await tx.insert(schema.cartera).values(polizas.slice(i, i + 500));
-    }
+  const resumen = await guardarImportacion({
+    archivo: archivo.name.slice(0, 200),
+    validacion,
+    modo: formData.get("modo") === "reemplazar" ? "reemplazar" : "combinar",
+    quitarEjemplos: formData.get("quitarEjemplos") === "1",
   });
-  revalidarCartera();
-  return { guardadas: polizas.length, avisos: avisos.slice(0, 10) };
-}
-
-/** Borra toda la cartera guardada. */
-export async function borrarCartera() {
-  await requerirSesion();
-  await db.delete(schema.cartera);
-  revalidarCartera();
+  revalidatePath("/", "layout");
+  redirect(`/asegurados?aviso=importado-${resumen.polizasNuevas + resumen.polizasActualizadas}`);
 }

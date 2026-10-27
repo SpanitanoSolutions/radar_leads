@@ -34,12 +34,3 @@ export async function borrarEjemplosDeCartera(tx: Tx | typeof db = db): Promise<
   return borrados.length;
 }
 
-/** Si hay asegurados de ejemplo (para la etiqueta "Datos de ejemplo"). */
-export async function hayEjemplosDeCartera(): Promise<boolean> {
-  const [fila] = await db
-    .select({ id: schema.asegurados.id })
-    .from(schema.asegurados)
-    .where(eq(schema.asegurados.esEjemplo, true))
-    .limit(1);
-  return Boolean(fila);
-}
