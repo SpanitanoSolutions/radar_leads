@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
-import type { Ajustes } from "@/db/schema";
+import type { Ajustes, Productor } from "@/db/schema";
 import { diaEnArgentina, sumarDias } from "./fechas";
 import { conexionesPendientes } from "@/conexiones/catalogo";
 import type { AgenteId, ContadoresMenu } from "./menu";
@@ -64,10 +64,20 @@ export async function obtenerCuitsDeCartera() {
 export type Cuenta = {
   nombre: string | null;
   matricula: string | null;
+  productores: Productor[];
   organizacion: string | null;
   telefono: string | null;
   email: string | null;
 };
+
+function productoresDe(
+  productores: Productor[] | null | undefined,
+  nombre: string | null,
+  matricula: string | null,
+): Productor[] {
+  if (productores?.length) return productores;
+  return nombre || matricula ? [{ nombre: nombre ?? "", matricula: matricula ?? "" }] : [];
+}
 
 /** Datos del productor ("Mi cuenta"). El nombre cae a NOMBRE_PRODUCTOR si no lo cargó. */
 export async function obtenerCuenta(): Promise<Cuenta> {
@@ -76,6 +86,7 @@ export async function obtenerCuenta(): Promise<Cuenta> {
   return {
     nombre: a?.productorNombre ?? process.env.NOMBRE_PRODUCTOR ?? null,
     matricula: a?.productorMatricula ?? null,
+    productores: productoresDe(a?.productores, a?.productorNombre ?? null, a?.productorMatricula ?? null),
     organizacion: a ? a.productorOrganizacion : "HR Productores",
     telefono: a?.productorTelefono ?? null,
     email: a?.productorEmail ?? null,
@@ -95,6 +106,7 @@ type FilaMarco = {
   cobranza: number;
   nombre: string | null;
   matricula: string | null;
+  productores: Productor[] | null;
   organizacion: string | null;
   telefono: string | null;
   email: string | null;
@@ -134,6 +146,7 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
           and (mostrar_desde is null or mostrar_desde <= ${hoy})) as cobranza,
       a.productor_nombre as nombre,
       a.productor_matricula as matricula,
+      a.productores as productores,
       a.productor_organizacion as organizacion,
       a.productor_telefono as telefono,
       a.productor_email as email
@@ -151,6 +164,7 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
     cuenta: {
       nombre: f.nombre ?? process.env.NOMBRE_PRODUCTOR ?? null,
       matricula: f.matricula,
+      productores: productoresDe(f.productores, f.nombre, f.matricula),
       organizacion: f.organizacion,
       telefono: f.telefono,
       email: f.email,

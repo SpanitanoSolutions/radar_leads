@@ -109,9 +109,24 @@ export async function guardarCuenta(_previo: EstadoFormulario, formData: FormDat
   await requerirSesion();
   const correo = texto(formData, "email");
   if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return { error: "El email no parece válido." };
+  const nombres = [formData.get("nombre"), ...formData.getAll("productoresNombre")];
+  const matriculas = [formData.get("matricula"), ...formData.getAll("productoresMatricula")];
+  if (Math.max(nombres.length, matriculas.length) > 20) return { error: "Podés cargar hasta 20 productores." };
+  const productores: { nombre: string; matricula: string }[] = [];
+  for (let i = 0; i < Math.max(nombres.length, matriculas.length); i++) {
+    const nombre = String(nombres[i] ?? "").trim().slice(0, 120);
+    const matricula = String(matriculas[i] ?? "").trim().slice(0, 30);
+    if (!nombre && !matricula) continue;
+    if (!nombre || !matricula) return { error: "Completá nombre y matrícula para cada productor que agregues." };
+    productores.push({ nombre, matricula });
+  }
+  if (!productores.length) return { error: "Agregá al menos un productor con su nombre y matrícula." };
+  const matriculasUnicas = new Set(productores.map((p) => p.matricula.toLocaleUpperCase("es-AR").replace(/[\s.-]/g, "")));
+  if (matriculasUnicas.size !== productores.length) return { error: "Cada productor debe tener una matrícula distinta." };
   const datos = {
-    productorNombre: texto(formData, "nombre") || null,
-    productorMatricula: texto(formData, "matricula", 30) || null,
+    productorNombre: productores[0].nombre,
+    productorMatricula: productores[0].matricula,
+    productores,
     productorOrganizacion: texto(formData, "organizacion") || null,
     productorTelefono: texto(formData, "telefono", 40) || null,
     productorEmail: correo || null,

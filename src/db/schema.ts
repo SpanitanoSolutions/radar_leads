@@ -34,6 +34,8 @@ export type EstadoLead = (typeof estadoEnum.enumValues)[number];
 export type Zona = (typeof zonaEnum.enumValues)[number];
 export type AlcanceLicitacion = (typeof alcanceEnum.enumValues)[number];
 
+export type Productor = { nombre: string; matricula: string };
+
 export const sectores = pgTable("sectores", {
   id: text("id").primaryKey(),
   nombre: text("nombre").notNull(),
@@ -47,8 +49,8 @@ export const sectores = pgTable("sectores", {
 
 /**
  * Una sola fila (id = 1) con las preferencias de zona y alcance de licitaciones,
- * y los datos del productor ("Mi cuenta"): se muestran en la barra superior y
- * firman los mensajes.
+ * y los datos de los productores ("Mi cuenta"): el primero se muestra en la
+ * barra superior y firma los mensajes.
  */
 export const ajustes = pgTable("ajustes", {
   id: integer("id").primaryKey().default(1),
@@ -58,6 +60,7 @@ export const ajustes = pgTable("ajustes", {
     .notNull(),
   productorNombre: text("productor_nombre"),
   productorMatricula: text("productor_matricula"),
+  productores: jsonb("productores").$type<Productor[]>().notNull().default([]),
   productorOrganizacion: text("productor_organizacion").default("HR Productores"),
   productorTelefono: text("productor_telefono"),
   productorEmail: text("productor_email"),
