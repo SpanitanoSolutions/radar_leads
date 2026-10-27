@@ -48,7 +48,10 @@ export async function aprobarMensaje(formData: FormData) {
   const m = await mensaje(idDe(formData));
   const texto = formData.get("texto");
   const r = await enviarMensaje(m.id, { texto: typeof texto === "string" ? texto : undefined });
-  if (!r.ok) volver("mensaje-error");
+  if (!r.ok) {
+    console.error(`No se pudo enviar el mensaje ${m.id}:`, r.error);
+    volver("mensaje-error");
+  }
   await despuesDeEnviar(m.referencia, m.canal);
   volver("mensaje-enviado");
 }
@@ -69,13 +72,23 @@ export async function aprobarTodos() {
       ),
     );
   let enviados = 0;
+  let errores = 0;
   for (const m of pendientes) {
-    if ((await enviarMensaje(m.id)).ok) {
+    try {
+      const resultado = await enviarMensaje(m.id);
+      if (!resultado.ok) {
+        errores++;
+        console.error(`No se pudo enviar el mensaje ${m.id}:`, resultado.error);
+        continue;
+      }
       enviados++;
       await despuesDeEnviar(m.referencia, m.canal);
+    } catch (error) {
+      errores++;
+      console.error(`Falló el envío o la actualización del seguimiento del mensaje ${m.id}:`, error);
     }
   }
-  volver(`enviados-${enviados}`);
+  volver(`envios-lote-${enviados}-errores-${errores}`);
 }
 
 export async function omitirMensaje(formData: FormData) {

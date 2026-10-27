@@ -32,12 +32,21 @@ export async function enviarReclamo(formData: FormData) {
   const compania = mensajeDe(formData, "compania");
   const asunto = mensajeDe(formData, "asunto").slice(0, 250);
   const texto = mensajeDe(formData, "texto").slice(0, 8000);
-  if (!periodoValido(periodo) || !compania || !asunto || !texto) throw new Error("El reclamo está incompleto.");
-  const datos = await obtenerDatosConciliacion(periodo);
-  const fila = conciliarPeriodo(periodo, datos.cuotas, datos.acuerdos, datos.liquidaciones).find((f) => f.compania === compania);
-  if (!fila || fila.estado === "cierra") throw new Error("No hay una diferencia pendiente para reclamar.");
-  const resultado = await enviarReclamoComision({ fila, asunto, texto });
-  volver(periodo, resultado.ok ? "reclamo-enviado" : "envio-error", compania);
+  if (!periodoValido(periodo) || !compania || !asunto || !texto) volver(periodo, "reclamo-incompleto", compania);
+  let aviso = "error-operacion";
+  try {
+    const datos = await obtenerDatosConciliacion(periodo);
+    const fila = conciliarPeriodo(periodo, datos.cuotas, datos.acuerdos, datos.liquidaciones).find((f) => f.compania === compania);
+    if (!fila || fila.estado === "cierra") aviso = "reclamo-sin-diferencia";
+    else {
+      const resultado = await enviarReclamoComision({ fila, asunto, texto });
+      aviso = resultado.ok ? "reclamo-enviado" : "envio-error";
+      if (!resultado.ok) console.error("La conexión no pudo enviar el reclamo:", resultado.error);
+    }
+  } catch (error) {
+    console.error("No se pudo enviar el reclamo de conciliación:", error);
+  }
+  volver(periodo, aviso, compania);
 }
 
 export async function subirLiquidacion(formData: FormData) {
@@ -93,34 +102,45 @@ export async function subirLiquidacion(formData: FormData) {
   const compania = registros[0].compania;
   const periodo = registros[0].periodo;
   if (registros.some((r) => r.compania !== compania || r.periodo !== periodo)) volver(periodoActual, "mezcla-periodos");
-  const [existente] = await db
-    .select({ id: schema.liquidacionesComision.id })
-    .from(schema.liquidacionesComision)
-    .where(and(eq(schema.liquidacionesComision.compania, compania), eq(schema.liquidacionesComision.periodo, periodo)));
+  let existente: { id: number } | undefined;
+  try {
+    [existente] = await db
+      .select({ id: schema.liquidacionesComision.id })
+      .from(schema.liquidacionesComision)
+      .where(and(eq(schema.liquidacionesComision.compania, compania), eq(schema.liquidacionesComision.periodo, periodo)));
+  } catch (error) {
+    console.error("No se pudo comprobar si ya existe la liquidación:", error);
+    volver(periodoActual, "error-operacion");
+  }
   if (existente) volver(periodo, "liquidacion-existente", compania);
 
-  await db.transaction(async (tx) => {
-    const montoLiquidado = Math.round(registros.reduce((suma, registro) => suma + registro.comision, 0) * 100) / 100;
-    const retenciones = iibb || ganancias ? { iibb, ganancias } : null;
-    const [nueva] = await tx.insert(schema.liquidacionesComision).values({
-      compania,
-      periodo,
-      recibidaEl: diaEnArgentina(new Date()),
-      origen: "archivo",
-      montoLiquidado,
-      depositado,
-      retenciones,
-    }).returning({ id: schema.liquidacionesComision.id });
-    const polizas = await tx.select({ id: schema.polizas.id, numero: schema.polizas.numero }).from(schema.polizas).where(eq(schema.polizas.compania, compania));
-    const polizaIds = new Map(polizas.map((poliza) => [poliza.numero, poliza.id]));
-    await tx.insert(schema.liquidacionItems).values(registros.map((registro) => ({
-      liquidacionId: nueva.id,
-      polizaNumero: registro.poliza,
-      polizaId: polizaIds.get(registro.poliza) ?? null,
-      cuotaNumero: registro.cuota,
-      porcentaje: registro.porcentaje,
-      comision: registro.comision,
-    })));
-  });
+  try {
+    await db.transaction(async (tx) => {
+      const montoLiquidado = Math.round(registros.reduce((suma, registro) => suma + registro.comision, 0) * 100) / 100;
+      const retenciones = iibb || ganancias ? { iibb, ganancias } : null;
+      const [nueva] = await tx.insert(schema.liquidacionesComision).values({
+        compania,
+        periodo,
+        recibidaEl: diaEnArgentina(new Date()),
+        origen: "archivo",
+        montoLiquidado,
+        depositado,
+        retenciones,
+      }).returning({ id: schema.liquidacionesComision.id });
+      const polizas = await tx.select({ id: schema.polizas.id, numero: schema.polizas.numero }).from(schema.polizas).where(eq(schema.polizas.compania, compania));
+      const polizaIds = new Map(polizas.map((poliza) => [poliza.numero, poliza.id]));
+      await tx.insert(schema.liquidacionItems).values(registros.map((registro) => ({
+        liquidacionId: nueva.id,
+        polizaNumero: registro.poliza,
+        polizaId: polizaIds.get(registro.poliza) ?? null,
+        cuotaNumero: registro.cuota,
+        porcentaje: registro.porcentaje,
+        comision: registro.comision,
+      })));
+    });
+  } catch (error) {
+    console.error("No se pudo guardar la liquidación de comisiones:", error);
+    volver(periodoActual, "error-operacion");
+  }
   volver(periodo, "liquidacion-cargada", compania);
 }

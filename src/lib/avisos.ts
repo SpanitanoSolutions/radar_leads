@@ -26,6 +26,7 @@ const AVISOS: Record<string, { texto: string; tono: "ok" | "info" | "error" }> =
   conectada: { texto: "Conexión guardada. Por ahora es simulada: no se envía nada afuera.", tono: "ok" },
   desconectada: { texto: "Desconectada.", tono: "info" },
   "mensaje-error": { texto: "No se pudo enviar el mensaje. Probá de nuevo en un rato.", tono: "error" },
+  "error-operacion": { texto: "No pudimos completar la operación por un problema inesperado. Revisá si el cambio quedó aplicado antes de volver a intentarlo.", tono: "error" },
 };
 
 export function textoAviso(codigo: string | undefined): { texto: string; tono: "ok" | "info" | "error" } | null {
@@ -46,5 +47,14 @@ export function textoAviso(codigo: string | undefined): { texto: string; tono: "
   }
   const enviados = /^enviados-(\d+)$/.exec(codigo);
   if (enviados) return { texto: `${enviados[1] === "1" ? "1 mensaje enviado" : `${enviados[1]} mensajes enviados`}.`, tono: "ok" };
+  const lote = /^envios-lote-(\d+)-errores-(\d+)$/.exec(codigo);
+  if (lote) {
+    const enviadosTexto = `${lote[1]} ${lote[1] === "1" ? "mensaje enviado" : "mensajes enviados"}`;
+    if (lote[2] === "0") return { texto: `${enviadosTexto}.`, tono: "ok" };
+    return {
+      texto: `${enviadosTexto}. Hubo ${lote[2]} ${lote[2] === "1" ? "error" : "errores"}; revisá qué mensajes siguen pendientes antes de volver a intentar.`,
+      tono: "error",
+    };
+  }
   return AVISOS[codigo] ?? null;
 }

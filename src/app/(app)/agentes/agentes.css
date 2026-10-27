@@ -1307,6 +1307,11 @@
   color: var(--verde-texto);
   font-size: 14px;
 }
+.cotizacion-aviso.error {
+  border-color: #e8b3ad;
+  background: var(--rojo-suave);
+  color: var(--rojo-texto);
+}
 @media (max-width: 560px) {
   .cotizacion-campos-dos {
     grid-template-columns: minmax(0, 1fr);

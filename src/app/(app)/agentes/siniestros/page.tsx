@@ -45,6 +45,7 @@ const AVISOS: Record<string, string> = {
   "siniestro-cargado": "Cargaste el siniestro.",
   "sin-contacto": "No hay teléfono ni email para contactar al asegurado.",
   "envio-error": "No se pudo enviar. Revisá la conexión y volvé a intentar.",
+  "error-operacion": "No pudimos completar la operación por un problema inesperado. Revisá el estado antes de volver a intentarlo.",
 };
 
 function formatoFechaHora(fecha: Date): string {
@@ -393,7 +394,7 @@ export default async function Siniestros({
       </EncabezadoAgente>
 
       {typeof sp.aviso === "string" && AVISOS[sp.aviso] && (
-        <p role="status" className={`siniestro-aviso${sp.aviso === "envio-error" || sp.aviso === "sin-contacto" ? " error" : ""}`}>
+        <p role={sp.aviso === "envio-error" || sp.aviso === "sin-contacto" || sp.aviso === "error-operacion" ? "alert" : "status"} className={`siniestro-aviso${sp.aviso === "envio-error" || sp.aviso === "sin-contacto" || sp.aviso === "error-operacion" ? " error" : ""}`}>
           {AVISOS[sp.aviso]}
         </p>
       )}

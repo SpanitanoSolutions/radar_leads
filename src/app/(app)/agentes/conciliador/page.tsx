@@ -15,6 +15,9 @@ export const instant = false;
 const AVISOS: Record<string, string> = {
   "reclamo-enviado": "El reclamo se envió a la compañía.",
   "envio-error": "No se pudo enviar. Revisá la conexión y volvé a intentar.",
+  "reclamo-incompleto": "Completá el período, la compañía, el asunto y el mensaje del reclamo.",
+  "reclamo-sin-diferencia": "Ya no hay una diferencia pendiente para reclamar en ese período.",
+  "error-operacion": "No pudimos completar la operación por un problema inesperado. Revisá el estado antes de volver a intentarlo.",
   "liquidacion-cargada": "La liquidación se cargó. Revisá las diferencias del período.",
   "archivo-vacio": "Elegí un archivo CSV o XLSX.",
   "archivo-grande": "El archivo supera el límite de 4 MB.",
@@ -79,6 +82,7 @@ export default async function Conciliador({
   const sinLiquidar = filas.filter((actual) => actual.estado === "sin-liquidacion").reduce((suma, actual) => suma + actual.esperado, 0);
   const liquidacionesRecibidas = filas.filter((actual) => actual.liquidado !== null).length;
   const aviso = typeof sp.aviso === "string" ? AVISOS[sp.aviso] ?? (/^fila-invalida-\d+$/.test(sp.aviso) ? `La fila ${sp.aviso.split("-").at(-1)} tiene datos incompletos o inválidos.` : null) : null;
+  const avisoError = sp.aviso === "envio-error" || sp.aviso === "error-operacion" || sp.aviso === "reclamo-incompleto" || sp.aviso === "reclamo-sin-diferencia" || (typeof sp.aviso === "string" && /^fila-invalida-\d+$/.test(sp.aviso));
 
   return (
     <>
@@ -102,7 +106,7 @@ export default async function Conciliador({
         </details>
       </EncabezadoAgente>
 
-      {aviso && <p role="status" className={`conciliacion-aviso${sp.aviso === "envio-error" ? " error" : ""}`}>{aviso}</p>}
+      {aviso && <p role={avisoError ? "alert" : "status"} className={`conciliacion-aviso${avisoError ? " error" : ""}`}>{aviso}</p>}
 
       <section aria-label="Resumen del período" className="kpis-agente conciliacion-kpis">
         <div className="kpi-agente"><span className="kpi-agente-titulo">Te corresponde</span><span className="kpi-agente-valor kpi-monto">{pesos(esperado)}</span><span className="kpi-agente-detalle">por las cuotas cobradas en {periodos.find((p) => p.id === periodo)?.texto}</span></div>

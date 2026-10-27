@@ -15,9 +15,16 @@ const ORIGENES = [
   { id: "email", texto: "Email" },
   { id: "manual", texto: "Cargada a mano" },
 ];
-const AVISOS: Record<string, string> = {
-  "solicitud-actualizada": "Actualizaste la solicitud.",
-  "configuracion-guardada": "Guardaste la configuración.",
+const AVISOS: Record<string, { texto: string; error?: boolean }> = {
+  "solicitud-actualizada": { texto: "Actualizaste la solicitud." },
+  "configuracion-guardada": { texto: "Guardaste la configuración." },
+  "solicitud-invalida": { texto: "No se pudo actualizar: revisá los datos de la solicitud.", error: true },
+  "solicitud-inexistente": { texto: "La solicitud ya no existe o fue eliminada.", error: true },
+  "solicitud-incompleta": { texto: "Completá cliente, tipo y ramo para crear la solicitud.", error: true },
+  "solicitud-vinculo-invalido": { texto: "Elegí un asegurado o un lead válido.", error: true },
+  "asegurado-inexistente": { texto: "No encontramos ese asegurado. Actualizá la pantalla e intentá de nuevo.", error: true },
+  "lead-inexistente": { texto: "No encontramos ese lead. Actualizá la pantalla e intentá de nuevo.", error: true },
+  "error-operacion": { texto: "No pudimos guardar la solicitud por un problema inesperado. Revisá si se creó antes de volver a intentarlo.", error: true },
 };
 
 function desdeInicioDeMes(): Date {
@@ -85,7 +92,11 @@ export default async function Cotizacion({
     if (menor) preciosPorCompania.set(menor.compania, (preciosPorCompania.get(menor.compania) ?? 0) + 1);
   }
   const primeraCompania = [...preciosPorCompania].sort((a, b) => b[1] - a[1])[0];
-  const aviso = typeof sp.aviso === "string" ? AVISOS[sp.aviso] ?? null : null;
+  const aviso = typeof sp.aviso === "string"
+    ? AVISOS[sp.aviso] ?? (/^solicitud-(\d+)$/.test(sp.aviso)
+      ? { texto: `Creaste la solicitud ${sp.aviso.slice("solicitud-".length)}.`, error: false }
+      : null)
+    : null;
   const estados = ESTADOS_COTIZACION;
   const portales = conexiones.filter((conexion) => conexion.tipo === "portal");
   const checklist = [
@@ -132,7 +143,7 @@ export default async function Cotizacion({
         </details>
       </EncabezadoAgente>
 
-      {aviso && <p role="status" className="cotizacion-aviso">{aviso}</p>}
+      {aviso && <p role={aviso.error ? "alert" : "status"} className={`cotizacion-aviso${aviso.error ? " error" : ""}`}>{aviso.texto}</p>}
 
       {faltaConfigurar && (
         <section className="cotizacion-configuracion" aria-labelledby="cotizacion-checklist">
