@@ -3,8 +3,8 @@ import "@fontsource-variable/inter";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Radar de leads",
-  description: "Empresas que necesitan un seguro, detectadas cada día.",
+  title: "Radar · Cartera de seguros",
+  description: "Tu cartera de seguros organizada, con agentes que te sacan trabajo operativo.",
   robots: { index: false, follow: false },
 };
 

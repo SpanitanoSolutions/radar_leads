@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconoAtras, IconoDocumento, IconoEstrella, IconoTelefono } from "@/components/iconos";
 import { ESTADOS, RAMOS, URL_CONSULTA_ART } from "@/lib/catalogos";
-import { cuitsDeClientes, yaEsCliente } from "@/lib/cartera";
-import { obtenerCuitsDeCartera, obtenerLead } from "@/lib/datos";
+import { clientePorCuit } from "@/lib/cartera";
+import { obtenerCuenta, obtenerCuitsDeCartera, obtenerLead } from "@/lib/datos";
 import { DIAS_CAUCION_URGENTE, etiquetaEvento, type TipoEvento } from "@/lib/evento";
 import { haceCuanto } from "@/lib/fechas";
 import { puntuarLead } from "@/lib/filtros";
@@ -13,7 +13,7 @@ import { guionContacto } from "@/lib/guion";
 import { pesos } from "@/lib/formato";
 import { busquedaManual, dominioDe, enlaceTelefono, enlaceWhatsApp } from "@/lib/contacto";
 import { contactoDeLugar, type ContactoGoogle } from "@/fuentes/enriquecimiento/places";
-import { cambiarEstado, cerrarLead, descartarLead, guardarSeguimiento } from "../../actions";
+import { cambiarEstado, cerrarLead, descartarLead, guardarSeguimiento, pedirCotizacionLead } from "../../actions";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
 export const instant = false;
@@ -33,12 +33,14 @@ export default async function FichaLead({
 }) {
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
-  const [datos, cuitsCartera] = await Promise.all([obtenerLead(id), obtenerCuitsDeCartera()]);
+  const [datos, cuitsCartera, cuenta] = await Promise.all([obtenerLead(id), obtenerCuitsDeCartera(), obtenerCuenta()]);
   if (!datos) notFound();
   const { lead, sector } = datos;
+  const sp = await searchParams;
   // Si ya es cliente de la cartera, no es una llamada en frío.
-  const esCliente = yaEsCliente(lead.cuit, cuitsDeClientes(cuitsCartera));
-  const guardado = (await searchParams).guardado === "1";
+  const clienteCartera = clientePorCuit(lead.cuit, cuitsCartera);
+  const guardado = sp.guardado === "1";
+  const cotizacionCreada = sp.cotizacion;
 
   const { score, nivel, tipoEvento, diasEvento, ramosOrdenados, sinContacto } = puntuarLead(lead, sector);
   const google = await contactoGoogle(lead.placeId);
@@ -51,7 +53,7 @@ export default async function FichaLead({
     localidad: lead.localidad,
     motivo: lead.motivo,
     diasEvento,
-    productor: process.env.NOMBRE_PRODUCTOR,
+    productor: cuenta.nombre ?? undefined,
   });
   // Teléfono: el de Google Maps (en vivo) o el que la empresa publica en su web.
   const telefono = google?.telefono ?? lead.telefono;
@@ -59,7 +61,7 @@ export default async function FichaLead({
 
   return (
     <>
-      <Link href="/" className="volver">
+      <Link href="/leads" className="volver">
         <IconoAtras />
         Volver a leads del día
       </Link>
@@ -83,7 +85,7 @@ export default async function FichaLead({
                 {lead.rubro} · {lead.localidad}
               </span>
               {lead.esEjemplo && <span className="pastilla pastilla-ambar">Ejemplo</span>}
-              {esCliente && <span className="pastilla pastilla-verde">Ya es cliente</span>}
+              {clienteCartera && <Link href={`/asegurados/${clienteCartera.id}`} className="pastilla pastilla-verde cartera-link">Ya es cliente · Ver ficha</Link>}
             </div>
           </div>
         </div>
@@ -161,6 +163,17 @@ export default async function FichaLead({
                 </div>
               ))}
             </div>
+            {lead.estado !== "descartado" && (
+              <form action={pedirCotizacionLead} className="lead-pedir-cotizacion">
+                <input type="hidden" name="id" value={lead.id} />
+                <label htmlFor="lead-ramo-cotizacion" className="etiqueta">Pedir cotización</label>
+                <select id="lead-ramo-cotizacion" name="ramo" className="campo" required defaultValue={ramosOrdenados[0] ?? ""}>
+                  {ramosOrdenados.map((ramo) => <option key={ramo} value={ramo}>{ramo}</option>)}
+                </select>
+                <button type="submit" className="boton boton-primario">Crear solicitud</button>
+                {cotizacionCreada && <p className="mensaje-ok" role="status">Solicitud {cotizacionCreada} creada. <Link href="/agentes/cotizacion">Ver en Cotización</Link></p>}
+              </form>
+            )}
           </section>
 
           <section className="tarjeta tarjeta-padding" aria-labelledby="t-seguimiento">

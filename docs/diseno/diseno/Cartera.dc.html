@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Asegurados</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1A3FA8}a:hover{color:#132F7E}
+</style>
+</helmet>
+<div style="min-height: 1240px; display: flex; flex-direction: column; background: #F4F5F7; font-family: Inter, system-ui, sans-serif; color: #141A26">
+
+  <header style="height: 56px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 20px; background: #FFFFFF; border-bottom: 1px solid #E3E6EB; box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 10px; flex: none">
+      <div style="width: 28px; height: 28px; border-radius: 7px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle><path d="M12 12l6-6"></path></svg>
+      </div>
+      <span style="font-weight: 700; font-size: 16px">Radar</span>
+      <span style="font-size: 15px; color: #4B5466">Cartera de seguros</span>
+    </div>
+    <div aria-hidden="true" style="width: 1px; height: 24px; background: #E3E6EB; flex: none"></div>
+    <span style="font-size: 14px; color: #2F3747; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">[Nombre del productor] · HR Productores</span>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 4px; flex: none">
+      <a href="#" aria-label="Ayuda" style="width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; color: #4B5466">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"></path></svg>
+      </a>
+      <a href="#" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 8px; color: #1A3FA8; font-size: 14px; font-weight: 600; text-decoration: none">Salir</a>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; min-width: 0">
+
+    <nav aria-label="Navegación principal" style="flex: 1 1 232px; background: #FFFFFF; border-right: 1px solid #E3E6EB; padding: 16px 12px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="padding: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5C6577; text-transform: uppercase">Mi cartera</div>
+        <a href="Cartera.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; background: #E8EEFC; color: #1A3FA8; font-weight: 600">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"></path></svg>
+          <span>Asegurados</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFFFFF; color: #1A3FA8">16</span>
+        </a>
+        <a href="#" onClick="{{verVencimientos}}" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+          <span>Vencimientos</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">7</span>
+        </a>
+        <a href="Importar.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5M12 3v12"></path></svg>
+          <span>Importar cartera</span>
+        </a>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="padding: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5C6577; text-transform: uppercase">Agentes</div>
+        <a href="Cotizacion.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4"></path></svg>
+          <span>Cotización</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">2</span>
+        </a>
+        <a href="Validador.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20M7 15h3"></path></svg>
+          <span>Validador de pagos</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FDE2DE; color: #A1271A">2</span>
+        </a>
+        <a href="Siniestros.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M12 8v4M12 16h.01"></path></svg>
+          <span>Siniestros</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FDE2DE; color: #A1271A">3</span>
+        </a>
+        <a href="Cobranza.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2-1.5 0-2.7-.6-3.2-1.6M12 6v2M12 16v2"></path></svg>
+          <span>Cobranza</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">5</span>
+        </a>
+        <a href="Conciliador.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14l-4-4M20 17H6l4 4"></path></svg>
+          <span>Conciliador</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">3</span>
+        </a>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="padding: 4px 12px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #5C6577; text-transform: uppercase">Captación de clientes</div>
+        <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle><path d="M12 12l6-6"></path></svg>
+          <span>Leads del día</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #EEF0F3; color: #2F3747">10</span>
+        </a>
+        <a href="Sectores.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+          <span>Mis sectores</span>
+        </a>
+      </div>
+      <div style="margin-top: auto; padding: 12px; border-radius: 8px; background: #F8F9FB; font-size: 12px; color: #4B5466; line-height: 1.5">
+        <div style="font-weight: 600; color: #2F3747">Última importación</div>
+        <div>24/10/2026 · cartera_octubre.csv</div>
+      </div>
+      <a href="Configuracion.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #2F3747; border-top: 1px solid #E3E6EB; margin-top: -8px; padding-top: 4px">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+        <span>Configuración</span>
+        <span aria-label="1 conexión pendiente" style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">1</span>
+      </a>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.01em">Asegurados</h1>
+            <span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: #FFF4E0; color: #8A4B00">Datos de ejemplo</span>
+          </div>
+          <p style="margin: 0; font-size: 14px; color: #4B5466">Toda tu cartera en un lugar, ordenada por próximo vencimiento. Haz clic en un asegurado para ver su detalle.</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <a href="Importar.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 6px; border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8; font-size: 14px; font-weight: 600; text-decoration: none">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5M12 3v12"></path></svg>
+            Importar cartera
+          </a>
+          <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 6px; border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>
+            Nuevo asegurado
+          </button>
+          <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 6px; border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">
+            Exportar
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+          </button>
+          <button type="button" aria-label="Más acciones" style="width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8; cursor: pointer">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="19" r="1.8"></circle></svg>
+          </button>
+        </div>
+      </div>
+
+      <section aria-label="Vistas rápidas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px">
+        <sc-for list="{{vistas}}" as="v" hint-placeholder-count="4">
+          <button type="button" onClick="{{v.pick}}" aria-pressed="{{v.pressed}}" style="{{v.style}}">
+            <span style="font-size: 13px; font-weight: 600; color: #2F3747">{{v.titulo}}</span>
+            <span style="{{v.numStyle}}">{{v.n}}</span>
+            <span style="font-size: 12px; color: #5C6577">{{v.detalle}}</span>
+          </button>
+        </sc-for>
+      </section>
+
+      <section aria-label="Lista de asegurados" style="background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 8px; display: flex; flex-direction: column; min-width: 0">
+
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #E3E6EB">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600">{{tituloLista}}</h2>
+            <sc-if value="{{hayFiltros}}" hint-placeholder-val="{{false}}">
+              <button type="button" onClick="{{limpiar}}" style="min-height: 32px; padding: 0 10px; border: none; background: none; color: #1A3FA8; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline">Limpiar filtros</button>
+            </sc-if>
+          </div>
+          <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 8px; border: none; background: none; color: #1A3FA8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"></rect><path d="M9 4v16M15 4v16"></path></svg>
+            Editar columnas
+          </button>
+        </div>
+
+        <div style="padding: 16px 20px 8px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px">
+            <div style="position: relative">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5C6577" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 12px; top: 14px"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+              <input type="search" aria-label="Buscar por nombre, DNI o CUIT" placeholder="Nombre, DNI o CUIT" value="{{f.q}}" onChange="{{onQ}}" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 12px 0 36px; border: 1px solid #C9CED6; border-radius: 6px; font: inherit; font-size: 14px; color: #141A26; background: #FFFFFF">
+            </div>
+            <select aria-label="Ramo" value="{{f.ramo}}" onChange="{{onRamo}}" style="height: 44px; width: 100%; padding: 0 10px; border: 1px solid #C9CED6; border-radius: 6px; font: inherit; font-size: 14px; color: #141A26; background: #FFFFFF">
+              <option value="">Ramo: todos</option>
+              <option value="Auto">Auto</option>
+              <option value="Moto">Moto</option>
+              <option value="Flota">Flota</option>
+              <option value="Hogar">Hogar</option>
+              <option value="Vida">Vida</option>
+              <option value="AP">Accidentes personales</option>
+              <option value="ART">ART</option>
+              <option value="Integral de comercio">Integral de comercio</option>
+              <option value="Integral">Integral</option>
+              <option value="RC">Responsabilidad civil</option>
+              <option value="RC profesional">RC profesional</option>
+              <option value="Caución">Caución</option>
+              <option value="Carga">Carga</option>
+              <option value="Todo riesgo construcción">Todo riesgo construcción</option>
+              <option value="Embarcaciones">Embarcaciones</option>
+            </select>
+            <select aria-label="Compañía" value="{{f.cia}}" onChange="{{onCia}}" style="height: 44px; width: 100%; padding: 0 10px; border: 1px solid #C9CED6; border-radius: 6px; font: inherit; font-size: 14px; color: #141A26; background: #FFFFFF">
+              <option value="">Compañía: todas</option>
+              <option value="Federación Patronal">Federación Patronal</option>
+              <option value="Fianzas y Crédito">Fianzas y Crédito</option>
+              <option value="La Segunda">La Segunda</option>
+              <option value="Mapfre">Mapfre</option>
+              <option value="Sancor">Sancor</option>
+            </select>
+            <select aria-label="Vencimiento" value="{{f.venc}}" onChange="{{onVenc}}" style="height: 44px; width: 100%; padding: 0 10px; border: 1px solid #C9CED6; border-radius: 6px; font: inherit; font-size: 14px; color: #141A26; background: #FFFFFF">
+              <option value="">Vencimiento: cualquiera</option>
+              <option value="7">Próximos 7 días</option>
+              <option value="30">Próximos 30 días</option>
+              <option value="90">Próximos 90 días</option>
+            </select>
+            <sc-if value="{{masFiltros}}" hint-placeholder-val="{{false}}">
+              <select aria-label="Localidad" value="{{f.loc}}" onChange="{{onLoc}}" style="height: 44px; width: 100%; padding: 0 10px; border: 1px solid #C9CED6; border-radius: 6px; font: inherit; font-size: 14px; color: #141A26; background: #FFFFFF">
+                <option value="">Localidad: todas</option>
+                <option value="Balcarce">Balcarce</option>
+                <option value="Batán">Batán</option>
+                <option value="Mar Chiquita">Mar Chiquita</option>
+                <option value="Mar del Plata">Mar del Plata</option>
+                <option value="Miramar">Miramar</option>
+                <option value="Necochea">Necochea</option>
+              </select>
+              <select aria-label="Tipo de asegurado" value="{{f.tipo}}" onChange="{{onTipo}}" style="height: 44px; width: 100%; padding: 0 10px; border: 1px solid #C9CED6; border-radius: 6px; font: inherit; font-size: 14px; color: #141A26; background: #FFFFFF">
+                <option value="">Tipo: todos</option>
+                <option value="Persona">Personas</option>
+                <option value="Empresa">Empresas</option>
+              </select>
+            </sc-if>
+          </div>
+          <button type="button" onClick="{{toggleMas}}" aria-expanded="{{masFiltrosAria}}" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 4px; border: none; background: none; color: #1A3FA8; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="{{chevronStyle}}"><path d="M6 9l6 6 6-6"></path></svg>
+            {{textoMasFiltros}}
+          </button>
+        </div>
+
+        <sc-if value="{{haySeleccion}}" hint-placeholder-val="{{false}}">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 20px 12px; padding: 10px 14px; border-radius: 6px; background: #E8EEFC">
+            <span style="font-size: 14px; font-weight: 600; color: #1A3FA8">{{textoSeleccion}}</span>
+            <button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 6px; border: 1px solid #1F4FD1; background: #FFFFFF; color: #1A3FA8; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Enviar aviso de vencimiento</button>
+            <button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 6px; border: 1px solid #1F4FD1; background: #FFFFFF; color: #1A3FA8; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Exportar selección</button>
+            <button type="button" onClick="{{quitarSeleccion}}" style="margin-left: auto; min-height: 36px; padding: 0 8px; border: none; background: none; color: #1A3FA8; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline">Quitar selección</button>
+          </div>
+        </sc-if>
+
+        <div style="overflow-x: auto; border-top: 1px solid #E3E6EB">
+          <div style="min-width: 1120px">
+            <div style="display: grid; grid-template-columns: 44px 132px minmax(170px, 2.2fr) 140px minmax(150px, 1.8fr) minmax(130px, 1.3fr) 130px 116px 36px; gap: 10px; align-items: center; padding: 0 16px; min-height: 44px; background: #EEF0F3; font-size: 13px; font-weight: 600; color: #2F3747">
+              <label style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer">
+                <input type="checkbox" aria-label="Seleccionar todos" checked="{{todosMarcados}}" onChange="{{toggleTodos}}" style="width: 18px; height: 18px; margin: 0; accent-color: #1F4FD1">
+              </label>
+              <div>Alertas</div>
+              <div>Asegurado</div>
+              <div>DNI / CUIT</div>
+              <div>Ramos</div>
+              <div>Compañías</div>
+              <div>Próx. vencimiento</div>
+              <div style="text-align: right">Prima anual</div>
+              <div></div>
+            </div>
+            <sc-for list="{{filas}}" as="r" hint-placeholder-count="10">
+              <div style="{{r.rowStyle}}">
+                <label style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer">
+                  <input type="checkbox" aria-label="{{r.labelCheck}}" checked="{{r.checked}}" onChange="{{r.toggle}}" style="width: 18px; height: 18px; margin: 0; accent-color: #1F4FD1">
+                </label>
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px">
+                  <sc-for list="{{r.alertas}}" as="a" hint-placeholder-count="1">
+                    <span style="{{a.style}}">
+                      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{a.icono}}"></path></svg>
+                      {{a.texto}}
+                    </span>
+                  </sc-for>
+                </div>
+                <div style="min-width: 0">
+                  <button type="button" onClick="{{r.abrir}}" style="padding: 0; border: none; background: none; font: inherit; font-size: 14px; font-weight: 600; color: #141A26; text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: #C9CED6; text-underline-offset: 3px">{{r.nombre}}</button>
+                  <div style="font-size: 12px; color: #5C6577; margin-top: 2px">{{r.tipo}} · {{r.loc}}</div>
+                </div>
+                <div style="font-size: 13px; color: #2F3747; font-variant-numeric: tabular-nums">{{r.doc}}</div>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px">
+                  <sc-for list="{{r.ramosVis}}" as="x" hint-placeholder-count="2">
+                    <span style="font-size: 12px; font-weight: 500; padding: 3px 8px; border-radius: 6px; background: #EEF0F3; color: #2F3747">{{x}}</span>
+                  </sc-for>
+                  <span style="font-size: 13px; font-weight: 600; color: #1A3FA8">{{r.ramosMas}}</span>
+                </div>
+                <div style="font-size: 13px; color: #2F3747">{{r.cia}} <span style="font-weight: 600; color: #1A3FA8">{{r.ciasMas}}</span></div>
+                <div>
+                  <div style="font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums">{{r.vence}}</div>
+                  <div style="{{r.diasStyle}}">{{r.diasTexto}}</div>
+                </div>
+                <div style="font-size: 13px; text-align: right; font-variant-numeric: tabular-nums">{{r.prima}}</div>
+                <button type="button" onClick="{{r.abrir}}" aria-label="{{r.labelVer}}" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: none; border-radius: 6px; background: none; color: #4B5466; cursor: pointer">
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg>
+                </button>
+              </div>
+            </sc-for>
+            <sc-if value="{{vacio}}" hint-placeholder-val="{{false}}">
+              <p style="margin: 0; padding: 40px 20px; text-align: center; font-size: 14px; color: #4B5466">Ningún asegurado coincide con estos filtros.</p>
+            </sc-if>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-top: 1px solid #E3E6EB; font-size: 13px; color: #4B5466">
+          <span>{{textoPie}}</span>
+          <span>Filas por página: 25</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <sc-if value="{{panelAbierto}}" hint-placeholder-val="{{true}}">
+    <button type="button" aria-label="Cerrar el detalle" onClick="{{cerrar}}" style="position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 10; border: none; padding: 0; background: rgba(20, 26, 38, 0.32); cursor: pointer"></button>
+    <aside role="dialog" aria-modal="true" aria-labelledby="panel-titulo" style="position: fixed; top: 0; right: 0; bottom: 0; z-index: 20; width: 600px; max-width: 100%; background: #FFFFFF; box-shadow: -12px 0 32px rgba(20, 26, 38, 0.18); display: flex; flex-direction: column">
+
+      <div style="flex: none; padding: 20px 24px 16px; border-bottom: 1px solid #E3E6EB; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: flex-start; gap: 14px">
+          <div aria-hidden="true" style="width: 48px; height: 48px; flex: none; border-radius: 10px; background: #E8EEFC; color: #1A3FA8; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700">{{p.iniciales}}</div>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <h2 id="panel-titulo" style="margin: 0; font-size: 20px; font-weight: 600; line-height: 1.25">{{p.nombre}}</h2>
+            <div style="font-size: 13px; color: #4B5466">{{p.sub}}</div>
+          </div>
+          <button type="button" onClick="{{cerrar}}" aria-label="Cerrar" style="width: 40px; height: 40px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: none; color: #4B5466; cursor: pointer">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-if value="{{p.tieneTel}}" hint-placeholder-val="{{true}}">
+            <a href="{{p.telHref}}" style="display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 6px; background: {{accent}}; color: #FFFFFF; font-size: 13px; font-weight: 600; text-decoration: none">
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"></path></svg>
+              Llamar
+            </a>
+            <a href="#" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 6px; border: 1px solid #C9CED6; color: #1A3FA8; font-size: 13px; font-weight: 600; text-decoration: none">WhatsApp</a>
+          </sc-if>
+          <sc-if value="{{p.tieneEmail}}" hint-placeholder-val="{{true}}">
+            <a href="{{p.mailHref}}" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 6px; border: 1px solid #C9CED6; color: #1A3FA8; font-size: 13px; font-weight: 600; text-decoration: none">Email</a>
+          </sc-if>
+          <a href="Asegurado.dc.html" style="margin-left: auto; display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 6px; color: #1A3FA8; font-size: 13px; font-weight: 600; text-decoration: none">
+            Abrir ficha completa
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg>
+          </a>
+        </div>
+      </div>
+
+      <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px 28px; display: flex; flex-direction: column; gap: 24px">
+
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <sc-for list="{{p.stats}}" as="s" hint-placeholder-count="3">
+            <div style="padding: 12px 14px; border-radius: 8px; background: #F8F9FB">
+              <div style="font-size: 12px; color: #5C6577; font-weight: 500">{{s.titulo}}</div>
+              <div style="{{s.style}}">{{s.valor}}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <section aria-labelledby="t-venc" style="display: flex; flex-direction: column; gap: 10px">
+          <h3 id="t-venc" style="margin: 0; font-size: 15px; font-weight: 600">Próximos vencimientos</h3>
+          <sc-for list="{{p.vencs}}" as="g" hint-placeholder-count="2">
+            <div style="{{g.style}}">
+              <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px">
+                <div style="display: flex; align-items: baseline; gap: 8px">
+                  <span style="font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums">{{g.fecha}}</span>
+                  <span style="{{g.diasStyle}}">{{g.diasTexto}}</span>
+                </div>
+                <span style="font-size: 13px; color: #4B5466">{{g.resumen}}</span>
+              </div>
+              <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px">
+                <sc-for list="{{g.items}}" as="i" hint-placeholder-count="2">
+                  <li style="font-size: 13px; color: #2F3747">{{i}}</li>
+                </sc-for>
+              </ul>
+              <sc-if value="{{g.urgente}}" hint-placeholder-val="{{false}}">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                  <button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 6px; border: none; background: {{accent}}; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Preparar renovación</button>
+                  <button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 6px; border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Avisar al cliente</button>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </section>
+
+        <section aria-labelledby="t-opor" style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <h3 id="t-opor" style="margin: 0; font-size: 15px; font-weight: 600">Oportunidades de mejora</h3>
+            <span style="font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #E8EEFC; color: #1A3FA8">{{p.nOpor}}</span>
+          </div>
+          <sc-if value="{{p.sinOpor}}" hint-placeholder-val="{{false}}">
+            <p style="margin: 0; font-size: 14px; color: #4B5466">Su cobertura está completa para lo que tiene asegurado.</p>
+          </sc-if>
+          <sc-for list="{{p.opors}}" as="o" hint-placeholder-count="2">
+            <div style="padding: 14px; border: 1px solid #E3E6EB; border-radius: 8px; display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                <span style="{{o.tipoStyle}}">{{o.tipo}}</span>
+                <span style="font-size: 14px; font-weight: 600">{{o.titulo}}</span>
+              </div>
+              <p style="margin: 0; font-size: 13px; color: #4B5466; line-height: 1.5">{{o.detalle}}</p>
+              <button type="button" onClick="{{o.toggle}}" aria-pressed="{{o.pressed}}" style="{{o.botonStyle}}">{{o.boton}}</button>
+            </div>
+          </sc-for>
+        </section>
+
+        <section aria-labelledby="t-pol" style="display: flex; flex-direction: column; gap: 10px">
+          <h3 id="t-pol" style="margin: 0; font-size: 15px; font-weight: 600">Pólizas ({{p.nPol}})</h3>
+          <div style="border: 1px solid #E3E6EB; border-radius: 8px">
+            <sc-for list="{{p.polizas}}" as="q" hint-placeholder-count="3">
+              <div style="{{q.style}}">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+                  <span style="font-size: 14px; font-weight: 600">{{q.ramo}} <span style="font-weight: 400; color: #4B5466">· {{q.cobertura}}</span></span>
+                  <span style="{{q.estadoStyle}}">{{q.estado}}</span>
+                </div>
+                <div style="font-size: 13px; color: #2F3747">{{q.bien}}</div>
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 12px; color: #5C6577">
+                  <span>{{q.cia}} · Póliza {{q.numero}}</span>
+                  <span style="font-variant-numeric: tabular-nums">Vence {{q.vence}} · {{q.prima}}/año</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section aria-labelledby="t-cont" style="display: flex; flex-direction: column; gap: 10px">
+          <h3 id="t-cont" style="margin: 0; font-size: 15px; font-weight: 600">Datos de contacto</h3>
+          <dl style="margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px">
+            <sc-for list="{{p.contacto}}" as="c" hint-placeholder-count="4">
+              <dt style="color: #5C6577">{{c.k}}</dt>
+              <dd style="{{c.style}}">{{c.v}}</dd>
+            </sc-for>
+          </dl>
+        </section>
+
+        <p style="margin: 0; font-size: 12px; color: #5C6577">Datos importados el 24/10/2026 desde cartera_octubre.csv.</p>
+      </div>
+    </aside>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#1F4FD1","options":["#1F4FD1","#0F766E","#B4361A"]},"panelInicial":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  datos() {
+    function P(ramo, cia, numero, bien, cobertura, dias, prima, sumaDesde) {
+      return { ramo: ramo, cia: cia, numero: numero, bien: bien, cobertura: cobertura, dias: dias, prima: prima, sumaDesde: sumaDesde || null };
+    }
+    return [
+      { id: 1, nombre: 'Transportes Del Atlántico SRL', tipo: 'Empresa', doc: '30-71588214-6', loc: 'Mar del Plata', desde: 2019,
+        contacto: { nombre: 'Marcela Ruiz (administración)', tel: '223 495-1180', email: 'administracion@ejemplo.com.ar', dir: 'Parque Industrial Gral. Savio' },
+        pol: [
+          P('Flota', 'Mapfre', '4412-0098811', 'Camión Scania R450 · AB 123 CD', 'Todo riesgo con franquicia', 9, 3200000),
+          P('Flota', 'Mapfre', '4412-0098812', 'Camión Scania R450 · AC 456 EF', 'Todo riesgo con franquicia', 9, 3200000),
+          P('Flota', 'Mapfre', '4412-0098813', 'Camión Iveco Tector · AD 789 GH', 'Todo riesgo con franquicia', 9, 2700000),
+          P('Carga', 'Mapfre', '4415-0012270', 'Mercadería en tránsito', 'Hasta $ 60 M por viaje', 9, 2180000),
+          P('Flota', 'Federación Patronal', '88-551203', 'Renault Kangoo · AE 012 IJ', 'Terceros completo', 142, 980000),
+          P('Flota', 'Federación Patronal', '88-551204', 'Fiat Fiorino · AE 345 KL', 'Terceros completo', 142, 940000),
+          P('ART', 'Federación Patronal', '912-004417', '22 empleados', 'Riesgos del trabajo', 65, 5200000)
+        ] },
+      { id: 2, nombre: 'Gómez, Lucía', tipo: 'Persona', doc: '27-31455872-4', loc: 'Mar del Plata', desde: 2022,
+        contacto: { tel: '223 512-4471', email: null, dir: 'Mar del Plata' },
+        pol: [P('Auto', 'Mapfre', '4410-3321908', 'Peugeot 208 · AF 221 QR', 'Terceros completo', 12, 960000)] },
+      { id: 3, nombre: 'Panadería La Espiga SA', tipo: 'Empresa', doc: '30-70991245-1', loc: 'Batán', desde: 2018,
+        contacto: { nombre: 'Raúl Benítez (dueño)', tel: '223 464-2290', email: 'laespiga@ejemplo.com.ar', dir: 'Batán' },
+        pol: [
+          P('Integral de comercio', 'Sancor', '61-200455', 'Local y cuadra de producción', 'Incendio, robo y cristales', 47, 1450000, 2024),
+          P('ART', 'Sancor', '61-ART-1187', '9 empleados', 'Riesgos del trabajo', 47, 700000)
+        ] },
+      { id: 4, nombre: 'Pereyra, Martín', tipo: 'Persona', doc: '20-28761334-9', loc: 'Miramar', desde: 2020,
+        contacto: { tel: '2291 44-1208', email: 'mpereyra@ejemplo.com.ar', dir: 'Miramar' },
+        pol: [
+          P('Auto', 'La Segunda', '22-778190', 'VW Gol Trend · AB 554 TT', 'Terceros completo', 23, 820000),
+          P('Hogar', 'Mapfre', '4420-0551873', 'Casa, Miramar', 'Combinado familiar', 200, 560000, 2025)
+        ] },
+      { id: 5, nombre: 'Clínica Dental Costa Azul SRL', tipo: 'Empresa', doc: '30-71402236-5', loc: 'Mar del Plata', desde: 2023,
+        contacto: { nombre: 'Dra. Paula Ríos', tel: '223 491-8801', email: 'turnos@ejemplo.com.ar', dir: 'Mar del Plata' },
+        pol: [P('RC profesional', 'Sancor', '61-RCP-0332', '3 odontólogos', 'Mala praxis', 95, 640000)] },
+      { id: 6, nombre: 'Fernández, Rocío', tipo: 'Persona', doc: '27-35120987-2', loc: 'Mar del Plata', desde: 2021,
+        contacto: { tel: null, email: null, dir: 'Mar del Plata' },
+        pol: [
+          P('Auto', 'Federación Patronal', '88-310276', 'Fiat Cronos · AE 908 PL', 'Todo riesgo con franquicia', 5, 900000),
+          P('Vida', 'Federación Patronal', '88-V-11820', 'Capital $ 20.000.000', 'Vida individual', 5, 220000)
+        ] },
+      { id: 7, nombre: 'Constructora Los Acantilados SA', tipo: 'Empresa', doc: '30-71311458-0', loc: 'Mar del Plata', desde: 2017,
+        contacto: { nombre: 'Ing. Sergio Lamas', tel: '223 480-3315', email: 'obras@ejemplo.com.ar', dir: 'Mar del Plata' },
+        pol: [
+          P('Caución', 'Fianzas y Crédito', 'FC-55120', 'Contrato de obra pública', 'Cumplimiento de contrato', 61, 2300000),
+          P('RC', 'Mapfre', '4430-0098120', 'Obra calle Güemes', 'RC de obra', 61, 1900000),
+          P('ART', 'Mapfre', '4490-0012045', '35 empleados', 'Riesgos del trabajo', 120, 4100000),
+          P('Todo riesgo construcción', 'Mapfre', '4431-0004410', 'Edificio calle Güemes', 'Todo riesgo construcción', 200, 1500000)
+        ] },
+      { id: 8, nombre: 'Sosa, Ricardo', tipo: 'Persona', doc: '20-17654321-8', loc: 'Balcarce', desde: 2024,
+        contacto: { tel: null, email: 'rsosa@ejemplo.com.ar', dir: 'Balcarce' },
+        pol: [P('Moto', 'La Segunda', '22-M-90314', 'Honda CB 190 · A123BCD', 'Responsabilidad civil', 140, 310000)] },
+      { id: 9, nombre: 'Distribuidora Tito Hnos. SRL', tipo: 'Empresa', doc: '30-70855123-9', loc: 'Mar del Plata', desde: 2019,
+        contacto: { nombre: 'Tito Aguirre', tel: '223 475-6612', email: 'pedidos@ejemplo.com.ar', dir: 'Mar del Plata' },
+        pol: [
+          P('Flota', 'Mapfre', '4412-0101772', '4 utilitarios de reparto', 'Terceros completo', 28, 3200000),
+          P('Integral de comercio', 'Mapfre', '4425-0033901', 'Depósito y oficina', 'Incendio y robo', 28, 1400000, 2024)
+        ] },
+      { id: 10, nombre: 'Ibáñez, Carolina', tipo: 'Persona', doc: '27-29874512-6', loc: 'Mar del Plata', desde: 2021,
+        contacto: { tel: '223 600-1934', email: 'cibanez@ejemplo.com.ar', dir: 'Mar del Plata' },
+        pol: [P('Hogar', 'Sancor', '61-H-44019', 'Departamento, Mar del Plata', 'Combinado familiar', 180, 420000, 2023)] },
+      { id: 11, nombre: 'Escuela de Conducir Faro SRL', tipo: 'Empresa', doc: '30-71655902-3', loc: 'Mar del Plata', desde: 2022,
+        contacto: { nombre: 'Gabriel Funes', tel: '223 455-0071', email: null, dir: 'Mar del Plata' },
+        pol: [
+          P('Flota', 'Federación Patronal', '88-551877', '5 autos doble comando', 'Todo riesgo con franquicia', 18, 1900000),
+          P('AP', 'Federación Patronal', '88-AP-2210', 'Alumnos e instructores', 'Accidentes personales', 18, 400000)
+        ] },
+      { id: 12, nombre: 'Romero, Diego', tipo: 'Persona', doc: '20-26554890-1', loc: 'Mar Chiquita', desde: 2016,
+        contacto: { tel: '223 503-7788', email: 'dromero@ejemplo.com.ar', dir: 'Mar Chiquita' },
+        pol: [
+          P('Auto', 'Mapfre', '4410-2290117', 'Toyota Hilux · AD 333 KJ', 'Todo riesgo con franquicia', 210, 1100000),
+          P('Hogar', 'Mapfre', '4420-0410022', 'Casa, Mar Chiquita', 'Combinado familiar', 210, 380000, 2026),
+          P('Vida', 'Mapfre', '4470-0088120', 'Capital $ 30.000.000', 'Vida individual', 210, 160000)
+        ] },
+      { id: 13, nombre: 'Molina, Hernán', tipo: 'Persona', doc: '20-30442118-7', loc: 'Mar del Plata', desde: 2020,
+        contacto: { tel: '223 520-4415', email: 'tallerelpuerto@ejemplo.com.ar', dir: 'Mar del Plata' },
+        pol: [P('Integral de comercio', 'La Segunda', '22-IC-7781', 'Taller mecánico', 'Incendio y robo', 33, 780000, 2024)] },
+      { id: 14, nombre: 'Hotel Brisas del Sur SA', tipo: 'Empresa', doc: '30-69874120-4', loc: 'Mar del Plata', desde: 2015,
+        contacto: { nombre: 'Laura Ferro (gerencia)', tel: '223 486-2200', email: 'gerencia@ejemplo.com.ar', dir: 'Mar del Plata' },
+        pol: [
+          P('Integral', 'Sancor', '61-I-30018', 'Edificio del hotel', 'Integral hotelero', 74, 4300000, 2025),
+          P('RC', 'Mapfre', '4430-0077104', 'Huéspedes y terceros', 'RC hotelera', 74, 1150000),
+          P('ART', 'Sancor', '61-ART-2290', '28 empleados', 'Riesgos del trabajo', 74, 1800000)
+        ] },
+      { id: 15, nombre: 'Acosta, Valeria', tipo: 'Persona', doc: '27-38990145-0', loc: 'Necochea', desde: 2025,
+        contacto: { tel: '2262 51-4420', email: 'vacosta@ejemplo.com.ar', dir: 'Necochea' },
+        pol: [P('Auto', 'Federación Patronal', '88-322019', 'Chevrolet Onix · AF 777 ZX', 'Responsabilidad civil', 2, 870000)] },
+      { id: 16, nombre: 'Cooperativa Pesquera Puerto Unido Ltda.', tipo: 'Empresa', doc: '30-54672218-9', loc: 'Mar del Plata', desde: 2014,
+        contacto: { nombre: 'Néstor Galli (presidente)', tel: '223 489-7710', email: null, dir: 'Puerto de Mar del Plata' },
+        pol: [
+          P('Embarcaciones', 'Mapfre', '4460-0001988', 'Buque costero "Don Nino"', 'Casco y máquinas', 120, 9800000),
+          P('ART', 'Mapfre', '4490-0020871', '40 tripulantes', 'Riesgos del trabajo', 120, 2800000)
+        ] }
+    ];
+  }
+
+  oportunidades(a) {
+    var R = a.ramos;
+    var tiene = function (x) { return R.indexOf(x) >= 0; };
+    var lista = [];
+    function add(key, tipo, titulo, detalle) { lista.push({ key: a.id + ':' + key, tipo: tipo, titulo: titulo, detalle: detalle }); }
+
+    a.pol.forEach(function (p, i) {
+      if ((p.ramo === 'Auto' || p.ramo === 'Moto') && p.cobertura === 'Responsabilidad civil') {
+        add('rc' + i, 'Mejora de cobertura', 'Subir a terceros completo', p.bien + ': hoy solo tiene responsabilidad civil. Ante robo, incendio o destrucción total no cobra nada.');
+      } else if (p.ramo === 'Auto' && p.cobertura === 'Terceros completo') {
+        add('tr' + i, 'Mejora de cobertura', 'Evaluar todo riesgo con franquicia', p.bien + ': con terceros completo los daños parciales los paga el cliente. Cotizar todo riesgo y comparar.');
+      }
+      if (p.sumaDesde && p.sumaDesde < 2026) {
+        add('suma' + i, 'Mejora de cobertura', 'Actualizar la suma asegurada', p.ramo + ' · ' + p.bien + ': la suma no se actualiza desde ' + p.sumaDesde + '. Con la inflación probablemente quedó corta y cobraría menos en un siniestro.');
+      }
+    });
+
+    if (a.tipo === 'Persona') {
+      if ((tiene('Auto') || tiene('Moto')) && !tiene('Hogar')) add('hogar', 'Venta cruzada', 'Hogar o combinado familiar', 'Ya le aseguras el vehículo. Sumar la vivienda en la misma compañía suele mejorar el precio de las dos.');
+      if (!tiene('Vida') && !tiene('AP')) add('vida', 'Venta cruzada', 'Vida o accidentes personales', 'No tiene ninguna cobertura de personas. Es una conversación natural en la renovación.');
+    } else {
+      if ((tiene('Flota') || tiene('Carga')) && !tiene('Integral') && !tiene('Integral de comercio')) add('integral', 'Venta cruzada', 'Integral para la base operativa', 'Asegura vehículos pero no el depósito ni las oficinas.');
+      if (tiene('Flota') && !tiene('RC')) add('rc', 'Venta cruzada', 'Responsabilidad civil general', 'La póliza de flota no cubre daños fuera del uso de los vehículos, como en carga y descarga.');
+      if (!tiene('ART')) add('art', 'Venta cruzada', 'ART', 'Obligatoria si tiene personal en relación de dependencia. Confirmar cuántos empleados tiene.');
+      if (tiene('RC profesional') && !tiene('Integral') && !tiene('Integral de comercio')) add('consultorio', 'Venta cruzada', 'Integral del consultorio', 'Cubre el equipamiento y el local, que la RC profesional no incluye.');
+    }
+    if (tiene('Integral de comercio') && !tiene('RC')) add('rclocal', 'Venta cruzada', 'RC del local', 'Cubre daños a clientes o terceros dentro del local.');
+
+    var faltan = [];
+    if (!a.contacto.tel) faltan.push('teléfono');
+    if (!a.contacto.email) faltan.push('email');
+    if (faltan.length) add('datos', 'Dato faltante', 'Completar ' + faltan.join(' y '), 'Sin estos datos no puedes avisarle de los vencimientos ni enviarle la póliza.');
+
+    return lista;
+  }
+
+  renderVals() {
+    var self = this;
+    var accent = this.props.accent || '#1F4FD1';
+    var abiertoInicial = this.props.panelInicial === false ? null : 1;
+    var st = Object.assign({ vista: 'todos', q: '', ramo: '', cia: '', venc: '', loc: '', tipo: '', mas: false, sel: {}, abierto: abiertoInicial, seg: {} }, this.state || {});
+
+    function set(cambios) { self.setState(Object.assign({}, st, cambios)); }
+    function normal(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+    function plata(n) { return '$ ' + n.toLocaleString('es-AR'); }
+    var HOY = new Date(2026, 9, 27);
+    function fecha(d) {
+      var f = new Date(HOY.getFullYear(), HOY.getMonth(), HOY.getDate() + d);
+      return ('0' + f.getDate()).slice(-2) + '/' + ('0' + (f.getMonth() + 1)).slice(-2) + '/' + f.getFullYear();
+    }
+    function colorDias(d) { return d <= 7 ? '#A1271A' : d <= 30 ? '#8A4B00' : '#5C6577'; }
+
+    var FILAS = this.datos().map(function (r) {
+      var ramos = [], cias = [];
+      r.pol.forEach(function (p) {
+        if (ramos.indexOf(p.ramo) < 0) ramos.push(p.ramo);
+        if (cias.indexOf(p.cia) < 0) cias.push(p.cia);
+      });
+      var dias = Math.min.apply(null, r.pol.map(function (p) { return p.dias; }));
+      var prima = r.pol.reduce(function (s, p) { return s + p.prima; }, 0);
+      return Object.assign({}, r, { ramos: ramos, cias: cias, dias: dias, vence: fecha(dias), prima: prima, tel: !!r.contacto.tel, email: !!r.contacto.email });
+    });
+
+    var VISTAS = [
+      { id: 'vencen', titulo: 'Vencen en 30 días', detalle: 'Renovaciones a preparar', test: function (r) { return r.dias <= 30; }, color: '#8A4B00' },
+      { id: 'unramo', titulo: 'Con un solo ramo', detalle: 'Oportunidad de venta cruzada', test: function (r) { return r.ramos.length === 1; }, color: '#1A3FA8' },
+      { id: 'incompletos', titulo: 'Contacto incompleto', detalle: 'Sin teléfono o sin email', test: function (r) { return !r.tel || !r.email; }, color: '#2F3747' },
+      { id: 'empresas', titulo: 'Empresas', detalle: 'Personas jurídicas', test: function (r) { return r.tipo === 'Empresa'; }, color: '#2F3747' }
+    ];
+    var vistaActual = VISTAS.find(function (v) { return v.id === st.vista; });
+
+    var q = normal(st.q.trim());
+    var qDig = st.q.replace(/\D/g, '');
+    var visibles = FILAS.filter(function (r) {
+      if (vistaActual && !vistaActual.test(r)) return false;
+      if (st.ramo && r.ramos.indexOf(st.ramo) < 0) return false;
+      if (st.cia && r.cias.indexOf(st.cia) < 0) return false;
+      if (st.venc && r.dias > Number(st.venc)) return false;
+      if (st.loc && r.loc !== st.loc) return false;
+      if (st.tipo && r.tipo !== st.tipo) return false;
+      if (q && normal(r.nombre).indexOf(q) < 0 && !(qDig.length >= 4 && r.doc.replace(/\D/g, '').indexOf(qDig) >= 0)) return false;
+      return true;
+    }).sort(function (a, b) { return a.dias - b.dias; });
+
+    var vistas = VISTAS.map(function (v) {
+      var activa = st.vista === v.id;
+      return {
+        titulo: v.titulo,
+        detalle: v.detalle,
+        n: FILAS.filter(v.test).length,
+        pressed: activa ? 'true' : 'false',
+        numStyle: 'font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; color: ' + v.color + ';',
+        style: 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px; border-radius: 8px; text-align: left; font: inherit; cursor: pointer; background: #FFFFFF; ' +
+          (activa ? 'border: 2px solid ' + accent + '; padding: 13px 15px;' : 'border: 1px solid #E3E6EB;'),
+        pick: function () { set({ vista: activa ? 'todos' : v.id }); }
+      };
+    });
+
+    var badge = 'display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; ';
+    var ICONO_AVISO = 'M12 3l10 18H2zM12 10v4M12 17.5v.5';
+    var ICONO_MAS = 'M12 5v14M5 12h14';
+    var ICONO_TEL = 'M4 4l16 16M9 4H5a1 1 0 0 0-1 1c0 8 7 15 15 15a1 1 0 0 0 1-1v-4';
+
+    var idsVisibles = visibles.map(function (r) { return r.id; });
+    var nSel = idsVisibles.filter(function (id) { return st.sel[id]; }).length;
+    var todos = visibles.length > 0 && nSel === visibles.length;
+
+    var filas = visibles.map(function (r) {
+      var alertas = [];
+      if (r.dias <= 30) alertas.push({ texto: 'Vence en ' + r.dias + ' d', icono: ICONO_AVISO, style: badge + (r.dias <= 7 ? 'background: #FDE2DE; color: #A1271A;' : 'background: #FFE7A3; color: #5C3B00;') });
+      if (r.ramos.length === 1) alertas.push({ texto: '1 solo ramo', icono: ICONO_MAS, style: badge + 'background: #E8EEFC; color: #1A3FA8;' });
+      if (!r.tel || !r.email) alertas.push({ texto: !r.tel ? 'Sin teléfono' : 'Sin email', icono: ICONO_TEL, style: badge + 'background: #EEF0F3; color: #2F3747;' });
+      var marcada = !!st.sel[r.id];
+      var abierta = st.abierto === r.id;
+      return {
+        nombre: r.nombre,
+        tipo: r.tipo,
+        loc: r.loc,
+        doc: r.doc,
+        alertas: alertas,
+        ramosVis: r.ramos.slice(0, 2),
+        ramosMas: r.ramos.length > 2 ? '+' + (r.ramos.length - 2) : '',
+        cia: r.cias[0],
+        ciasMas: r.cias.length > 1 ? '+' + (r.cias.length - 1) : '',
+        vence: r.vence,
+        diasTexto: 'en ' + r.dias + ' días',
+        diasStyle: 'font-size: 12px; margin-top: 2px; color: ' + colorDias(r.dias) + ';',
+        prima: plata(r.prima),
+        checked: marcada,
+        labelCheck: 'Seleccionar ' + r.nombre,
+        labelVer: 'Ver detalle de ' + r.nombre,
+        rowStyle: 'display: grid; grid-template-columns: 44px 132px minmax(170px, 2.2fr) 140px minmax(150px, 1.8fr) minmax(130px, 1.3fr) 130px 116px 36px; gap: 10px; align-items: center; padding: 8px 16px; min-height: 60px; border-top: 1px solid #EEF0F3; ' +
+          (abierta ? 'background: #E8EEFC;' : marcada ? 'background: #F3F6FE;' : 'background: #FFFFFF;'),
+        toggle: function () {
+          var sel = Object.assign({}, st.sel); sel[r.id] = !sel[r.id]; set({ sel: sel });
+        },
+        abrir: function () { set({ abierto: r.id }); }
+      };
+    });
+
+    // ---------- Panel lateral ----------
+    var a = FILAS.find(function (r) { return r.id === st.abierto; });
+    var p = null;
+    if (a) {
+      var pill = 'font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; white-space: nowrap; ';
+
+      var grupos = {};
+      a.pol.forEach(function (x) { (grupos[x.dias] = grupos[x.dias] || []).push(x); });
+      var vencs = Object.keys(grupos).map(Number).sort(function (x, y) { return x - y; }).slice(0, 3).map(function (d) {
+        var pols = grupos[d];
+        var total = pols.reduce(function (s, x) { return s + x.prima; }, 0);
+        var urgente = d <= 30;
+        return {
+          fecha: fecha(d),
+          diasTexto: 'en ' + d + ' días',
+          diasStyle: 'font-size: 13px; font-weight: 600; color: ' + colorDias(d) + ';',
+          resumen: (pols.length === 1 ? '1 póliza' : pols.length + ' pólizas') + ' · ' + plata(total),
+          items: pols.map(function (x) { return x.ramo + ' · ' + x.bien + ' (' + x.cia + ')'; }),
+          urgente: urgente,
+          style: 'padding: 14px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; ' +
+            (urgente ? 'background: #FFF8E6; border: 1px solid #F3D58A;' : 'background: #FFFFFF; border: 1px solid #E3E6EB;')
+        };
+      });
+
+      var TIPO = {
+        'Mejora de cobertura': 'background: #FFE7A3; color: #5C3B00;',
+        'Venta cruzada': 'background: #E8EEFC; color: #1A3FA8;',
+        'Dato faltante': 'background: #EEF0F3; color: #2F3747;'
+      };
+      var opors = this.oportunidades(a).map(function (o) {
+        var en = !!st.seg[o.key];
+        return {
+          tipo: o.tipo,
+          titulo: o.titulo,
+          detalle: o.detalle,
+          tipoStyle: pill + TIPO[o.tipo],
+          boton: en ? 'En seguimiento' : 'Agregar a seguimiento',
+          pressed: en ? 'true' : 'false',
+          botonStyle: 'align-self: flex-start; min-height: 36px; padding: 0 12px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; ' +
+            (en ? 'border: 1px solid #1E6B34; background: #E6F4EA; color: #1E6B34;' : 'border: 1px solid #C9CED6; background: #FFFFFF; color: #1A3FA8;'),
+          toggle: function () { var seg = Object.assign({}, st.seg); seg[o.key] = !seg[o.key]; set({ seg: seg }); }
+        };
+      });
+
+      var polizas = a.pol.slice().sort(function (x, y) { return x.dias - y.dias; }).map(function (x, i) {
+        var porVencer = x.dias <= 30;
+        return {
+          ramo: x.ramo, cobertura: x.cobertura, bien: x.bien, cia: x.cia, numero: x.numero,
+          vence: fecha(x.dias), prima: plata(x.prima),
+          estado: porVencer ? 'Por vencer' : 'Vigente',
+          estadoStyle: pill + (porVencer ? 'background: #FFE7A3; color: #5C3B00;' : 'background: #E6F4EA; color: #1E6B34;'),
+          style: 'padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; ' + (i > 0 ? 'border-top: 1px solid #EEF0F3;' : '')
+        };
+      });
+
+      var dato = function (v) { return v || 'Sin dato'; };
+      var datoStyle = function (v) { return 'margin: 0; overflow-wrap: anywhere; ' + (v ? 'font-weight: 500;' : 'color: #A1271A; font-weight: 500;'); };
+      var contacto = [];
+      if (a.contacto.nombre) contacto.push({ k: 'Responsable', v: a.contacto.nombre, style: datoStyle(true) });
+      contacto.push({ k: 'Teléfono', v: dato(a.contacto.tel), style: datoStyle(a.contacto.tel) });
+      contacto.push({ k: 'Email', v: dato(a.contacto.email), style: datoStyle(a.contacto.email) });
+      contacto.push({ k: 'Dirección', v: dato(a.contacto.dir), style: datoStyle(a.contacto.dir) });
+
+      var palabras = a.nombre.replace(',', '').split(' ').filter(Boolean);
+      p = {
+        nombre: a.nombre,
+        iniciales: (palabras[0][0] + (palabras[1] ? palabras[1][0] : '')).toUpperCase(),
+        sub: a.tipo + ' · ' + (a.tipo === 'Empresa' ? 'CUIT ' : 'CUIL ') + a.doc + ' · ' + a.loc + ' · cliente desde ' + a.desde,
+        tieneTel: !!a.contacto.tel,
+        tieneEmail: !!a.contacto.email,
+        telHref: a.contacto.tel ? 'tel:+54' + a.contacto.tel.replace(/\D/g, '') : '#',
+        mailHref: a.contacto.email ? 'mailto:' + a.contacto.email : '#',
+        stats: [
+          { titulo: 'Pólizas', valor: String(a.pol.length), style: 'font-size: 20px; font-weight: 700; margin-top: 2px;' },
+          { titulo: 'Prima anual', valor: plata(a.prima), style: 'font-size: 20px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums;' },
+          { titulo: 'Próximo vencimiento', valor: 'en ' + a.dias + ' días', style: 'font-size: 20px; font-weight: 700; margin-top: 2px; color: ' + colorDias(a.dias) + ';' }
+        ],
+        vencs: vencs,
+        opors: opors,
+        nOpor: String(opors.length),
+        sinOpor: opors.length === 0,
+        polizas: polizas,
+        nPol: String(a.pol.length),
+        contacto: contacto
+      };
+    }
+
+    var hayFiltros = !!(vistaActual || st.q || st.ramo || st.cia || st.venc || st.loc || st.tipo);
+
+    return {
+      accent: accent,
+      vistas: vistas,
+      filas: filas,
+      vacio: filas.length === 0,
+      f: st,
+      hayFiltros: hayFiltros,
+      tituloLista: hayFiltros
+        ? (vistaActual ? vistaActual.titulo : 'Resultados') + ' (' + visibles.length + ' de ' + FILAS.length + ')'
+        : 'Todos los asegurados (' + FILAS.length + ')',
+      textoPie: 'Mostrando ' + visibles.length + ' de ' + FILAS.length + ' asegurados',
+      masFiltros: st.mas,
+      masFiltrosAria: st.mas ? 'true' : 'false',
+      textoMasFiltros: st.mas ? 'Mostrar menos filtros' : 'Mostrar más filtros (2)',
+      chevronStyle: st.mas ? 'transform: rotate(180deg);' : '',
+      haySeleccion: nSel > 0,
+      textoSeleccion: nSel === 1 ? '1 asegurado seleccionado' : nSel + ' asegurados seleccionados',
+      todosMarcados: todos,
+      panelAbierto: !!p,
+      p: p || {},
+      cerrar: function () { set({ abierto: null }); },
+      onQ: function (e) { set({ q: e.target.value }); },
+      onRamo: function (e) { set({ ramo: e.target.value }); },
+      onCia: function (e) { set({ cia: e.target.value }); },
+      onVenc: function (e) { set({ venc: e.target.value }); },
+      onLoc: function (e) { set({ loc: e.target.value }); },
+      onTipo: function (e) { set({ tipo: e.target.value }); },
+      toggleMas: function () { set({ mas: !st.mas }); },
+      limpiar: function () { set({ vista: 'todos', q: '', ramo: '', cia: '', venc: '', loc: '', tipo: '' }); },
+      verVencimientos: function (e) { if (e && e.preventDefault) e.preventDefault(); set({ vista: 'vencen', abierto: null }); },
+      toggleTodos: function () {
+        var sel = Object.assign({}, st.sel);
+        idsVisibles.forEach(function (id) { sel[id] = !todos; });
+        set({ sel: sel });
+      },
+      quitarSeleccion: function () { set({ sel: {} }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

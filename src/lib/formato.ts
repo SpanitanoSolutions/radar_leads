@@ -10,3 +10,10 @@ export function pesos(valor: number): string {
 export function porcentaje(valor: number): string {
   return PORCENTAJE.format(valor);
 }
+
+const PESOS_CENTAVOS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 });
+
+/** 72500 → "$ 72.500,00" (como figura en un comprobante). */
+export function pesosConCentavos(valor: number): string {
+  return PESOS_CENTAVOS.format(valor);
+}
