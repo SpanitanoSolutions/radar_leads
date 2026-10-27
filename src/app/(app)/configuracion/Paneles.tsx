@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { ConexionCatalogo } from "@/conexiones/catalogo";
 import type { Cuenta } from "@/lib/datos";
 import {
@@ -244,19 +244,35 @@ export function ContenidoConexion({
 /** Mi cuenta: los datos que firman los mensajes y aparecen arriba. */
 export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
   const [estado, guardar, guardando] = useActionState<EstadoFormulario, FormData>(guardarCuenta, {});
-  const campo = (nombre: keyof Cuenta, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
+  const [nombrePrincipal, setNombrePrincipal] = useState(cuenta.productores[0]?.nombre ?? cuenta.nombre ?? "");
+  const [matriculaPrincipal, setMatriculaPrincipal] = useState(cuenta.productores[0]?.matricula ?? cuenta.matricula ?? "");
+  const [productoresAdicionales, setProductoresAdicionales] = useState(() => {
+    const guardados = cuenta.productores.slice(1);
+    return [...guardados, ...Array.from({ length: Math.max(0, 1 - guardados.length) }, () => ({ nombre: "", matricula: "" }))];
+  });
+  const campo = (nombre: Exclude<keyof Cuenta, "productores">, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <div className="form-columna">
       <label htmlFor={`cuenta-${nombre}`} className="etiqueta">
         {etiqueta}
       </label>
-      <input id={`cuenta-${nombre}`} name={nombre} className="campo" defaultValue={cuenta[nombre] ?? ""} {...extra} />
+      <input
+        id={`cuenta-${nombre}`}
+        name={nombre}
+        className="campo"
+        {...(nombre === "nombre"
+          ? { value: nombrePrincipal, onChange: (evento: React.ChangeEvent<HTMLInputElement>) => setNombrePrincipal(evento.target.value) }
+          : nombre === "matricula"
+            ? { value: matriculaPrincipal, onChange: (evento: React.ChangeEvent<HTMLInputElement>) => setMatriculaPrincipal(evento.target.value) }
+            : { defaultValue: cuenta[nombre] ?? "" })}
+        {...extra}
+      />
     </div>
   );
   return (
     <form action={guardar} className="tarjeta tarjeta-padding form-cuenta">
       <p className="texto-suave">
-        Tu nombre aparece arriba a la derecha y firma los mensajes que preparan los agentes. La matrícula va en los
-        reclamos a las compañías.
+        Agregá todas las personas físicas que trabajan con esta cuenta y sus matrículas. La primera persona aparece arriba
+        y firma los mensajes que preparan los agentes.
       </p>
       <div className="form-grilla">
         {campo("nombre", "Nombre y apellido", { required: true, autoComplete: "name" })}
@@ -265,6 +281,59 @@ export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
         {campo("telefono", "Teléfono", { type: "tel", autoComplete: "tel" })}
         {campo("email", "Email", { type: "email", autoComplete: "email" })}
       </div>
+      <section className="cuenta-productores" aria-labelledby="cuenta-productores-titulo">
+        <div className="cuenta-productores-cabecera">
+          <div>
+            <h2 id="cuenta-productores-titulo">Otras personas físicas</h2>
+            <p className="texto-suave">Cargá a cada persona con su propia matrícula.</p>
+          </div>
+        </div>
+        <div className="cuenta-productores-lista">
+          {productoresAdicionales.map((productor, indice) => (
+            <div className="cuenta-productor" key={indice}>
+              <div className="cuenta-productor-cabecera">
+                <h3>Persona {indice + 2}</h3>
+                {productoresAdicionales.length > 1 && (
+                  <button
+                    type="button"
+                    className="boton-texto boton-texto-peligro"
+                    onClick={() => setProductoresAdicionales((actuales) => actuales.filter((_, i) => i !== indice))}
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
+              <label htmlFor={`productor-nombre-${indice}`} className="etiqueta">Nombre y apellido</label>
+              <input
+                id={`productor-nombre-${indice}`}
+                name="productoresNombre"
+                className="campo"
+                autoComplete="name"
+                maxLength={120}
+                value={productor.nombre}
+                onChange={(evento) => setProductoresAdicionales((actuales) => actuales.map((p, i) => i === indice ? { ...p, nombre: evento.target.value } : p))}
+              />
+              <label htmlFor={`productor-matricula-${indice}`} className="etiqueta">Matrícula</label>
+              <input
+                id={`productor-matricula-${indice}`}
+                name="productoresMatricula"
+                className="campo"
+                maxLength={30}
+                value={productor.matricula}
+                onChange={(evento) => setProductoresAdicionales((actuales) => actuales.map((p, i) => i === indice ? { ...p, matricula: evento.target.value } : p))}
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="boton"
+          disabled={productoresAdicionales.length >= 19}
+          onClick={() => setProductoresAdicionales((actuales) => [...actuales, { nombre: "", matricula: "" }])}
+        >
+          Agregar otra persona
+        </button>
+      </section>
       <Error estado={estado} />
       <button type="submit" className="boton boton-primario alinear-inicio" disabled={guardando}>
         {guardando ? "Guardando…" : "Guardar"}

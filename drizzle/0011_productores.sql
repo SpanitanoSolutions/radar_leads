@@ -1,0 +1,1 @@
+ALTER TABLE "ajustes" ADD COLUMN "productores" jsonb DEFAULT '[]'::jsonb NOT NULL;
