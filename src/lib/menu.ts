@@ -25,6 +25,7 @@ export type Icono =
   | "escudo"
   | "moneda"
   | "flechas"
+  | "grafico"
   | "radar"
   | "grilla"
   | "engranaje";
@@ -73,6 +74,7 @@ export function armarMenu(c: ContadoresMenu): GrupoMenu[] {
           icono: "calendario",
           contador: siHay(c.vencen30, "ambar", `${c.vencen30} vencen en 30 días`),
         },
+        { href: "/estadisticas", texto: "Estadísticas", icono: "grafico" },
         { href: "/importar", texto: "Importar cartera", icono: "subir" },
       ],
     },
