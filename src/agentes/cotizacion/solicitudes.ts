@@ -153,7 +153,7 @@ export async function registrarResultadoCotizacion(datos: {
     if (!solicitud.companias.includes(datos.compania)) throw new Error("La compañía no forma parte de esta solicitud.");
 
     const recibidaEl = new Date().toISOString();
-    const cotizaciones = [
+    const cotizaciones: typeof solicitud.cotizaciones = [
       ...solicitud.cotizaciones.filter((cotizacion) => cotizacion.compania !== datos.compania),
       {
         compania: datos.compania,
