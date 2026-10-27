@@ -113,3 +113,71 @@ export function conexionesPendientes(conectadas: string[]): ConexionCatalogo[] {
   const hechas = new Set(conectadas);
   return CONEXIONES.filter((c) => c.requerida && !hechas.has(c.clave));
 }
+
+export type VistaConexion = {
+  estado: "conectado" | "pendiente" | "en_proceso" | "por_email" | "sin_conectar";
+  estadoTexto: string;
+  detalle: string;
+  boton: string;
+  primario: boolean;
+};
+
+type Fila = { estado: string; datos: Record<string, unknown> } | null | undefined;
+
+/** Cómo se muestra cada conexión en Configuración según lo guardado. */
+export function vistaConexion(c: ConexionCatalogo, fila: Fila): VistaConexion {
+  const d = (k: string) => (fila?.datos[k] ? String(fila.datos[k]) : "");
+  if (fila?.estado === "conectado") {
+    const detalle =
+      c.tipo === "whatsapp"
+        ? `${d("numero") || "Número"} · verificado`
+        : c.tipo === "email"
+          ? [d("direccion"), d("proveedor")].filter(Boolean).join(" · ")
+          : c.tipo === "portal"
+            ? `Portal de productores · usuario ${d("usuario") || "cargado"}`
+            : c.tipo === "mercadopago"
+              ? `Cuenta vinculada${d("cuenta") ? ` · ${d("cuenta")}` : ""}`
+              : c.tipo === "banco"
+                ? [d("banco"), d("alias") && `alias ${d("alias")}`].filter(Boolean).join(" · ")
+                : `Calendario ${d("calendario") || "principal"}`;
+    return { estado: "conectado", estadoTexto: "Conectado", detalle: detalle || c.detalle, boton: "Administrar", primario: false };
+  }
+  if (fila?.estado === "por_email") {
+    const contacto = d("email");
+    return {
+      estado: "por_email",
+      estadoTexto: "Por email",
+      detalle: contacto
+        ? `Sin portal: el agente le pide la cotización a ${contacto}.`
+        : "Sin portal: el agente pide la cotización por email. Falta el contacto.",
+      boton: contacto ? "Administrar" : "Agregar contacto",
+      primario: !contacto,
+    };
+  }
+  if (fila?.estado === "en_proceso") {
+    return { estado: "en_proceso", estadoTexto: "A medio conectar", detalle: c.detalle, boton: "Continuar", primario: true };
+  }
+  if (COMPANIAS_POR_EMAIL.includes(c.compania ?? "")) {
+    return {
+      estado: "por_email",
+      estadoTexto: "Por email",
+      detalle: "Sin portal: el agente pide la cotización por email. Falta el contacto.",
+      boton: "Agregar contacto",
+      primario: true,
+    };
+  }
+  return {
+    estado: c.requerida ? "pendiente" : "sin_conectar",
+    estadoTexto: "Sin conectar",
+    detalle: c.detalle,
+    boton: c.tipo === "banco" ? "Configurar" : "Conectar",
+    primario: c.requerida,
+  };
+}
+
+export const GRUPOS_CONEXIONES: { id: ConexionCatalogo["grupo"]; titulo: string; detalle: string }[] = [
+  { id: "mensajeria", titulo: "Mensajería", detalle: "Por donde tus agentes hablan con los asegurados." },
+  { id: "companias", titulo: "Compañías de seguros", detalle: "Accesos a los portales para cotizar y descargar pólizas." },
+  { id: "pagos", titulo: "Pagos y bancos", detalle: "Para cobrar, validar comprobantes y conciliar." },
+  { id: "calendario", titulo: "Calendario", detalle: "Recordatorios de vencimientos y reuniones." },
+];

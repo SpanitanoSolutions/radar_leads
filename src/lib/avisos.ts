@@ -11,6 +11,8 @@ const AVISOS: Record<string, { texto: string; tono: "ok" | "info" | "error" }> =
   "ejemplos-borrados": { texto: "Se borraron los datos de ejemplo. Importá tu cartera para empezar.", tono: "ok" },
   "mensaje-enviado": { texto: "Mensaje enviado.", tono: "ok" },
   "mensaje-omitido": { texto: "Omitido: no se envía nada.", tono: "info" },
+  conectada: { texto: "Conexión guardada. Por ahora es simulada: no se envía nada afuera.", tono: "ok" },
+  desconectada: { texto: "Desconectada.", tono: "info" },
   "mensaje-error": { texto: "No se pudo enviar el mensaje. Probá de nuevo en un rato.", tono: "error" },
 };
 

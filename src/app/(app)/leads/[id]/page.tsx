@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { IconoAtras, IconoDocumento, IconoEstrella, IconoTelefono } from "@/components/iconos";
 import { ESTADOS, RAMOS, URL_CONSULTA_ART } from "@/lib/catalogos";
 import { cuitsDeClientes, yaEsCliente } from "@/lib/cartera";
-import { obtenerCuitsDeCartera, obtenerLead } from "@/lib/datos";
+import { obtenerCuenta, obtenerCuitsDeCartera, obtenerLead } from "@/lib/datos";
 import { DIAS_CAUCION_URGENTE, etiquetaEvento, type TipoEvento } from "@/lib/evento";
 import { haceCuanto } from "@/lib/fechas";
 import { puntuarLead } from "@/lib/filtros";
@@ -33,7 +33,7 @@ export default async function FichaLead({
 }) {
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
-  const [datos, cuitsCartera] = await Promise.all([obtenerLead(id), obtenerCuitsDeCartera()]);
+  const [datos, cuitsCartera, cuenta] = await Promise.all([obtenerLead(id), obtenerCuitsDeCartera(), obtenerCuenta()]);
   if (!datos) notFound();
   const { lead, sector } = datos;
   // Si ya es cliente de la cartera, no es una llamada en frío.
@@ -51,7 +51,7 @@ export default async function FichaLead({
     localidad: lead.localidad,
     motivo: lead.motivo,
     diasEvento,
-    productor: process.env.NOMBRE_PRODUCTOR,
+    productor: cuenta.nombre ?? undefined,
   });
   // Teléfono: el de Google Maps (en vivo) o el que la empresa publica en su web.
   const telefono = google?.telefono ?? lead.telefono;

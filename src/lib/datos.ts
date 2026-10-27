@@ -7,7 +7,7 @@ import { diaEnArgentina, sumarDias } from "./fechas";
 import { conexionesPendientes } from "@/conexiones/catalogo";
 import type { AgenteId, ContadoresMenu } from "./menu";
 
-const AJUSTES_POR_DEFECTO: Pick<Ajustes, "zonas" | "licitaciones"> = {
+export const AJUSTES_POR_DEFECTO: Pick<Ajustes, "zonas" | "licitaciones"> = {
   zonas: { mdp: true, costa: true, provincia: true },
   licitaciones: { municipal: true, provincial: true, nacional: true },
 };
@@ -184,4 +184,10 @@ export async function obtenerLead(id: number) {
     .from(schema.sectores)
     .where(eq(schema.sectores.id, lead.sectorId));
   return { lead, sector };
+}
+
+/** Conexiones guardadas (el catálogo dice cuáles existen). */
+export async function obtenerConexiones() {
+  await connection();
+  return db.select().from(schema.conexiones);
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import { obtenerAjustes, obtenerCartera, obtenerLeads, obtenerSectores } from "@/lib/datos";
+import { obtenerAjustes, obtenerCartera, obtenerCuenta, obtenerLeads, obtenerSectores } from "@/lib/datos";
 import { diaEnArgentina } from "@/lib/fechas";
 import { leadsVisibles } from "@/lib/filtros";
 import { registrarCaptura } from "@/fuentes/guardar";
@@ -14,16 +14,17 @@ export async function resumenDeHoy(): Promise<Resumen> {
   // La hora se toma recién en el pedido, nunca durante el build.
   await connection();
   const ahora = new Date();
-  const [sectores, ajustes, leads, cartera] = await Promise.all([
+  const [sectores, ajustes, leads, cartera, cuenta] = await Promise.all([
     obtenerSectores(),
     obtenerAjustes(),
     obtenerLeads(),
     obtenerCartera(),
+    obtenerCuenta(),
   ]);
   return armarResumen(leadsVisibles(leads, sectores, ajustes, ahora), {
     dia: diaEnArgentina(ahora),
     ahora,
-    productor: process.env.NOMBRE_PRODUCTOR,
+    productor: cuenta.nombre ?? undefined,
     cartera,
   });
 }
