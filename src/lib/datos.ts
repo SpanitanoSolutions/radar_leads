@@ -56,7 +56,7 @@ export async function obtenerCartera() {
 export async function obtenerCuitsDeCartera() {
   await connection();
   return db
-    .select({ cuit: schema.asegurados.documento })
+    .select({ id: schema.asegurados.id, nombre: schema.asegurados.nombre, cuit: schema.asegurados.documento })
     .from(schema.asegurados)
     .where(isNull(schema.asegurados.bajaEl));
 }

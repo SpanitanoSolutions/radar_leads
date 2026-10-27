@@ -855,6 +855,24 @@ textarea.campo {
   flex-direction: column;
   gap: 8px;
 }
+.lead-pedir-cotizacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borde-suave);
+}
+.lead-pedir-cotizacion label {
+  flex: 1 1 180px;
+}
+.lead-pedir-cotizacion select {
+  min-width: 0;
+}
+.lead-pedir-cotizacion .mensaje-ok {
+  flex: 1 1 100%;
+}
 .form-fila {
   display: flex;
   flex-wrap: wrap;

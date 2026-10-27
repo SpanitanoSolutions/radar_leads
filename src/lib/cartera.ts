@@ -36,3 +36,10 @@ export function yaEsCliente(cuit: string | null, clientes: Set<string>): boolean
   const digitos = cuit?.replace(/\D/g, "") ?? "";
   return digitos.length === 11 && clientes.has(digitos);
 }
+
+/** Busca la ficha del asegurado por CUIT, con o sin separadores. */
+export function clientePorCuit<T extends { id: number; cuit: string | null }>(cuit: string | null, clientes: T[]): T | null {
+  const digitos = cuit?.replace(/\D/g, "") ?? "";
+  if (digitos.length !== 11) return null;
+  return clientes.find((cliente) => cliente.cuit?.replace(/\D/g, "") === digitos) ?? null;
+}

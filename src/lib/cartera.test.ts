@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cuitsDeClientes, proximosVencimientos, yaEsCliente, type Poliza } from "./cartera";
+import { clientePorCuit, cuitsDeClientes, proximosVencimientos, yaEsCliente, type Poliza } from "./cartera";
 
 // Pólizas inventadas, una fila por póliza como las arma obtenerCartera().
 const POLIZAS: Poliza[] = [
@@ -26,3 +26,9 @@ describe("cartera guardada", () => {
     expect(yaEsCliente(null, clientes)).toBe(false);
   });
 });
+
+  it("encuentra la ficha del cliente por CUIT", () => {
+    const clientes = [{ id: 8, nombre: "Empresa SA", cuit: "30-12345678-9" }];
+    expect(clientePorCuit("30123456789", clientes)).toEqual(clientes[0]);
+    expect(clientePorCuit("20-1234567-8", clientes)).toBeNull();
+  });
