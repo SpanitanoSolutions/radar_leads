@@ -156,6 +156,113 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
+.asistente-whatsapp {
+  padding: 16px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--fondo-suave);
+  scroll-margin: 16px;
+}
+.asistente-whatsapp-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.asistente-whatsapp-avatar {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--acento-suave);
+  color: var(--acento-texto);
+  font-weight: 700;
+}
+.asistente-whatsapp-sub {
+  margin: 3px 0 0;
+  color: var(--texto-2);
+  font-size: 12px;
+}
+.asistente-whatsapp-burbuja {
+  max-width: 90%;
+  margin: 2px 0 0;
+  padding: 11px 13px;
+  border: 1px solid var(--borde);
+  border-radius: 4px 14px 14px;
+  background: #fff;
+  color: var(--texto-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.asistente-whatsapp-opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.asistente-whatsapp-opcion {
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid var(--borde-campo);
+  border-radius: 18px;
+  background: #fff;
+  color: var(--acento-texto);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.asistente-whatsapp-opcion:hover {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+}
+.asistente-whatsapp-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.asistente-whatsapp-editor {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--borde-campo);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--texto);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.asistente-whatsapp-editor:focus {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+}
+.asistente-whatsapp-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.asistente-whatsapp-ayuda,
+.asistente-whatsapp-error {
+  flex: 1 1 220px;
+  margin: 0;
+  color: var(--texto-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.asistente-whatsapp-error {
+  color: var(--ambar-texto);
+}
+.asistente-whatsapp-enviar {
+  min-height: 40px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
 .panel-cabecera .fila-acciones {
   align-items: center;
 }

@@ -17,6 +17,7 @@ import { enlaceWhatsApp } from "@/lib/contacto";
 import { diaEnArgentina, diasEntre, fechaCorta } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { oportunidadesDe } from "@/lib/oportunidades";
+import { AsistenteWhatsApp } from "./AsistenteWhatsApp";
 import { alternarSeguimiento, avisarVencimiento, pedirCotizacionOportunidad, prepararRenovacion } from "./actions";
 
 const CLASE_TIPO = {
@@ -70,8 +71,8 @@ export function PanelAsegurado({
             </a>
           )}
           {whatsapp && (
-            <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="boton boton-mediano">
-              WhatsApp
+            <a href="#asistente-whatsapp" className="boton boton-mediano">
+              Escribir WhatsApp
             </a>
           )}
           {contacto.email && (
@@ -103,6 +104,12 @@ export function PanelAsegurado({
             </div>
           </div>
         </div>
+
+        <AsistenteWhatsApp
+          nombre={a.nombre}
+          telefono={contacto.telefono}
+          proximoVencimiento={fila.vence ? fechaCorta(fila.vence) : null}
+        />
 
         <section aria-labelledby="t-venc" className="panel-seccion">
           <h3 id="t-venc" className="panel-seccion-titulo">
