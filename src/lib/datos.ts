@@ -69,6 +69,19 @@ export type Cuenta = {
   email: string | null;
 };
 
+/** Datos del productor ("Mi cuenta"). El nombre cae a NOMBRE_PRODUCTOR si no lo cargó. */
+export async function obtenerCuenta(): Promise<Cuenta> {
+  await connection();
+  const [a] = await db.select().from(schema.ajustes).where(eq(schema.ajustes.id, 1));
+  return {
+    nombre: a?.productorNombre ?? process.env.NOMBRE_PRODUCTOR ?? null,
+    matricula: a?.productorMatricula ?? null,
+    organizacion: a ? a.productorOrganizacion : "HR Productores",
+    telefono: a?.productorTelefono ?? null,
+    email: a?.productorEmail ?? null,
+  };
+}
+
 type FilaMarco = {
   asegurados: number;
   vencen30: number;

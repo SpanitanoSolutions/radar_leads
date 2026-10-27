@@ -1,0 +1,381 @@
+/* ---------- Asegurados, ficha y vencimientos ---------- */
+
+.vistas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.vista {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: #fff;
+  color: var(--texto);
+  text-decoration: none;
+}
+.vista:hover {
+  border-color: #aeb5c2;
+  color: var(--texto);
+}
+.vista-activa {
+  border: 2px solid var(--acento);
+  padding: 13px 15px;
+}
+.vista-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gris-texto);
+}
+.vista-numero {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.vista-ambar {
+  color: var(--ambar-texto);
+}
+.vista-azul {
+  color: var(--acento-texto);
+}
+.vista-neutro {
+  color: var(--gris-texto);
+}
+.vista-detalle {
+  font-size: 12px;
+  color: var(--etiqueta);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.filtros-lista {
+  padding: 16px 20px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.filtros-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.filtros-grilla .campo {
+  width: 100%;
+}
+.filtros-lista > .boton-texto {
+  align-self: flex-start;
+}
+
+.barra-seleccion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin: 0 20px 12px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--acento-suave);
+}
+.barra-seleccion-texto {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--acento-texto);
+}
+.aviso-en-lista {
+  margin: 0 20px 12px;
+}
+
+.tabla-asegurados {
+  min-width: 1120px;
+}
+.tabla-asegurados th {
+  background: var(--gris-suave);
+  color: var(--gris-texto);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+.tabla-asegurados td {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.tabla-asegurados th:first-child,
+.tabla-asegurados td:first-child {
+  padding-left: 12px;
+  width: 52px;
+}
+.tabla-asegurados .celda-check {
+  padding-right: 0;
+}
+.tabla-asegurados tr.fila-abierta td {
+  background: var(--acento-suave);
+}
+.tabla-asegurados tr.fila-marcada td {
+  background: #f3f6fe;
+}
+.nombre-asegurado {
+  color: var(--texto);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--borde-campo);
+  text-underline-offset: 3px;
+}
+.nombre-asegurado:hover {
+  color: var(--acento-texto);
+}
+.mas-items {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--acento-texto);
+}
+
+.paginas {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.paginas a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-weight: 600;
+}
+
+/* Panel del asegurado */
+.panel-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.panel-cabecera .fila-acciones {
+  align-items: center;
+}
+.enlace-ficha {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.vencimiento {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+.vencimiento-urgente {
+  background: var(--ambar-claro);
+  border-color: var(--ambar-borde);
+}
+.vencimiento-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.vencimiento-fecha {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.dias-fuerte {
+  font-size: 13px;
+  font-weight: 600;
+}
+.oportunidad {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+.oportunidad-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.oportunidad-titulo {
+  font-size: 14px;
+  font-weight: 600;
+}
+.oportunidad-detalle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--texto-2);
+}
+.lista-polizas {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+.poliza-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+}
+.poliza-item + .poliza-item {
+  border-top: 1px solid var(--borde-suave);
+}
+.poliza-item-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+.poliza-item-bien {
+  font-size: 13px;
+  color: var(--gris-texto);
+}
+.poliza-item-pie {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--etiqueta);
+}
+@media (max-width: 640px) {
+  .panel-stats {
+    grid-template-columns: 1fr;
+  }
+  .enlace-ficha {
+    margin-left: 0;
+  }
+}
+
+/* Ficha */
+.ficha-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px;
+}
+.ficha-identidad {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.ficha-identidad-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+h1.titulo-ficha {
+  font-size: 24px;
+}
+.ficha-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 14px;
+  color: var(--texto-2);
+}
+.ficha-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+.ficha-tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.proximo-fecha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 28px;
+  font-weight: 700;
+}
+.proximo-fecha .alerta {
+  font-size: 13px;
+}
+.lista-oportunidades {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.oportunidad-chica {
+  padding: 12px;
+  border: 1px solid var(--borde-suave);
+  border-radius: 6px;
+  font-size: 14px;
+}
+.oportunidad-chica .texto-suave {
+  margin-top: 2px;
+}
+.lista-notas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.lista-notas li {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--borde-suave);
+  font-size: 14px;
+}
+.nota-fecha {
+  font-size: 13px;
+  color: var(--etiqueta);
+}
+.lista-documentos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lista-documentos li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--borde-suave);
+  font-size: 14px;
+}
+.form-asegurado {
+  max-width: 920px;
+}
+@media (max-width: 640px) {
+  .ficha-cabecera {
+    padding: 16px;
+  }
+  .lista-notas li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

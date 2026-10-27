@@ -126,7 +126,4 @@ export function estaActivo(item: Pick<ItemMenu, "href" | "tambien">, pathname: s
   return [item.href, ...(item.tambien ?? [])].some((r) => coincide(r, pathname));
 }
 
-/** "2026-10-24" → "24/10/2026". */
-export function fechaCorta(iso: string): string {
-  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
-}
+export { fechaCorta } from "./fechas";

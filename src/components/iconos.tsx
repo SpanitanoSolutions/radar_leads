@@ -220,3 +220,53 @@ export function IconoSiguiente({ size = 18 }: Props) {
     </svg>
   );
 }
+
+export function IconoBuscar({ size = 16 }: Props) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
+
+export function IconoChevron({ size = 14 }: Props) {
+  return (
+    <svg {...base(size)}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+export function IconoMas({ size = 16 }: Props) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
+export function IconoPuntos({ size = 18 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="12" cy="5" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="12" cy="19" r="1.8" />
+    </svg>
+  );
+}
+
+/** Íconos chicos de las alertas de la lista: aviso, más, teléfono tachado. */
+export function IconoAlerta({ tipo, size = 12 }: Props & { tipo: "aviso" | "mas" | "telefono" }) {
+  const d = {
+    aviso: "M12 3l10 18H2zM12 10v4M12 17.5v.5",
+    mas: "M12 5v14M5 12h14",
+    telefono: "M4 4l16 16M9 4H5a1 1 0 0 0-1 1c0 8 7 15 15 15a1 1 0 0 0 1-1v-4",
+  }[tipo];
+  return (
+    <svg {...base(size)} strokeWidth={2.4}>
+      <path d={d} />
+    </svg>
+  );
+}
