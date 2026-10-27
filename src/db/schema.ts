@@ -519,6 +519,11 @@ export type CotizacionRecibida = {
   precio: number | null;
   recibidaEl?: string;
   observacion?: string;
+  /** Canal por el que se incorporó el resultado. */
+  origen?: "portal" | "manual";
+  estado?: "pendiente" | "enviada" | "recibida" | "error";
+  referencia?: string;
+  error?: string;
 };
 
 export const solicitudesCotizacion = pgTable("solicitudes_cotizacion", {

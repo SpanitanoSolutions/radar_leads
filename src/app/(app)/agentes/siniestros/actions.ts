@@ -55,7 +55,7 @@ export async function mandarRecordatorio(formData: FormData) {
   await requerirSesion();
   const id = idDe(formData);
   const resultado = await mandarRecordatorioAgente(id);
-  volver(id, resultado.ok ? "recordatorio-enviado" : "sin-contacto");
+  volver(id, resultado.ok ? "recordatorio-enviado" : resultado.error === "sin-contacto" ? "sin-contacto" : "envio-error");
 }
 
 export async function enviarReclamo(formData: FormData) {

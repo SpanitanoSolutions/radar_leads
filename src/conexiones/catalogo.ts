@@ -2,6 +2,8 @@
 // trabajen. El estado de cada una se guarda en la tabla conexiones; si no hay
 // fila, está sin conectar.
 
+import type { Conexion } from "@/db/schema";
+
 export type TipoConexion = "whatsapp" | "email" | "portal" | "mercadopago" | "banco" | "google_calendar";
 
 export type ConexionCatalogo = {
@@ -19,8 +21,8 @@ export type ConexionCatalogo = {
   detalle: string;
 };
 
-export const COMPANIAS_CON_PORTAL = ["Mapfre", "Sancor", "Federación Patronal", "La Segunda"];
-export const COMPANIAS_POR_EMAIL = ["Fianzas y Crédito"];
+export const COMPANIAS_CON_PORTAL = ["Mapfre", "Sancor", "Federación Patronal", "La Segunda", "Fianzas y Crédito"];
+export const COMPANIAS_POR_EMAIL: string[] = [];
 
 export const CONEXIONES: ConexionCatalogo[] = [
   {
@@ -101,6 +103,23 @@ export const CONEXIONES: ConexionCatalogo[] = [
   },
 ];
 
+/** Compañías realmente configuradas para cotizar en esta cuenta. */
+export function companiasCotizables(conexiones: Pick<Conexion, "compania" | "estado" | "datos">[]): string[] {
+  const filas = new Map(conexiones.filter((fila) => fila.compania).map((fila) => [fila.compania!, fila]));
+  return CONEXIONES.filter((conexion) => conexion.tipo === "portal")
+    .filter((conexion) => {
+      const fila = filas.get(conexion.compania!);
+      if (!fila) return false;
+      if (fila.estado === "conectado") return typeof fila.datos.usuario === "string" && Boolean(fila.datos.usuario.trim());
+      if (fila.estado === "por_email" && COMPANIAS_POR_EMAIL.includes(fila.compania!)) {
+        const email = fila.datos.email;
+        return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+      }
+      return false;
+    })
+    .map((conexion) => conexion.compania!);
+}
+
 /** "Federación Patronal" → "FP", "Mapfre" → "MA". */
 export function siglaDe(nombre: string): string {
   const palabras = nombre.split(/\s+/).filter((p) => p.length > 1 && !/^(y|de|del)$/i.test(p));
@@ -142,7 +161,7 @@ export function vistaConexion(c: ConexionCatalogo, fila: Fila): VistaConexion {
                 : `Calendario ${d("calendario") || "principal"}`;
     return { estado: "conectado", estadoTexto: "Conectado", detalle: detalle || c.detalle, boton: "Administrar", primario: false };
   }
-  if (fila?.estado === "por_email") {
+  if (fila?.estado === "por_email" && COMPANIAS_POR_EMAIL.includes(c.compania ?? "")) {
     const contacto = d("email");
     return {
       estado: "por_email",
@@ -152,6 +171,15 @@ export function vistaConexion(c: ConexionCatalogo, fila: Fila): VistaConexion {
         : "Sin portal: el agente pide la cotización por email. Falta el contacto.",
       boton: contacto ? "Administrar" : "Agregar contacto",
       primario: !contacto,
+    };
+  }
+  if (fila?.estado === "por_email" && c.tipo === "portal") {
+    return {
+      estado: "en_proceso",
+      estadoTexto: "A medio conectar",
+      detalle: "Esta compañía se configura con su portal de productor, no por email.",
+      boton: "Continuar",
+      primario: true,
     };
   }
   if (fila?.estado === "en_proceso") {

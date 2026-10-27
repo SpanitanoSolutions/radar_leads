@@ -23,6 +23,7 @@ const AVISOS: Record<string, { texto: string; tono: "ok" | "info" | "error" }> =
   "llamada-anotada": { texto: "Anotado. El agente te lo vuelve a proponer mañana.", tono: "info" },
   pospuesto: { texto: "Pospuesto para mañana.", tono: "info" },
   "secuencia-guardada": { texto: "Secuencia guardada.", tono: "ok" },
+  "cotizacion-sin-companias": { texto: "No hay compañías configuradas para cotizar. Configurá los accesos antes de crear la solicitud.", tono: "error" },
   conectada: { texto: "Conexión guardada. Por ahora es simulada: no se envía nada afuera.", tono: "ok" },
   desconectada: { texto: "Desconectada.", tono: "info" },
   "mensaje-error": { texto: "No se pudo enviar el mensaje. Probá de nuevo en un rato.", tono: "error" },
@@ -34,7 +35,7 @@ export function textoAviso(codigo: string | undefined): { texto: string; tono: "
   const solicitud = /^solicitud-(\d+)$/.exec(codigo);
   if (solicitud) {
     return {
-      texto: `Creaste la solicitud ${solicitud[1]}. El agente de cotización ya les pidió precio a las compañías.`,
+      texto: `Creaste la solicitud ${solicitud[1]}. El agente intentó enviarla a las compañías configuradas; revisá el resultado en Cotización.`,
       tono: "ok",
     };
   }

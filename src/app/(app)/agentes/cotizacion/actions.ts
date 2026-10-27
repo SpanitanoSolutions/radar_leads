@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
-import { crearSolicitud } from "@/agentes/cotizacion/solicitudes";
+import { crearSolicitud, registrarResultadoCotizacion, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
 import type { EstadoCotizacion } from "@/lib/cotizacion";
 import { requerirSesion } from "@/lib/auth";
 
@@ -83,8 +83,29 @@ export async function nuevaSolicitud(formData: FormData) {
     }
   } catch (error) {
     console.error("No se pudo crear la solicitud de cotización:", error);
+    if (error instanceof SinCompaniasCotizablesError) aviso = "sin-companias-configuradas";
   }
   if (numero === null) volver(aviso, "?tab=solicitudes");
   revalidatePath("/agentes/cotizacion");
   volver(`solicitud-${numero}`, "?tab=solicitudes");
+}
+
+export async function cargarResultadoCotizacion(formData: FormData) {
+  await requerirSesion();
+  const query = queryDeFiltros(formData);
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  const compania = mensajeDe(formData, "compania");
+  const precio = Number(mensajeDe(formData, "precio"));
+  const observacion = mensajeDe(formData, "observacion").slice(0, 500);
+  if (!Number.isInteger(solicitudId) || solicitudId <= 0 || !compania || !Number.isFinite(precio) || precio <= 0) {
+    volver("resultado-cotizacion-invalido", query);
+  }
+  try {
+    await registrarResultadoCotizacion({ solicitudId, compania, precio, observacion, origen: "manual" });
+  } catch (error) {
+    console.error("No se pudo registrar la respuesta de cotización:", error);
+    volver("error-resultado-cotizacion", query);
+  }
+  revalidatePath("/agentes/cotizacion");
+  volver("resultado-cotizacion-guardado", query);
 }

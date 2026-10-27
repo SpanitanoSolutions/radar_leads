@@ -36,11 +36,11 @@ describe("vistaConexion", () => {
     );
   });
 
-  it("las compañías sin portal trabajan por email y piden el contacto", () => {
-    expect(vistaConexion(de("portal:Fianzas y Crédito"), null)).toMatchObject({ estado: "por_email", boton: "Agregar contacto" });
+  it("Fianzas y Crédito usa portal de productor", () => {
+    expect(vistaConexion(de("portal:Fianzas y Crédito"), null)).toMatchObject({ estado: "sin_conectar", boton: "Conectar" });
     expect(
-      vistaConexion(de("portal:Fianzas y Crédito"), { estado: "por_email", datos: { email: "cotiza@fyc.com" } }),
-    ).toMatchObject({ boton: "Administrar", primario: false });
+      vistaConexion(de("portal:Fianzas y Crédito"), { estado: "conectado", datos: { usuario: "FC-123" } }),
+    ).toMatchObject({ estado: "conectado", detalle: "Portal de productores · usuario FC-123" });
   });
 
   it("la cuenta bancaria se configura y las opcionales no apuran", () => {

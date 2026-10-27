@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Aviso } from "@/components/Aviso";
 import { IconoAtras, IconoDocumento, IconoEstrella, IconoTelefono } from "@/components/iconos";
 import { ESTADOS, RAMOS, URL_CONSULTA_ART } from "@/lib/catalogos";
 import { clientePorCuit } from "@/lib/cartera";
@@ -65,6 +66,8 @@ export default async function FichaLead({
         <IconoAtras />
         Volver a leads del día
       </Link>
+
+      <Aviso codigo={sp.aviso} />
 
       <header className="tarjeta ficha-encabezado">
         <div className="ficha-identidad">

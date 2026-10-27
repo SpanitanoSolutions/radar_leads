@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { EncabezadoAgente, Bitacora } from "@/components/agentes/Agente";
+import { companiasCotizables } from "@/conexiones/catalogo";
 import { obtenerCuenta, obtenerConexiones } from "@/lib/datos";
 import { agenteConfigurado, obtenerActividad, obtenerOpcionesSolicitud, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
 import { mejorCotizacion, filtrarSolicitudes, resumenCotizacion, ESTADOS_COTIZACION } from "@/lib/cotizacion";
 import { diaEnArgentina } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
-import { actualizarSolicitud, nuevaSolicitud } from "./actions";
+import { actualizarSolicitud, cargarResultadoCotizacion, nuevaSolicitud } from "./actions";
 import "../agentes.css";
 
 export const instant = false;
@@ -24,7 +25,11 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   "solicitud-vinculo-invalido": { texto: "Elegí un asegurado o un lead válido.", error: true },
   "asegurado-inexistente": { texto: "No encontramos ese asegurado. Actualizá la pantalla e intentá de nuevo.", error: true },
   "lead-inexistente": { texto: "No encontramos ese lead. Actualizá la pantalla e intentá de nuevo.", error: true },
+  "sin-companias-configuradas": { texto: "Configurá al menos una compañía habilitada para cotizar antes de crear la solicitud.", error: true },
   "error-operacion": { texto: "No pudimos guardar la solicitud por un problema inesperado. Revisá si se creó antes de volver a intentarlo.", error: true },
+  "resultado-cotizacion-guardado": { texto: "Guardamos la respuesta y actualizamos la comparativa." },
+  "resultado-cotizacion-invalido": { texto: "Ingresá una compañía y un precio anual mayor que cero.", error: true },
+  "error-resultado-cotizacion": { texto: "No pudimos guardar esa respuesta. Revisá si la solicitud sigue abierta y si la compañía pertenece a ella.", error: true },
 };
 
 function desdeInicioDeMes(): Date {
@@ -99,6 +104,7 @@ export default async function Cotizacion({
     : null;
   const estados = ESTADOS_COTIZACION;
   const portales = conexiones.filter((conexion) => conexion.tipo === "portal");
+  const companiasCotizacion = companiasCotizables(conexiones);
   const checklist = [
     { listo: activo, texto: "Activá el agente", href: "/agentes/cotizacion" },
     {
@@ -118,7 +124,7 @@ export default async function Cotizacion({
         titulo="Agente de cotización"
         activo={activo}
         descripcion="Recibe pedidos por WhatsApp y email, pide precios a tus compañías y te arma la comparativa para enviarle al cliente."
-        extra={<span className="cotizacion-correo">Las respuestas y los precios se cargan en la app; no se envían automáticamente.</span>}
+        extra={<span className="cotizacion-correo">El agente intenta enviar cada solicitud a las compañías configuradas; los portales todavía no tienen conectores activos.</span>}
       >
         <Link href="/configuracion" className="boton">Configuración</Link>
         <details className="cotizacion-nueva">
@@ -138,7 +144,10 @@ export default async function Cotizacion({
             </div>
             <label><span>Bien a asegurar</span><input name="bien" type="text" maxLength={250} /></label>
             <label><span>Motivo</span><input name="motivo" type="text" maxLength={500} placeholder="Vence en 12 días, mejorar cobertura…" /></label>
-            <button type="submit" className="boton boton-primario">Crear solicitud</button>
+            <p className="texto-suave">
+              Compañías configuradas: {companiasCotizacion.length ? companiasCotizacion.join(", ") : "ninguna; configurá las compañías antes de cotizar."}
+            </p>
+            <button type="submit" className="boton boton-primario" disabled={!companiasCotizacion.length}>Crear solicitud</button>
           </form>
         </details>
       </EncabezadoAgente>
@@ -149,7 +158,7 @@ export default async function Cotizacion({
         <section className="cotizacion-configuracion" aria-labelledby="cotizacion-checklist">
           <div>
             <h2 id="cotizacion-checklist">Termina de configurar tu agente</h2>
-            <p>Las conexiones son de prueba. Los pedidos y mensajes no salen hasta que los apruebes.</p>
+            <p>Los pedidos solo incluirán compañías configuradas en tu cuenta. El envío a portales todavía requiere integrar la conexión real de cada compañía.</p>
           </div>
           <ol>
             {checklist.map((paso) => (
@@ -208,7 +217,40 @@ export default async function Cotizacion({
                         <td><strong>{solicitud.cliente}</strong><span className="cotizacion-relacion">{solicitud.relacion}</span></td>
                         <td><strong>{solicitud.ramo}{solicitud.bien ? ` · ${solicitud.bien}` : ""}</strong><span className="cotizacion-relacion">{solicitud.motivo ?? "Sin motivo informado"}</span></td>
                         <td>{solicitud.origenTexto}</td>
-                        <td><span>{solicitud.respuestas} de {solicitud.companias.length} respondieron</span><span className="cotizacion-progreso" aria-label={`${porcentaje}% de respuestas`}><span style={{ width: `${porcentaje}%` }} /></span></td>
+                        <td>
+                          <span>{solicitud.respuestas} de {solicitud.companias.length} respondieron</span>
+                          <span className="cotizacion-progreso" aria-label={`${porcentaje}% de respuestas`}><span style={{ width: `${porcentaje}%` }} /></span>
+                          <details className="cotizacion-actualizar">
+                            <summary>Ver respuestas / cargar precio</summary>
+                            <div className="cotizacion-respuestas">
+                              {solicitud.companias.map((compania) => {
+                                const resultado = solicitud.cotizaciones.find((item) => item.compania === compania);
+                                const cotizacion = resultado?.precio !== null ? resultado : undefined;
+                                return (
+                                  <section key={compania}>
+                                    <strong>{compania}</strong>
+                                    {cotizacion ? <p>{pesos(cotizacion.precio!)}{cotizacion.recibidaEl ? ` · recibida ${cotizacion.recibidaEl.slice(0, 10)}` : ""}</p> : resultado?.estado === "error" ? <p role="alert">No se envió: {resultado.error ?? "falló la integración del portal"}</p> : resultado?.estado === "enviada" ? <p>Solicitud enviada; esperando el precio.</p> : <p>Pendiente de envío</p>}
+                                    {cotizacion?.observacion && <p>{cotizacion.observacion}</p>}
+                                    {["ganada", "perdida"].includes(solicitud.estado) ? <p>Solicitud cerrada.</p> : (
+                                      <form action={cargarResultadoCotizacion}>
+                                        <input type="hidden" name="solicitudId" value={solicitud.id} />
+                                        <input type="hidden" name="compania" value={compania} />
+                                        <input type="hidden" name="filtroEstado" value={estado} />
+                                        <input type="hidden" name="filtroQ" value={q} />
+                                        <input type="hidden" name="filtroRamo" value={ramo} />
+                                        <input type="hidden" name="filtroOrigen" value={origen} />
+                                        <label><span>Prima anual</span><input name="precio" type="number" min="0.01" step="0.01" required defaultValue={cotizacion?.precio ?? ""} /></label>
+                                        <label><span>Observación</span><input name="observacion" type="text" maxLength={500} defaultValue={cotizacion?.observacion ?? ""} /></label>
+                                        <button type="submit" className="boton">{cotizacion ? "Actualizar respuesta" : "Guardar respuesta"}</button>
+                                      </form>
+                                    )}
+                                  </section>
+                                );
+                              })}
+                              <p className="texto-suave">La integración actual no consulta los portales. Hasta conectar cada portal, cargá aquí el precio que recibiste.</p>
+                            </div>
+                          </details>
+                        </td>
                         <td className="numero">{solicitud.mejor ? <><strong>{pesos(solicitud.mejor.precio)}</strong><span className="cotizacion-relacion">{solicitud.mejor.compania}</span></> : "—"}</td>
                         <td>
                           <span className={`pastilla cotizacion-estado ${solicitud.estado}`}>{estadoSolicitud?.texto ?? solicitud.estado}</span>
