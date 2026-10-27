@@ -1,10 +1,11 @@
 import "server-only";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import type { Ajustes } from "@/db/schema";
 import { diaEnArgentina, sumarDias } from "./fechas";
-import type { ContadoresMenu } from "./menu";
+import { conexionesPendientes } from "@/conexiones/catalogo";
+import type { AgenteId, ContadoresMenu } from "./menu";
 
 const AJUSTES_POR_DEFECTO: Pick<Ajustes, "zonas" | "licitaciones"> = {
   zonas: { mdp: true, costa: true, provincia: true },
@@ -30,15 +31,34 @@ export async function obtenerLeads() {
   return db.select().from(schema.leads);
 }
 
+/**
+ * Pólizas vigentes con el formato que usan el resumen diario y el análisis de
+ * cartera (una fila por póliza, con el cliente y su CUIT).
+ */
 export async function obtenerCartera() {
   await connection();
-  return db.select().from(schema.cartera).orderBy(asc(schema.cartera.cliente));
+  const filas = await db
+    .select({
+      cliente: schema.asegurados.nombre,
+      cuit: schema.asegurados.documento,
+      ramo: schema.polizas.ramo,
+      compania: schema.polizas.compania,
+      vencimiento: schema.polizas.vigenciaHasta,
+    })
+    .from(schema.polizas)
+    .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
+    .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl)))
+    .orderBy(asc(schema.asegurados.nombre));
+  return filas.map(({ ramo, ...f }) => ({ ...f, ramos: [ramo] }));
 }
 
-/** Solo los CUIT de la cartera, para marcar los leads que ya son clientes. */
+/** Solo los documentos de los asegurados, para marcar los leads que ya son clientes. */
 export async function obtenerCuitsDeCartera() {
   await connection();
-  return db.select({ cuit: schema.cartera.cuit }).from(schema.cartera);
+  return db
+    .select({ cuit: schema.asegurados.documento })
+    .from(schema.asegurados)
+    .where(isNull(schema.asegurados.bajaEl));
 }
 
 export type Cuenta = {
@@ -53,16 +73,19 @@ type FilaMarco = {
   asegurados: number;
   vencen30: number;
   leads: number;
-  ultima_importacion: string | null;
+  importacion_fecha: string | null;
+  importacion_archivo: string | null;
+  conectadas: string[];
+  configurados: string[];
+  cotizacion: number;
+  validador: number;
+  cobranza: number;
   nombre: string | null;
   matricula: string | null;
   organizacion: string | null;
   telefono: string | null;
   email: string | null;
 };
-
-// Un cliente de la cartera se reconoce por su CUIT o, si no tiene, por su nombre.
-const CLAVE_CLIENTE = sql.raw(`coalesce(nullif(regexp_replace(cuit, '\\D', '', 'g'), ''), lower(cliente))`);
 
 /**
  * Lo que necesita el marco de todas las pantallas (barra superior y menú):
@@ -74,9 +97,10 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
   const en30 = sumarDias(hoy, 30);
   const [f] = (await db.execute(sql`
     select
-      (select count(distinct ${CLAVE_CLIENTE})::int from cartera) as asegurados,
-      (select count(distinct ${CLAVE_CLIENTE})::int from cartera
-        where vencimiento between ${hoy} and ${en30}) as vencen30,
+      (select count(*)::int from asegurados where baja_el is null) as asegurados,
+      (select count(distinct p.asegurado_id)::int from polizas p
+        join asegurados x on x.id = p.asegurado_id and x.baja_el is null
+        where p.baja_el is null and p.vigencia_hasta between ${hoy} and ${en30}) as vencen30,
       (select count(*)::int from leads l
         join sectores s on s.id = l.sector_id and s.activo
         left join ajustes a on a.id = 1
@@ -84,8 +108,17 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
           and coalesce((a.zonas ->> l.zona::text)::boolean, true)
           and (l.alcance_licitacion is null
             or coalesce((a.licitaciones ->> l.alcance_licitacion::text)::boolean, true))) as leads,
-      (select to_char(max(cargado_el) at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM-DD') from cartera)
-        as ultima_importacion,
+      i.fecha as importacion_fecha,
+      i.archivo as importacion_archivo,
+      (select coalesce(array_agg(clave), '{}') from conexiones where estado = 'conectado') as conectadas,
+      (select coalesce(array_agg(agente), '{}') from configuracion_agentes where configurado) as configurados,
+      (select count(*)::int from solicitudes_cotizacion where estado = 'atencion') as cotizacion,
+      (select count(*)::int from comprobantes c
+        where c.estado = 'por_revisar'
+          and exists (select 1 from jsonb_array_elements(c.chequeos) ch where ch ->> 'resultado' <> 'ok')) as validador,
+      (select count(*)::int from mensajes
+        where agente = 'cobranza' and estado = 'borrador'
+          and (mostrar_desde is null or mostrar_desde <= ${hoy})) as cobranza,
       a.productor_nombre as nombre,
       a.productor_matricula as matricula,
       a.productor_organizacion as organizacion,
@@ -93,8 +126,14 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
       a.productor_email as email
     from (select 1) uno
     left join ajustes a on a.id = 1
+    left join lateral (
+      select to_char(fecha at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM-DD') as fecha, archivo
+      from importaciones order by fecha desc limit 1
+    ) i on true
   `)) as unknown as FilaMarco[];
 
+  const configurado = new Set(f.configurados);
+  const siEsta = (agente: AgenteId, valor: number) => (configurado.has(agente) ? valor : null);
   return {
     cuenta: {
       nombre: f.nombre ?? process.env.NOMBRE_PRODUCTOR ?? null,
@@ -107,10 +146,18 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
       asegurados: f.asegurados,
       vencen30: f.vencen30,
       leads: f.leads,
-      // Los agentes llegan en las fases siguientes: por ahora, sin configurar.
-      agentes: { cotizacion: null, validador: null, siniestros: null, cobranza: null, conciliador: null },
-      conexionesPendientes: 0,
-      ultimaImportacion: f.ultima_importacion ? { fecha: f.ultima_importacion, archivo: null } : null,
+      agentes: {
+        cotizacion: siEsta("cotizacion", f.cotizacion),
+        validador: siEsta("validador", f.validador),
+        // Siniestros y conciliador se cuentan con sus reglas (fase de agentes).
+        siniestros: siEsta("siniestros", 0),
+        cobranza: siEsta("cobranza", f.cobranza),
+        conciliador: siEsta("conciliador", 0),
+      },
+      conexionesPendientes: conexionesPendientes(f.conectadas).length,
+      ultimaImportacion: f.importacion_fecha
+        ? { fecha: f.importacion_fecha, archivo: f.importacion_archivo }
+        : null,
     },
   };
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { IconoSubir } from "@/components/iconos";
 import { analizarCartera } from "@/lib/cartera";
 import { obtenerCartera } from "@/lib/datos";
-import { diaEnArgentina, haceCuanto } from "@/lib/fechas";
+import { diaEnArgentina } from "@/lib/fechas";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
 export const instant = false;
@@ -10,7 +10,6 @@ export const instant = false;
 export default async function Asegurados() {
   const polizas = await obtenerCartera();
   const a = analizarCartera(polizas, diaEnArgentina(new Date()));
-  const cargada = polizas[0]?.cargadoEl;
 
   return (
     <>
@@ -18,8 +17,8 @@ export default async function Asegurados() {
         <div className="encabezado-texto">
           <h1 className="titulo">Asegurados</h1>
           <p className="subtitulo">
-            {cargada
-              ? `${a.clientes} clientes y ${polizas.length} pólizas · cargada ${haceCuanto(cargada).toLowerCase()}`
+            {polizas.length > 0
+              ? `${a.clientes} clientes y ${polizas.length} pólizas`
               : "Importá tu cartera para ver qué vence y a quién ofrecerle otro ramo."}
           </p>
         </div>

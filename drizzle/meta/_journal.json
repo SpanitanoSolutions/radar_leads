@@ -71,6 +71,13 @@
       "when": 1793101095225,
       "tag": "0009_cuenta",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793102250012,
+      "tag": "0010_cartera_y_agentes",
+      "breakpoints": true
     }
   ]
 }

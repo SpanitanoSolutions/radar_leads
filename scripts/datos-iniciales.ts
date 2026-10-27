@@ -1,11 +1,13 @@
 /**
- * Sectores, ajustes iniciales y leads de ejemplo.
+ * Sectores, ajustes iniciales, leads de ejemplo y la cartera de ejemplo
+ * (asegurados, cobranza, siniestros, cotizaciones y liquidaciones).
  * Lo usan scripts/seed.ts (a mano) y scripts/preparar-db.ts (en cada deploy).
  */
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import type { NuevoLead } from "../src/db/schema";
 import { diaEnArgentina } from "../src/lib/fechas";
+import { sembrarCartera } from "./cartera-ejemplo";
 
 const { sectores, ajustes, leads } = schema;
 
@@ -249,4 +251,6 @@ export async function sembrar({ reset = false }: { reset?: boolean } = {}) {
     `Listo: ${SECTORES.length} sectores y ${EJEMPLOS.length} leads de ejemplo` +
       (reset ? " (configuración reiniciada)." : "."),
   );
+
+  await sembrarCartera();
 }
