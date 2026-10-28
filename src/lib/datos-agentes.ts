@@ -318,6 +318,68 @@ export async function obtenerSolicitudesCotizacion() {
     .orderBy(desc(schema.solicitudesCotizacion.actualizadoEl));
 }
 
+export async function obtenerDetalleCotizacion(id: number) {
+  await connection();
+  const [solicitud] = await db.select().from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, id));
+  if (!solicitud) return null;
+  const [asegurado, lead, envios, archivos, propuestas, eventos] = await Promise.all([
+    solicitud.aseguradoId
+      ? db.select().from(schema.asegurados).where(eq(schema.asegurados.id, solicitud.aseguradoId)).then((filas) => filas[0] ?? null)
+      : Promise.resolve(null),
+    solicitud.leadId
+      ? db.select().from(schema.leads).where(eq(schema.leads.id, solicitud.leadId)).then((filas) => filas[0] ?? null)
+      : Promise.resolve(null),
+    db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.solicitudId, id)),
+    db.select({ id: schema.cotizacionArchivos.id, envioId: schema.cotizacionArchivos.envioId, nombre: schema.cotizacionArchivos.nombre, mime: schema.cotizacionArchivos.mime, tamano: schema.cotizacionArchivos.tamano, creadoEl: schema.cotizacionArchivos.creadoEl }).from(schema.cotizacionArchivos).where(eq(schema.cotizacionArchivos.solicitudId, id)),
+    db.select({ id: schema.cotizacionPropuestas.id, nombre: schema.cotizacionPropuestas.nombre, estado: schema.cotizacionPropuestas.estado, creadoEl: schema.cotizacionPropuestas.creadoEl }).from(schema.cotizacionPropuestas).where(eq(schema.cotizacionPropuestas.solicitudId, id)).orderBy(desc(schema.cotizacionPropuestas.creadoEl)),
+    db.select().from(schema.cotizacionEventos).where(eq(schema.cotizacionEventos.solicitudId, id)).orderBy(desc(schema.cotizacionEventos.fecha)),
+  ]);
+  const envioIds = envios.map((envio) => envio.id);
+  const resultados = envioIds.length
+    ? await db.select().from(schema.cotizacionResultados).where(inArray(schema.cotizacionResultados.envioId, envioIds))
+    : [];
+  return { solicitud, asegurado, lead, envios, archivos, propuestas, eventos, resultados };
+}
+
+export async function obtenerAseguradorasCotizacion() {
+  await connection();
+  return db.select().from(schema.cotizacionAseguradoras).orderBy(schema.cotizacionAseguradoras.nombre);
+}
+
+export async function obtenerEnviosCotizacion() {
+  await connection();
+  return db.select().from(schema.cotizacionEnvios).orderBy(desc(schema.cotizacionEnvios.creadoEl));
+}
+
+export async function obtenerMetricasCotizacion() {
+  await connection();
+  const [envios, solicitudes, resultados] = await Promise.all([
+    db.select().from(schema.cotizacionEnvios),
+    db.select({ id: schema.solicitudesCotizacion.id, productor: schema.solicitudesCotizacion.ejecutivo, creadoEl: schema.solicitudesCotizacion.creadoEl, estado: schema.solicitudesCotizacion.estado, actualizadoEl: schema.solicitudesCotizacion.actualizadoEl }).from(schema.solicitudesCotizacion),
+    db.select().from(schema.cotizacionResultados),
+  ]);
+  const solicitudesPorId = new Map(solicitudes.map((solicitud) => [solicitud.id, solicitud]));
+  const resultadoPorEnvio = new Map(resultados.map((resultado) => [resultado.envioId, resultado]));
+  return {
+    envios: envios.flatMap((envio) => {
+      const solicitud = solicitudesPorId.get(envio.solicitudId);
+      if (!solicitud) return [];
+      const resultado = resultadoPorEnvio.get(envio.id);
+      return [{
+        solicitudId: envio.solicitudId,
+        compania: envio.compania,
+        productor: solicitud.productor ?? "Productor",
+        estado: envio.estado,
+        creadoEl: envio.creadoEl,
+        respondidoEl: resultado?.recibidoEl ?? null,
+        primaNeta: resultado?.primaNeta ?? null,
+        seguimientos: envio.cantidadSeguimientos,
+      }];
+    }),
+    solicitudes: solicitudes.map(({ estado, actualizadoEl, ...resto }) => ({ ...resto, estado, actualizadoEl })),
+  };
+}
+
 /** Opciones de origen para cargar solicitudes desde Cotización. */
 export async function obtenerOpcionesSolicitud() {
   await connection();

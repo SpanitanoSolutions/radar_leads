@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filtrarSolicitudes, mejorCotizacion, resumenCotizacion, type SolicitudParaLista } from "./cotizacion";
+import { filtrarSolicitudes, interpretarEstrategiaSeguimiento, mejorCotizacion, resumenCotizacion, sumarDiasHabiles, validarCuitCuil, validarDatosRiesgo, validarCotizacionContraSolicitud, type SolicitudParaLista } from "./cotizacion";
 
 const solicitudes: SolicitudParaLista[] = [
   { numero: 1042, cliente: "Gómez, Lucía", ramo: "Auto", bien: "Peugeot 208", origen: "whatsapp", estado: "lista", cotizaciones: [{ compania: "Sancor", precio: 912000 }, { compania: "Mapfre", precio: 958000 }] },
@@ -24,5 +24,29 @@ describe("cotización", () => {
 
   it("cuenta solicitudes activas, atención, cotizaciones y cierres", () => {
     expect(resumenCotizacion(solicitudes)).toEqual({ activas: 4, atencion: 1, delMes: 5, recibidas: 5, ganadas: 1, cerradas: 1 });
+  });
+
+  it("valida CUIT/CUIL argentino y datos obligatorios del riesgo", () => {
+    expect(validarCuitCuil("20-12345678-6")).toBe(true);
+    expect(validarCuitCuil("20-12345678-9")).toBe(false);
+    expect(validarDatosRiesgo("Automotor", { marca: "Ford", modelo: "Ka", anio: "2020", uso: "particular", codigoPostal: "7600" })).toEqual([]);
+    expect(validarDatosRiesgo("Automotor", { marca: "Ford", modelo: "Ka", anio: "2020", uso: "particular", codigoPostal: "7600", cuitCuil: "20-12345678-8" })).toContain("El CUIT/CUIL no es válido.");
+  });
+
+  it("interpreta frecuencias simples y saltea fines de semana y feriados", () => {
+    expect(interpretarEstrategiaSeguimiento("Cada 3 días hábiles; para Flotas cada 1 día hábil; si ya hay folio, esperar"))
+      .toEqual({ intervaloDiasHabiles: 3, porRamo: { flotas: 1 }, esperarConFolio: true });
+    expect(interpretarEstrategiaSeguimiento("cada dos días hábiles")).toBeNull();
+    expect(sumarDiasHabiles("2025-12-19", 3, ["2025-12-22"])).toBe("2025-12-25");
+  });
+
+  it("compara CUIT, vehículo, suma y coberturas, y señala datos ausentes", () => {
+    const controles = validarCotizacionContraSolicitud(
+      { cuitCuil: "20-12345678-6", marca: "Ford", modelo: "Ka", anio: "2020", sumaAsegurada: "10000000", coberturasSolicitadas: "RC, Cristales" },
+      { riesgoCotizado: { cuitCuil: "20123456786", marca: "Ford", modelo: "Fiesta", anio: "2020" }, sumaAsegurada: 9_000_000, coberturas: [{ nombre: "RC" }] },
+    );
+    expect(controles.filter((control) => control.estado === "coincide").map((control) => control.campo)).toEqual(["CUIT/CUIL", "Marca", "Año", "Cobertura: RC"]);
+    expect(controles.filter((control) => control.estado === "diferencia").map((control) => control.campo)).toEqual(["Modelo", "Suma asegurada", "Cobertura: Cristales"]);
+    expect(controles.find((control) => control.campo === "Cobertura: Cristales")?.estado).toBe("diferencia");
   });
 });

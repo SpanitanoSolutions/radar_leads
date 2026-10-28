@@ -206,6 +206,12 @@ export const estadoSolicitudEnum = pgEnum("estado_solicitud", [
   "ganada",
   "perdida",
 ]);
+export const canalCotizacionEnum = pgEnum("canal_cotizacion", ["correo", "portal", "ambos"]);
+export const estadoEnvioCotizacionEnum = pgEnum("estado_envio_cotizacion", [
+  "pendiente", "borrador", "enviado", "en_seguimiento", "requiere_atencion", "cotizado", "rechazado", "error",
+]);
+export const estadoBorradorCotizacionEnum = pgEnum("estado_borrador_cotizacion", ["pendiente", "aprobado", "omitido"]);
+export const estadoContenidoIAEnum = pgEnum("estado_contenido_ia", ["borrador", "aprobado", "omitido"]);
 export const origenSolicitudEnum = pgEnum("origen_solicitud", ["whatsapp", "email", "manual"]);
 export const estadoConexionEnum = pgEnum("estado_conexion", ["conectado", "sin_conectar", "en_proceso", "por_email"]);
 
@@ -561,10 +567,172 @@ export const solicitudesCotizacion = pgTable("solicitudes_cotizacion", {
   nota: text("nota"),
   companias: text("companias").array().notNull(),
   cotizaciones: jsonb("cotizaciones").$type<CotizacionRecibida[]>().notNull().default([]),
+  /** Datos del riesgo validados por ramo; no se incluyen en logs. */
+  datosRiesgo: jsonb("datos_riesgo").$type<Record<string, string | number | boolean | null>>().notNull().default({}),
+  ejecutivo: text("ejecutivo"),
+  completadoEl: timestamp("completado_el", { withTimezone: true }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
   esEjemplo: boolean("es_ejemplo").notNull().default(false),
   creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type ContactoAseguradora = { nombre: string; email: string; rol?: string };
+export type CoberturaPaquete = { nombre: string; valor?: string; incluida?: boolean };
+
+/** Catálogo editable de compañías habilitadas para las solicitudes. */
+export const cotizacionAseguradoras = pgTable("cotizacion_aseguradoras", {
+  id: serial("id").primaryKey(),
+  nombre: text("nombre").notNull().unique(),
+  ramos: text("ramos").array().notNull().default([]),
+  canal: canalCotizacionEnum("canal").notNull().default("correo"),
+  contactos: jsonb("contactos").$type<ContactoAseguradora[]>().notNull().default([]),
+  codigoProductor: text("codigo_productor"),
+  activa: boolean("activa").notNull().default(true),
+  asunto: text("asunto"),
+  instrucciones: text("instrucciones"),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cotizacionPaquetes = pgTable("cotizacion_paquetes", {
+  id: serial("id").primaryKey(),
+  aseguradoraId: integer("aseguradora_id").notNull().references(() => cotizacionAseguradoras.id, { onDelete: "cascade" }),
+  ramo: text("ramo").notNull(),
+  nombre: text("nombre").notNull(),
+  condiciones: text("condiciones"),
+  deducible: text("deducible"),
+  sumaAsegurada: numeric("suma_asegurada", { precision: 14, scale: 2, mode: "number" }),
+  coberturas: jsonb("coberturas").$type<CoberturaPaquete[]>().notNull().default([]),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("cotizacion_paquete_compania_ramo_nombre_idx").on(t.aseguradoraId, t.ramo, t.nombre)]);
+
+export const cotizacionTiposSeguro = pgTable("cotizacion_tipos_seguro", {
+  id: serial("id").primaryKey(),
+  ramo: text("ramo").notNull().unique(),
+  descripcion: text("descripcion").notNull().default(""),
+  subTipos: text("sub_tipos").array().notNull().default([]),
+  activo: boolean("activo").notNull().default(true),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+});
+
+export const cotizacionConfig = pgTable("cotizacion_config", {
+  id: serial("id").primaryKey(),
+  persona: text("persona").notNull().default("Verónica"),
+  nombreAgente: text("nombre_agente").notNull().default("Verónica"),
+  personalidad: text("personalidad").notNull().default("Profesional, cortés y meticulosa."),
+  intervaloHoras: integer("intervalo_horas").notNull().default(48),
+  estrategiaSeguimiento: text("estrategia_seguimiento").notNull().default("Cada 3 días hábiles; si la aseguradora ya dio un folio, esperar la cotización."),
+  maxSeguimientos: integer("max_seguimientos").notNull().default(3),
+  paisFeriados: text("pais_feriados").notNull().default("AR"),
+  idioma: text("idioma").notNull().default("es-AR"),
+  plantillaAsunto: text("plantilla_asunto").notNull().default("SOLICITUD – [RAMO] – [CLIENTE] – [ASEGURADORA] – [CLAVE]"),
+  plantillaCuerpo: text("plantilla_cuerpo").notNull().default("Buenos días. Solicitamos una propuesta para {cliente}, CUIT {cuit}, ramo {ramo}. Productor: {productor}. Organización: {organizacion}. Moneda: {moneda}. Forma de pago: {forma_de_pago}."),
+  instruccionesCuerpo: text("instrucciones_cuerpo").notNull().default(""),
+  cuentaSaliente: text("cuenta_saliente"),
+  cotizarAutomaticamente: boolean("cotizar_automaticamente").notNull().default(false),
+  agenteActivo: boolean("agente_activo").notNull().default(false),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("cotizacion_config_ambito_idx").on(t.orgId, t.producerId)]);
+
+export const cotizacionEnvios = pgTable("cotizacion_envios", {
+  id: serial("id").primaryKey(),
+  solicitudId: integer("solicitud_id").notNull().references(() => solicitudesCotizacion.id, { onDelete: "cascade" }),
+  aseguradoraId: integer("aseguradora_id").references(() => cotizacionAseguradoras.id, { onDelete: "set null" }),
+  compania: text("compania").notNull(),
+  paqueteId: integer("paquete_id").references(() => cotizacionPaquetes.id, { onDelete: "set null" }),
+  canal: canalCotizacionEnum("canal").notNull().default("correo"),
+  estado: estadoEnvioCotizacionEnum("estado").notNull().default("pendiente"),
+  folio: text("folio"),
+  proximoSeguimiento: timestamp("proximo_seguimiento", { withTimezone: true }),
+  cantidadSeguimientos: integer("cantidad_seguimientos").notNull().default(0),
+  preguntasPendientes: text("preguntas_pendientes"),
+  ultimaActividad: timestamp("ultima_actividad", { withTimezone: true }).notNull().defaultNow(),
+  asuntoBorrador: text("asunto_borrador"),
+  cuerpoBorrador: text("cuerpo_borrador"),
+  estadoBorrador: estadoBorradorCotizacionEnum("estado_borrador").notNull().default("pendiente"),
+  aprobadoEl: timestamp("aprobado_el", { withTimezone: true }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("cotizacion_envio_solicitud_compania_idx").on(t.solicitudId, t.compania)]);
+
+export const cotizacionResultados = pgTable("cotizacion_resultados", {
+  id: serial("id").primaryKey(),
+  envioId: integer("envio_id").notNull().references(() => cotizacionEnvios.id, { onDelete: "cascade" }),
+  primaNeta: numeric("prima_neta", { precision: 14, scale: 2, mode: "number" }),
+  primaTotal: numeric("prima_total", { precision: 14, scale: 2, mode: "number" }).notNull(),
+  gastos: numeric("gastos", { precision: 14, scale: 2, mode: "number" }).notNull().default(0),
+  impuestos: numeric("impuestos", { precision: 14, scale: 2, mode: "number" }).notNull().default(0),
+  moneda: text("moneda").notNull().default("ARS"),
+  coberturas: jsonb("coberturas").$type<CoberturaPaquete[]>().notNull().default([]),
+  condiciones: text("condiciones"),
+  franquicia: text("franquicia"),
+  sumaAsegurada: numeric("suma_asegurada", { precision: 14, scale: 2, mode: "number" }),
+  vigencia: text("vigencia"),
+  riesgoCotizado: jsonb("riesgo_cotizado").$type<Record<string, string>>().notNull().default({}),
+  confirmado: boolean("confirmado").notNull().default(false),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  recibidoEl: timestamp("recibido_el", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cotizacionArchivos = pgTable("cotizacion_archivos", {
+  id: serial("id").primaryKey(),
+  solicitudId: integer("solicitud_id").notNull().references(() => solicitudesCotizacion.id, { onDelete: "cascade" }),
+  envioId: integer("envio_id").references(() => cotizacionEnvios.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  tamano: integer("tamano").notNull(),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cotizacionPropuestas = pgTable("cotizacion_propuestas", {
+  id: serial("id").primaryKey(),
+  solicitudId: integer("solicitud_id").notNull().references(() => solicitudesCotizacion.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+  bytes: bytea("bytes").notNull(),
+  estado: text("estado").notNull().default("borrador"),
+  aprobadoEl: timestamp("aprobado_el", { withTimezone: true }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cotizacionEventos = pgTable("cotizacion_eventos", {
+  id: serial("id").primaryKey(),
+  solicitudId: integer("solicitud_id").notNull().references(() => solicitudesCotizacion.id, { onDelete: "cascade" }),
+  envioId: integer("envio_id").references(() => cotizacionEnvios.id, { onDelete: "cascade" }),
+  actor: text("actor").notNull().default("productor"),
+  tipo: text("tipo").notNull(),
+  detalle: text("detalle").notNull(),
+  modelo: text("modelo"),
+  tokensEntrada: integer("tokens_entrada"),
+  tokensSalida: integer("tokens_salida"),
+  costoUsd: numeric("costo_usd", { precision: 12, scale: 6, mode: "number" }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  fecha: timestamp("fecha", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("cotizacion_evento_solicitud_fecha_idx").on(t.solicitudId, t.fecha)]);
+
+export const orgFeatures = pgTable("org_features", {
+  id: serial("id").primaryKey(),
+  orgId: text("org_id"),
+  feature: text("feature").notNull(),
+  activa: boolean("activa").notNull().default(false),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("org_features_org_feature_idx").on(t.orgId, t.feature)]);
 
 /** Bitácora de lo que hizo cada agente. */
 export const actividadAgentes = pgTable(
@@ -617,6 +785,22 @@ export const liquidacionItems = pgTable("liquidacion_items", {
   /** Porcentaje liquidado (12 = 12 %). */
   porcentaje: numeric("porcentaje", { precision: 5, scale: 2, mode: "number" }),
   comision: pesos("comision").notNull(),
+});
+
+/** Texto propuesto por IA: se conserva para revisión, nunca se envía automáticamente. */
+export const cotizacionBorradoresIA = pgTable("cotizacion_borradores_ia", {
+  id: serial("id").primaryKey(),
+  solicitudId: integer("solicitud_id").notNull().references(() => solicitudesCotizacion.id, { onDelete: "cascade" }),
+  tipo: text("tipo").notNull(),
+  contenido: text("contenido").notNull(),
+  modelo: text("modelo").notNull(),
+  tokensEntrada: integer("tokens_entrada").notNull(),
+  tokensSalida: integer("tokens_salida").notNull(),
+  costoUsd: numeric("costo_usd", { precision: 12, scale: 6, mode: "number" }).notNull(),
+  estado: estadoContenidoIAEnum("estado").notNull().default("borrador"),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const acuerdosComision = pgTable(
@@ -695,6 +879,7 @@ export type Siniestro = typeof siniestros.$inferSelect;
 export type SiniestroDocumento = typeof siniestroDocumentos.$inferSelect;
 export type SiniestroEvento = typeof siniestroEventos.$inferSelect;
 export type SolicitudCotizacion = typeof solicitudesCotizacion.$inferSelect;
+export type CotizacionEnvio = typeof cotizacionEnvios.$inferSelect;
 export type LiquidacionComision = typeof liquidacionesComision.$inferSelect;
 export type LiquidacionItem = typeof liquidacionItems.$inferSelect;
 export type AcuerdoComision = typeof acuerdosComision.$inferSelect;

@@ -6,7 +6,7 @@
  * Donde los diseños se contradicen, mandan los asegurados y pólizas de
  * Cartera.dc.html; los demás textos se adaptaron a esos datos.
  */
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import type { Chequeo, CotizacionRecibida, Retenciones } from "../src/db/schema";
 import { borrarEjemplosDeCartera } from "../src/db/ejemplos";
@@ -1159,6 +1159,10 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
         esEjemplo: true,
       },
     ]);
+    // La demo del agente muestra cinco solicitudes en estados distintos.
+    await tx.delete(schema.solicitudesCotizacion).where(and(eq(schema.solicitudesCotizacion.numero, 1038), eq(schema.solicitudesCotizacion.esEjemplo, true)));
+    await tx.delete(schema.solicitudesCotizacion).where(and(eq(schema.solicitudesCotizacion.numero, 1036), eq(schema.solicitudesCotizacion.esEjemplo, true)));
+    await tx.delete(schema.solicitudesCotizacion).where(and(eq(schema.solicitudesCotizacion.numero, 1035), eq(schema.solicitudesCotizacion.esEjemplo, true)));
     await tx.insert(schema.actividadAgentes).values([
       {
         agente: "cotizacion",
@@ -1182,6 +1186,34 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
         esEjemplo: true,
       },
     ]);
+
+    const solicitudesDemo = await tx.select().from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.esEjemplo, true));
+    const aseguradorasDemo = await tx.select({ id: schema.cotizacionAseguradoras.id, nombre: schema.cotizacionAseguradoras.nombre }).from(schema.cotizacionAseguradoras);
+    for (const solicitud of solicitudesDemo) {
+      const enviosDemo = await tx.insert(schema.cotizacionEnvios).values(solicitud.companias.map((compania) => {
+        const cotizacion = solicitud.cotizaciones.find((item) => item.compania === compania);
+        const recibida = cotizacion?.precio != null;
+        const atencion = solicitud.estado === "atencion" && !recibida;
+        const aseguradora = aseguradorasDemo.find((item) => item.nombre === compania);
+        return {
+          solicitudId: solicitud.id,
+          aseguradoraId: aseguradora?.id ?? null,
+          compania,
+          estado: recibida ? "cotizado" as const : atencion ? "pendiente" as const : "enviado" as const,
+          estadoBorrador: atencion ? "pendiente" as const : "aprobado" as const,
+          aprobadoEl: atencion ? null : solicitud.creadoEl,
+          asuntoBorrador: `SOLICITUD – ${solicitud.ramo} – ${compania}`,
+          cuerpoBorrador: `Solicitud ${solicitud.numero} · ${solicitud.ramo}${solicitud.bien ? ` · ${solicitud.bien}` : ""}`,
+          ultimaActividad: solicitud.actualizadoEl,
+          proximoSeguimiento: atencion ? new Date(Date.now() - 60_000) : null,
+        };
+      })).returning({ id: schema.cotizacionEnvios.id, compania: schema.cotizacionEnvios.compania });
+      const resultadosDemo = enviosDemo.flatMap((envio) => {
+        const cotizacion = solicitud.cotizaciones.find((item) => item.compania === envio.compania);
+        return cotizacion?.precio != null ? [{ envioId: envio.id, primaTotal: cotizacion.precio, primaNeta: Math.round(cotizacion.precio * 0.8), confirmado: true }] : [];
+      });
+      if (resultadosDemo.length) await tx.insert(schema.cotizacionResultados).values(resultadosDemo);
+    }
 
     // Liquidaciones de comisiones del mes pasado (La Segunda todavía no liquidó).
     const liquidaciones: {

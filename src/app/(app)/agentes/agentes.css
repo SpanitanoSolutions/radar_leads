@@ -1335,6 +1335,178 @@
   font-size: 21px;
   overflow-wrap: anywhere;
 }
+.cotizacion-ajustes {
+  display: grid;
+  gap: 16px;
+}
+.cotizacion-ajuste-seccion {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+.cotizacion-ajuste-seccion h2,
+.cotizacion-ajuste-seccion h3,
+.cotizacion-ajuste-seccion p {
+  margin: 0;
+}
+.cotizacion-ajuste-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  align-items: end;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde);
+}
+.cotizacion-ajuste-form h3,
+.cotizacion-ajuste-form > .texto-suave,
+.cotizacion-ajuste-form > button {
+  grid-column: 1 / -1;
+}
+.cotizacion-ajuste-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--etiqueta);
+  font-size: 13px;
+}
+.cotizacion-ajuste-form input:not([type="checkbox"]),
+.cotizacion-ajuste-form select,
+.cotizacion-ajuste-form textarea {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--texto);
+  background: #fff;
+  font: inherit;
+}
+.cotizacion-ajuste-form textarea {
+  resize: vertical;
+}
+.cotizacion-ajuste-form .cotizacion-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cotizacion-ajuste-form .cotizacion-check input {
+  width: 16px;
+  height: 16px;
+}
+.cotizacion-companias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+}
+.cotizacion-companias label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+.cotizacion-companias small {
+  color: var(--etiqueta);
+}
+.cotizacion-botones-borrador {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cotizacion-botones-borrador form {
+  margin: 0;
+}
+.cotizacion-detalle {
+  display: grid;
+  gap: 14px;
+}
+.cotizacion-detalle-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+.cotizacion-detalle-cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  align-items: start;
+  gap: 14px;
+}
+.cotizacion-detalle-principal,
+.cotizacion-detalle-lateral {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+.cotizacion-comparativa-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cotizacion-mejor-precio {
+  display: block;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--verde-suave);
+  color: var(--verde-texto);
+  font-size: 11px;
+}
+.cotizacion-datos-riesgo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.cotizacion-datos-riesgo div {
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--fondo-suave);
+}
+.cotizacion-datos-riesgo dt {
+  color: var(--etiqueta);
+  font-size: 12px;
+}
+.cotizacion-datos-riesgo dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.cotizacion-eventos {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-left: 20px;
+}
+.cotizacion-eventos li {
+  display: grid;
+  gap: 3px;
+}
+.cotizacion-eventos time {
+  color: var(--etiqueta);
+  font-size: 12px;
+}
+.cotizacion-resultado-manual {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--borde);
+}
+.cotizacion-resultado-manual h4 {
+  margin: 0;
+}
+.cotizacion-portal-credencial {
+  padding-top: 10px;
+  border-top: 1px solid var(--borde);
+}
+@media (max-width: 760px) {
+  .cotizacion-detalle-cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .cotizacion-aviso {
   margin: 0;
   padding: 12px 16px;
@@ -1478,3 +1650,21 @@
   line-height: 1.5;
   color: var(--gris-texto);
 }
+
+.cotizacion-propuesta {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-top: 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--fondo-suave);
+}
+.cotizacion-propuesta > span { color: var(--gris-texto); font-size: 13px; }
+.cotizacion-propuesta [aria-disabled="true"] { opacity: .55; pointer-events: none; }
+.cotizacion-validacion-resultado { margin: 14px 0; padding: 14px; border: 1px solid var(--borde); border-radius: var(--radio); }
+.cotizacion-validacion-resultado ul { display: grid; gap: 8px; padding-left: 20px; }
+.cotizacion-validacion-resultado li { display: grid; gap: 3px; }
+.cotizacion-validacion-coincide strong { color: #23734d; }
+.cotizacion-validacion-diferencia strong { color: #a33d30; }
+.cotizacion-validacion-sin_dato strong { color: #80620f; }
