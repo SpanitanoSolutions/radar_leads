@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { CampoDenuncia, EtapaSiniestro } from "@/db/schema";
 import { enviarMensaje } from "@/agentes/envio";
@@ -239,7 +239,7 @@ export async function cargarSiniestro(datos: {
   if (!asegurado && !datos.afectado) throw new Error("Indicá un asegurado o la persona/bien afectado.");
   const compania = poliza?.compania ?? datos.compania?.trim() ?? null;
   const ramo = poliza?.ramo ?? datos.ramo?.trim() ?? null;
-  const denuncia = redactor.armar({ tipo: datos.tipo, fecha: datos.fecha, domicilio: datos.lugar ?? asegurado?.domicilio ?? null, bien: poliza?.bien ?? datos.afectado, relato: datos.relato, fotos: datos.archivos?.length ?? 0 });
+  const denuncia = redactor.armar({ tipo: datos.tipo, fecha: datos.fecha, domicilio: datos.lugar ?? asegurado?.domicilio ?? null, bien: poliza?.bien ?? datos.afectado, relato: datos.relato, fotos: datos.archivos?.filter((archivo) => archivo.tipo.startsWith("image/")).length ?? 0 });
   return db.transaction(async (tx) => {
     const [configuracion] = compania && ramo
       ? await tx.select().from(schema.siniestroConfiguracion).where(and(
@@ -350,12 +350,36 @@ export async function editarSiniestro(id: number, datos: {
   });
 }
 
-/** Agrega archivos al expediente sin tocar los adjuntos que ya estaban guardados. */
-export async function agregarArchivosSiniestro(id: number, archivos: { nombre: string; tipo: string; tamano: number; contenido: Buffer }[]) {
+/** Agrega archivos al expediente y marca el requisito que esos archivos respaldan, si se indicó. */
+function esRequisitoDeFotos(nombre: string) {
+  const normalizado = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /foto|imagen/i.test(normalizado);
+}
+
+function esArchivoImagen(archivo: { tipo?: string; tipoMime?: string; nombre: string }) {
+  return (archivo.tipo ?? archivo.tipoMime ?? "").startsWith("image/")
+    || /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(archivo.nombre);
+}
+
+export async function agregarArchivosSiniestro(
+  id: number,
+  archivos: { nombre: string; tipo: string; tamano: number; contenido: Buffer }[],
+  requisitoId: number | null = null,
+) {
   return db.transaction(async (tx) => {
-    const [existente] = await tx.select({ id: schema.siniestros.id }).from(schema.siniestros).where(eq(schema.siniestros.id, id));
+    const [existente] = await tx.select({
+      id: schema.siniestros.id,
+      denuncia: schema.siniestros.denuncia,
+      denunciaEnviadaEl: schema.siniestros.denunciaEnviadaEl,
+    }).from(schema.siniestros).where(eq(schema.siniestros.id, id));
     if (!existente) return "inexistente" as const;
-    const actuales = await tx.select({ tamano: schema.siniestroArchivos.tamano })
+    const requisitos = await tx.select().from(schema.siniestroRequisitos)
+      .where(eq(schema.siniestroRequisitos.siniestroId, id));
+    const requisitoElegido = requisitoId === null
+      ? null
+      : requisitos.find((requisito) => requisito.id === requisitoId) ?? null;
+    if (requisitoId !== null && !requisitoElegido) return "requisito-inexistente" as const;
+    const actuales = await tx.select({ tamano: schema.siniestroArchivos.tamano, tipoMime: schema.siniestroArchivos.tipoMime, nombre: schema.siniestroArchivos.nombre })
       .from(schema.siniestroArchivos)
       .where(eq(schema.siniestroArchivos.siniestroId, id));
     const cantidadTotal = actuales.length + archivos.length;
@@ -363,10 +387,12 @@ export async function agregarArchivosSiniestro(id: number, archivos: { nombre: s
       + archivos.reduce((total, archivo) => total + archivo.tamano, 0);
     if (cantidadTotal > 20 || tamanoTotal > 25 * 1024 * 1024) return "limite" as const;
 
+    const archivosSubidos: { id: number; nombre: string; tipo: string }[] = [];
     for (const archivo of archivos) {
       const [nuevoArchivo] = await tx.insert(schema.archivos)
         .values({ nombre: archivo.nombre, tipo: archivo.tipo, tamano: archivo.tamano, contenido: archivo.contenido })
         .returning({ id: schema.archivos.id });
+      archivosSubidos.push({ id: nuevoArchivo.id, nombre: archivo.nombre, tipo: archivo.tipo });
       const [trabajo] = await tx.insert(schema.iaTrabajos)
         .values({ agente: "siniestros", operacion: "analizar_documento", entidad: "siniestro_archivo", entidadId: nuevoArchivo.id, estado: "pendiente_configuracion", datos: { archivoId: nuevoArchivo.id } })
         .returning({ id: schema.iaTrabajos.id });
@@ -379,13 +405,195 @@ export async function agregarArchivosSiniestro(id: number, archivos: { nombre: s
         trabajoId: trabajo.id,
       });
     }
-    await tx.update(schema.siniestros).set({ actualizadoEl: new Date() }).where(eq(schema.siniestros.id, id));
+    const requisitoDeFotos = requisitos.filter((requisito) => esRequisitoDeFotos(requisito.nombre));
+    const imagenesNuevas = archivosSubidos.filter(esArchivoImagen);
+    const requisitoAutomatico = !requisitoElegido && requisitoDeFotos.length === 1 && imagenesNuevas.length > 0
+      ? requisitoDeFotos[0]
+      : null;
+    const requisitoVinculado = requisitoElegido ?? requisitoAutomatico;
+    const archivosVinculados = requisitoElegido
+      ? archivosSubidos
+      : requisitoAutomatico
+        ? imagenesNuevas
+        : [];
+    const ahora = new Date();
+    if (requisitoVinculado && archivosVinculados.length > 0) {
+      const esFotos = esRequisitoDeFotos(requisitoVinculado.nombre);
+      await tx.update(schema.siniestroRequisitos).set({
+        recibido: true,
+        recibidoEl: ahora,
+        archivoId: archivosVinculados[0].id,
+        cantidad: esFotos ? (requisitoVinculado.cantidad ?? 0) + archivosVinculados.length : requisitoVinculado.cantidad,
+        actualizadoEl: ahora,
+      }).where(and(
+        eq(schema.siniestroRequisitos.id, requisitoVinculado.id),
+        eq(schema.siniestroRequisitos.siniestroId, id),
+      ));
+    }
+    const totalImagenes = actuales.filter(esArchivoImagen).length + imagenesNuevas.length;
+    const denunciaActualizada = !existente.denunciaEnviadaEl && totalImagenes > 0 && existente.denuncia
+      ? existente.denuncia.map((campo) => campo.campo.toLocaleLowerCase("es-AR") === "fotos" && campo.valor === "Todavía no llegaron fotos"
+        ? { ...campo, valor: `${totalImagenes} ${totalImagenes === 1 ? "foto recibida" : "fotos recibidas"}` }
+        : campo)
+      : existente.denuncia;
+    await tx.update(schema.siniestros).set({ actualizadoEl: ahora, denuncia: denunciaActualizada }).where(eq(schema.siniestros.id, id));
+    const vinculo = requisitoVinculado && archivosVinculados.length > 0
+      ? ` Marcaste «${requisitoVinculado.nombre}» como recibido con ${archivosVinculados.length} ${archivosVinculados.length === 1 ? "archivo" : "archivos"}.`
+      : "";
     await tx.insert(schema.siniestroEventos).values({
       siniestroId: id,
       quien: "Vos",
-      texto: `Agregaste ${archivos.length} ${archivos.length === 1 ? "archivo" : "archivos"} al expediente.`,
+      texto: `Agregaste ${archivos.length} ${archivos.length === 1 ? "archivo" : "archivos"} al expediente.${vinculo}`,
     });
     return "ok" as const;
+  });
+}
+
+/** Quita un archivo del expediente antes de enviar la denuncia. */
+export async function eliminarArchivoSiniestro(siniestroId: number, siniestroArchivoId: number) {
+  return db.transaction(async (tx) => {
+    const [siniestro] = await tx.select({
+      id: schema.siniestros.id,
+      denuncia: schema.siniestros.denuncia,
+      denunciaEnviadaEl: schema.siniestros.denunciaEnviadaEl,
+    }).from(schema.siniestros).where(eq(schema.siniestros.id, siniestroId));
+    if (!siniestro) return "inexistente" as const;
+    if (siniestro.denunciaEnviadaEl) return "denuncia-enviada" as const;
+
+    const [vinculo] = await tx.select().from(schema.siniestroArchivos).where(and(
+      eq(schema.siniestroArchivos.id, siniestroArchivoId),
+      eq(schema.siniestroArchivos.siniestroId, siniestroId),
+    ));
+    if (!vinculo) return "archivo-inexistente" as const;
+
+    const adjuntos = await tx.select({
+      id: schema.siniestroArchivos.id,
+      archivoId: schema.siniestroArchivos.archivoId,
+      tipoMime: schema.siniestroArchivos.tipoMime,
+      nombre: schema.siniestroArchivos.nombre,
+    }).from(schema.siniestroArchivos).where(eq(schema.siniestroArchivos.siniestroId, siniestroId));
+    const restantes = adjuntos.filter((archivo) => archivo.id !== siniestroArchivoId);
+    const imagenesRestantes = restantes.filter(esArchivoImagen);
+    const imagenesActuales = adjuntos.filter(esArchivoImagen).length;
+    const ahora = new Date();
+
+    await tx.delete(schema.siniestroArchivos).where(eq(schema.siniestroArchivos.id, siniestroArchivoId));
+
+    const requisitos = await tx.select().from(schema.siniestroRequisitos)
+      .where(eq(schema.siniestroRequisitos.siniestroId, siniestroId));
+    const requisitosFotos = requisitos.filter((requisito) => esRequisitoDeFotos(requisito.nombre));
+    const requisitosVinculados = requisitos.filter((requisito) => requisito.archivoId === vinculo.archivoId);
+    const recalculados = new Set<number>();
+    for (const requisito of requisitosVinculados) {
+      const esFotos = esRequisitoDeFotos(requisito.nombre);
+      const conservaFotos = esFotos && imagenesRestantes.length > 0;
+      await tx.update(schema.siniestroRequisitos).set({
+        recibido: conservaFotos,
+        recibidoEl: conservaFotos ? ahora : null,
+        archivoId: conservaFotos ? imagenesRestantes[0].archivoId : null,
+        cantidad: esFotos ? imagenesRestantes.length || null : null,
+        modificacionManual: false,
+        actualizadoEl: ahora,
+      }).where(eq(schema.siniestroRequisitos.id, requisito.id));
+      recalculados.add(requisito.id);
+    }
+    if (esArchivoImagen(vinculo) && requisitosFotos.length === 1) {
+      const requisitoFotos = requisitosFotos[0];
+      if (!recalculados.has(requisitoFotos.id)) {
+        const conservaFotos = imagenesRestantes.length > 0;
+        await tx.update(schema.siniestroRequisitos).set({
+          recibido: conservaFotos,
+          recibidoEl: conservaFotos ? ahora : null,
+          archivoId: conservaFotos ? imagenesRestantes[0].archivoId : null,
+          cantidad: imagenesRestantes.length || null,
+          modificacionManual: false,
+          actualizadoEl: ahora,
+        }).where(eq(schema.siniestroRequisitos.id, requisitoFotos.id));
+      }
+    }
+    await tx.update(schema.siniestroDocumentos).set({
+      recibido: false,
+      recibidoEl: null,
+      archivoId: null,
+      cantidad: null,
+    }).where(and(
+      eq(schema.siniestroDocumentos.siniestroId, siniestroId),
+      eq(schema.siniestroDocumentos.archivoId, vinculo.archivoId),
+    ));
+
+    const campoFotos = siniestro.denuncia?.find((campo) => campo.campo.toLocaleLowerCase("es-AR") === "fotos");
+    const resumenAnterior = imagenesActuales
+      ? `${imagenesActuales} ${imagenesActuales === 1 ? "foto recibida" : "fotos recibidas"}`
+      : "Todavía no llegaron fotos";
+    const resumenNuevo = imagenesRestantes.length
+      ? `${imagenesRestantes.length} ${imagenesRestantes.length === 1 ? "foto recibida" : "fotos recibidas"}`
+      : "Todavía no llegaron fotos";
+    const denuncia = siniestro.denuncia?.map((campo) => campo === campoFotos && campo.valor === resumenAnterior
+      ? { ...campo, valor: resumenNuevo }
+      : campo) ?? null;
+    await tx.update(schema.siniestros).set({ denuncia, actualizadoEl: ahora }).where(eq(schema.siniestros.id, siniestroId));
+
+    const [otroAdjunto] = await tx.select({ id: schema.siniestroArchivos.id })
+      .from(schema.siniestroArchivos).where(eq(schema.siniestroArchivos.archivoId, vinculo.archivoId)).limit(1);
+    const [otroRequisito] = await tx.select({ id: schema.siniestroRequisitos.id })
+      .from(schema.siniestroRequisitos).where(eq(schema.siniestroRequisitos.archivoId, vinculo.archivoId)).limit(1);
+    const [otroDocumento] = await tx.select({ id: schema.siniestroDocumentos.id })
+      .from(schema.siniestroDocumentos).where(eq(schema.siniestroDocumentos.archivoId, vinculo.archivoId)).limit(1);
+    if (!otroAdjunto && !otroRequisito && !otroDocumento) {
+      await tx.delete(schema.iaTrabajos).where(and(
+        eq(schema.iaTrabajos.agente, "siniestros"),
+        eq(schema.iaTrabajos.entidad, "siniestro_archivo"),
+        eq(schema.iaTrabajos.entidadId, vinculo.archivoId),
+      ));
+      await tx.delete(schema.archivos).where(eq(schema.archivos.id, vinculo.archivoId));
+    }
+
+    await tx.insert(schema.siniestroEventos).values({
+      siniestroId,
+      quien: "Vos",
+      texto: `Eliminaste «${vinculo.nombre}» del expediente antes de enviar la denuncia.`,
+    });
+    return "ok" as const;
+  });
+}
+
+/** Repara los checklists antiguos: las imágenes ya adjuntas cumplen un requisito único de fotos. */
+export async function sincronizarRequisitosDeFotos(siniestroIds: number[]) {
+  if (!siniestroIds.length) return false;
+  return db.transaction(async (tx) => {
+    const requisitos = await tx.select().from(schema.siniestroRequisitos)
+      .where(inArray(schema.siniestroRequisitos.siniestroId, siniestroIds));
+    const archivos = await tx.select({ siniestroId: schema.siniestroArchivos.siniestroId, archivoId: schema.siniestroArchivos.archivoId, tipoMime: schema.siniestroArchivos.tipoMime, nombre: schema.siniestroArchivos.nombre })
+      .from(schema.siniestroArchivos).where(inArray(schema.siniestroArchivos.siniestroId, siniestroIds));
+    const siniestros = await tx.select({ id: schema.siniestros.id, denuncia: schema.siniestros.denuncia, denunciaEnviadaEl: schema.siniestros.denunciaEnviadaEl })
+      .from(schema.siniestros).where(inArray(schema.siniestros.id, siniestroIds));
+    const requisitosPorSiniestro = new Map<number, typeof requisitos>();
+    const archivosPorSiniestro = new Map<number, typeof archivos>();
+    for (const requisito of requisitos) requisitosPorSiniestro.set(requisito.siniestroId, [...(requisitosPorSiniestro.get(requisito.siniestroId) ?? []), requisito]);
+    for (const archivo of archivos) archivosPorSiniestro.set(archivo.siniestroId, [...(archivosPorSiniestro.get(archivo.siniestroId) ?? []), archivo]);
+    let cambio = false;
+    for (const siniestro of siniestros) {
+      const requisitosFotos = (requisitosPorSiniestro.get(siniestro.id) ?? []).filter((requisito) => esRequisitoDeFotos(requisito.nombre));
+      const fotos = (archivosPorSiniestro.get(siniestro.id) ?? []).filter(esArchivoImagen);
+      const requisito = requisitosFotos.length === 1 ? requisitosFotos[0] : null;
+      if (!requisito || requisito.recibido || requisito.modificacionManual || !fotos.length) continue;
+      const ahora = new Date();
+      await tx.update(schema.siniestroRequisitos).set({
+        recibido: true,
+        recibidoEl: ahora,
+        archivoId: fotos[0].archivoId,
+        cantidad: fotos.length,
+        actualizadoEl: ahora,
+      }).where(eq(schema.siniestroRequisitos.id, requisito.id));
+      if (!siniestro.denunciaEnviadaEl && siniestro.denuncia) {
+        const denuncia = siniestro.denuncia.map((campo) => campo.campo.toLocaleLowerCase("es-AR") === "fotos" && campo.valor === "Todavía no llegaron fotos"
+          ? { ...campo, valor: `${fotos.length} ${fotos.length === 1 ? "foto recibida" : "fotos recibidas"}` }
+          : campo);
+        await tx.update(schema.siniestros).set({ denuncia }).where(eq(schema.siniestros.id, siniestro.id));
+      }
+      cambio = true;
+    }
+    return cambio;
   });
 }
 

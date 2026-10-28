@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PanelLateral } from "@/components/PanelLateral";
 import { EncabezadoAgente } from "@/components/agentes/Agente";
+import { sincronizarRequisitosDeFotos } from "@/agentes/siniestros";
 import { agenteConfigurado, obtenerAseguradosParaSiniestro, obtenerConfiguracionSiniestros, obtenerPolizasParaSiniestro, obtenerSiniestros } from "@/lib/datos-agentes";
 import { diaEnArgentina, diaYMes, fechaCorta } from "@/lib/fechas";
 import {
@@ -29,6 +30,7 @@ import {
   registrarGastoSiniestro,
 } from "./actions";
 import { FormularioCarga as PanelFormularioCarga, FormularioEdicion } from "./FormularioCarga";
+import { EliminarArchivo } from "./EliminarArchivo";
 import "../agentes.css";
 
 export const instant = false;
@@ -53,9 +55,13 @@ const AVISOS: Record<string, string> = {
   "siniestro-cargado": "Cargaste el siniestro.",
   "siniestro-editado": "Guardaste los cambios del siniestro.",
   "archivos-cargados": "Agregaste documentación al expediente.",
+  "archivo-eliminado": "El archivo se eliminó del expediente.",
+  "archivo-inexistente": "No encontramos ese archivo en este expediente. Actualizá la página e intentá de nuevo.",
+  "archivo-denuncia-enviada": "La denuncia ya se envió; no se pueden quitar archivos del expediente.",
   "archivos-sin-seleccionar": "Elegí al menos un archivo para adjuntar.",
   "archivos-limite": "El expediente admite hasta 20 archivos y 25 MB en total.",
   "siniestro-inexistente": "No encontramos el siniestro que querías actualizar.",
+  "requisito-inexistente": "No encontramos ese requisito en el expediente. Actualizá la página e intentá de nuevo.",
   "siniestro-archivado": "Archivaste el siniestro.",
   "siniestro-restaurado": "Restauraste el siniestro.",
   "gasto-registrado": "Registraste el gasto del siniestro.",
@@ -281,6 +287,14 @@ function Detalle({
                   <span className="siniestro-archivo-estado">
                     {archivo.estadoAnalisis === "pendiente_configuracion" ? "IA pendiente de configurar" : archivo.clasificacion ?? "Revisión manual"}
                   </span>
+                  {!siniestro.denunciaEnviadaEl && (
+                    <EliminarArchivo
+                      siniestroId={siniestro.id}
+                      siniestroArchivoId={archivo.id}
+                      nombre={archivo.nombre}
+                      tab={tab}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -288,6 +302,18 @@ function Detalle({
           <form action={agregarArchivosSiniestro} className="siniestro-form siniestro-form-carga siniestro-adjuntar-form">
             <input type="hidden" name="id" value={siniestro.id} />
             <input type="hidden" name="tab" value={tab} />
+            {documentos.length > 0 && (
+              <label className="siniestro-campo-ancho">
+                <span>Requisito que cubren estos archivos (opcional)</span>
+                <select name="requisitoId" defaultValue="">
+                  <option value="">Sin asociar a un requisito</option>
+                  {documentos.map((doc) => (
+                    <option key={doc.id} value={doc.id}>{doc.nombre}{doc.recibido ? " · recibido" : ""}</option>
+                  ))}
+                </select>
+                <small>Si adjuntás imágenes y hay un único requisito de fotos, se marca como recibido automáticamente. Para otros documentos, elegí qué requisito cumplen.</small>
+              </label>
+            )}
             <label className="siniestro-campo-ancho siniestro-adjuntos-alta">
               <span>{cupoDisponible ? `Agregar archivos (quedan ${20 - registro.archivos.length} archivos y ${tamanoLegible(bytesDisponibles)} disponibles)` : "Se alcanzó el límite de adjuntos del expediente"}</span>
               <input name="archivos" type="file" multiple disabled={!cupoDisponible} accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif,.doc,.docx,.xls,.xlsx,.csv,.txt,.odt,.ods,.rtf" />
@@ -437,7 +463,7 @@ export default async function Siniestros({
   const sp = await searchParams;
   const pestaña = sp.tab === "cerrados" || sp.tab === "archivados" ? sp.tab : "abiertos";
   const ahora = new Date();
-  const [registros, polizas, asegurados, configuraciones, activo] = await Promise.all([
+  const [registrosIniciales, polizas, asegurados, configuraciones, activo] = await Promise.all([
     obtenerSiniestros(),
     obtenerPolizasParaSiniestro(),
     obtenerAseguradosParaSiniestro(),
@@ -449,6 +475,9 @@ export default async function Siniestros({
       <PanelFormularioCarga polizas={polizas} asegurados={asegurados} />
     </PanelLateral>;
   }
+  let registros = registrosIniciales;
+  const sincronizados = await sincronizarRequisitosDeFotos(registros.map((registro) => registro.siniestro.id));
+  if (sincronizados) registros = await obtenerSiniestros();
   const todos = registros.map((registro) => {
     const { siniestro, poliza, asegurado, documentos } = registro;
     const nombre = asegurado?.nombre ?? siniestro.afectado ?? "Asegurado sin vincular";
@@ -527,7 +556,7 @@ export default async function Siniestros({
   const buscandoDocumentacion = abiertos.filter((registro) => indiceEtapa(registro.siniestro.etapa) <= 1).length;
   const companias = [...new Set(todos.map((registro) => registro.compania).filter((nombre) => nombre !== "Sin compañía"))].sort((a, b) => a.localeCompare(b, "es-AR"));
   const avisoEsError = typeof sp.aviso === "string" && [
-    "archivo-invalido", "archivos-sin-seleccionar", "archivos-limite", "siniestro-inexistente",
+    "archivo-invalido", "archivo-inexistente", "archivo-denuncia-enviada", "archivos-sin-seleccionar", "archivos-limite", "siniestro-inexistente", "requisito-inexistente",
     "sin-contacto", "sin-compania", "envio-error", "error-operacion",
   ].includes(sp.aviso);
 

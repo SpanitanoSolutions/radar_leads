@@ -9,6 +9,7 @@ import {
   actualizarTramite as actualizarTramiteAgente,
   cargarSiniestro as cargarSiniestroAgente,
   editarSiniestro as editarSiniestroAgente,
+  eliminarArchivoSiniestro as eliminarArchivoSiniestroAgente,
   enviarDenuncia as enviarDenunciaAgente,
   enviarReclamo as enviarReclamoAgente,
   guardarDenuncia as guardarDenunciaAgente,
@@ -44,6 +45,25 @@ const EXTENSIONES_ARCHIVO_PERMITIDAS = new Set([
   ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".gif",
   ".doc", ".docx", ".xls", ".xlsx", ".odt", ".ods", ".rtf", ".txt", ".csv",
 ]);
+const TIPOS_POR_EXTENSION: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".gif": "image/gif",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".odt": "application/vnd.oasis.opendocument.text",
+  ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+  ".rtf": "application/rtf",
+  ".txt": "text/plain",
+  ".csv": "text/csv",
+};
 
 function archivoPermitido(archivo: File) {
   if (TIPOS_ARCHIVO_PERMITIDOS.has(archivo.type)) return true;
@@ -53,12 +73,18 @@ function archivoPermitido(archivo: File) {
 }
 
 async function leerArchivos(archivosFormulario: File[]) {
-  return Promise.all(archivosFormulario.map(async (archivo) => ({
-    nombre: archivo.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 180),
-    tipo: archivo.type || "application/octet-stream",
-    tamano: archivo.size,
-    contenido: Buffer.from(await archivo.arrayBuffer()),
-  })));
+  return Promise.all(archivosFormulario.map(async (archivo) => {
+    const extension = archivo.name.toLocaleLowerCase("es-AR").match(/\.[^.]+$/)?.[0];
+    const tipo = !archivo.type || archivo.type === "application/octet-stream"
+      ? TIPOS_POR_EXTENSION[extension ?? ""] ?? (archivo.type || "application/octet-stream")
+      : archivo.type;
+    return {
+      nombre: archivo.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 180),
+      tipo,
+      tamano: archivo.size,
+      contenido: Buffer.from(await archivo.arrayBuffer()),
+    };
+  }));
 }
 
 function idDe(formData: FormData, campo = "id"): number {
@@ -258,17 +284,33 @@ export async function cargarSiniestro(formData: FormData) {
 export async function agregarArchivosSiniestro(formData: FormData) {
   await requerirSesion();
   const id = idDe(formData);
+  const requisitoValor = formData.get("requisitoId");
+  const requisitoId = typeof requisitoValor === "string" && requisitoValor ? Number(requisitoValor) : null;
   const archivosFormulario = formData.getAll("archivos").filter((item): item is File => item instanceof File && item.size > 0);
   const tab = pestanaDe(formData);
+  if (requisitoId !== null && (!Number.isInteger(requisitoId) || requisitoId <= 0)) volver(id, "requisito-inexistente", tab);
   if (!archivosFormulario.length) volver(id, "archivos-sin-seleccionar", tab);
   if (archivosFormulario.some((archivo) => !archivoPermitido(archivo))) volver(id, "archivo-invalido", tab);
   const tamanoTotal = archivosFormulario.reduce((total, archivo) => total + archivo.size, 0);
   if (archivosFormulario.length > 20 || tamanoTotal > 25 * 1024 * 1024) volver(id, "archivos-limite", tab);
   const archivos = await leerArchivos(archivosFormulario);
-  const resultado = await agregarArchivosSiniestroAgente(id, archivos);
+  const resultado = await agregarArchivosSiniestroAgente(id, archivos, requisitoId);
   if (resultado === "inexistente") volver(id, "siniestro-inexistente", tab);
+  if (resultado === "requisito-inexistente") volver(id, "requisito-inexistente", tab);
   if (resultado === "limite") volver(id, "archivos-limite", tab);
   volver(id, "archivos-cargados", tab);
+}
+
+export async function eliminarArchivoSiniestro(formData: FormData) {
+  await requerirSesion();
+  const siniestroId = idDe(formData, "siniestroId");
+  const siniestroArchivoId = idDe(formData, "siniestroArchivoId");
+  const tab = pestanaDe(formData);
+  const resultado = await eliminarArchivoSiniestroAgente(siniestroId, siniestroArchivoId);
+  if (resultado === "inexistente") volver(siniestroId, "siniestro-inexistente", tab);
+  if (resultado === "archivo-inexistente") volver(siniestroId, "archivo-inexistente", tab);
+  if (resultado === "denuncia-enviada") volver(siniestroId, "archivo-denuncia-enviada", tab);
+  volver(siniestroId, "archivo-eliminado", tab);
 }
 
 export async function guardarConfiguracionSiniestro(formData: FormData) {
