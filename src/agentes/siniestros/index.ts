@@ -305,6 +305,90 @@ export async function cargarSiniestro(datos: {
   });
 }
 
+/** Actualiza los datos principales sin modificar el borrador de denuncia ni los adjuntos. */
+export async function editarSiniestro(id: number, datos: {
+  polizaId: number | null;
+  aseguradoId: number | null;
+  compania: string | null;
+  ramo: string | null;
+  afectado: string | null;
+  tipo: string;
+  descripcion: string;
+  fecha: Date;
+  lugar: string | null;
+  relato: string | null;
+  avisoDe: string | null;
+}) {
+  if (!validarFechaHecho(datos.fecha)) throw new Error("La fecha del hecho no puede ser posterior a la fecha actual.");
+  const [poliza] = datos.polizaId ? await db.select().from(schema.polizas).where(eq(schema.polizas.id, datos.polizaId)) : [];
+  if (datos.polizaId && !poliza) throw new Error("Póliza inexistente");
+  if (poliza && datos.compania?.trim() && poliza.compania?.trim() !== datos.compania.trim()) throw new Error("La empresa no coincide con la póliza elegida");
+  const aseguradoId = datos.aseguradoId ?? poliza?.aseguradoId ?? null;
+  if (datos.aseguradoId && poliza && datos.aseguradoId !== poliza.aseguradoId) throw new Error("La póliza no pertenece al asegurado elegido");
+  const [asegurado] = aseguradoId ? await db.select().from(schema.asegurados).where(eq(schema.asegurados.id, aseguradoId)) : [];
+  if (aseguradoId && !asegurado) throw new Error("Asegurado inexistente");
+  if (!asegurado && !datos.afectado) throw new Error("Indicá un asegurado o la persona/bien afectado.");
+
+  await db.transaction(async (tx) => {
+    const [existente] = await tx.select({ id: schema.siniestros.id }).from(schema.siniestros).where(eq(schema.siniestros.id, id));
+    if (!existente) throw new Error("Siniestro inexistente");
+    await tx.update(schema.siniestros).set({
+      polizaId: poliza?.id ?? null,
+      aseguradoId: asegurado?.id ?? null,
+      compania: poliza?.compania ?? datos.compania?.trim() ?? null,
+      ramo: poliza?.ramo ?? datos.ramo?.trim() ?? null,
+      afectado: datos.afectado,
+      tipo: datos.tipo,
+      descripcion: datos.descripcion,
+      fecha: datos.fecha,
+      lugar: datos.lugar,
+      relato: datos.relato,
+      avisoDe: datos.avisoDe,
+      actualizadoEl: new Date(),
+    }).where(eq(schema.siniestros.id, id));
+    await tx.insert(schema.siniestroEventos).values({ siniestroId: id, quien: "Vos", texto: "Editaste los datos principales del siniestro." });
+  });
+}
+
+/** Agrega archivos al expediente sin tocar los adjuntos que ya estaban guardados. */
+export async function agregarArchivosSiniestro(id: number, archivos: { nombre: string; tipo: string; tamano: number; contenido: Buffer }[]) {
+  return db.transaction(async (tx) => {
+    const [existente] = await tx.select({ id: schema.siniestros.id }).from(schema.siniestros).where(eq(schema.siniestros.id, id));
+    if (!existente) return "inexistente" as const;
+    const actuales = await tx.select({ tamano: schema.siniestroArchivos.tamano })
+      .from(schema.siniestroArchivos)
+      .where(eq(schema.siniestroArchivos.siniestroId, id));
+    const cantidadTotal = actuales.length + archivos.length;
+    const tamanoTotal = actuales.reduce((total, archivo) => total + archivo.tamano, 0)
+      + archivos.reduce((total, archivo) => total + archivo.tamano, 0);
+    if (cantidadTotal > 20 || tamanoTotal > 25 * 1024 * 1024) return "limite" as const;
+
+    for (const archivo of archivos) {
+      const [nuevoArchivo] = await tx.insert(schema.archivos)
+        .values({ nombre: archivo.nombre, tipo: archivo.tipo, tamano: archivo.tamano, contenido: archivo.contenido })
+        .returning({ id: schema.archivos.id });
+      const [trabajo] = await tx.insert(schema.iaTrabajos)
+        .values({ agente: "siniestros", operacion: "analizar_documento", entidad: "siniestro_archivo", entidadId: nuevoArchivo.id, estado: "pendiente_configuracion", datos: { archivoId: nuevoArchivo.id } })
+        .returning({ id: schema.iaTrabajos.id });
+      await tx.insert(schema.siniestroArchivos).values({
+        siniestroId: id,
+        archivoId: nuevoArchivo.id,
+        nombre: archivo.nombre,
+        tipoMime: archivo.tipo,
+        tamano: archivo.tamano,
+        trabajoId: trabajo.id,
+      });
+    }
+    await tx.update(schema.siniestros).set({ actualizadoEl: new Date() }).where(eq(schema.siniestros.id, id));
+    await tx.insert(schema.siniestroEventos).values({
+      siniestroId: id,
+      quien: "Vos",
+      texto: `Agregaste ${archivos.length} ${archivos.length === 1 ? "archivo" : "archivos"} al expediente.`,
+    });
+    return "ok" as const;
+  });
+}
+
 export async function archivarSiniestro(id: number, archivado: boolean) {
   await db.update(schema.siniestros).set({ archivado, actualizadoEl: new Date() }).where(eq(schema.siniestros.id, id));
   await evento(id, "Vos", archivado ? "Archivaste el siniestro." : "Restauraste el siniestro del archivo.");

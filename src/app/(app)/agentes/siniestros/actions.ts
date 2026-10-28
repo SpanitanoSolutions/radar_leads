@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import type { CampoDenuncia, EtapaSiniestro } from "@/db/schema";
 import {
+  agregarArchivosSiniestro as agregarArchivosSiniestroAgente,
   actualizarTramite as actualizarTramiteAgente,
   cargarSiniestro as cargarSiniestroAgente,
+  editarSiniestro as editarSiniestroAgente,
   enviarDenuncia as enviarDenunciaAgente,
   enviarReclamo as enviarReclamoAgente,
   guardarDenuncia as guardarDenunciaAgente,
@@ -18,6 +20,46 @@ import { requerirSesion } from "@/lib/auth";
 import { ETAPAS, TIPOS_SINIESTRO } from "@/lib/siniestros";
 import { db, schema } from "@/db";
 import { validarFechaHecho } from "@/lib/siniestros/validaciones";
+
+const TIPOS_ARCHIVO_PERMITIDOS = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "image/gif",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.oasis.opendocument.text",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/rtf",
+  "text/rtf",
+  "text/plain",
+  "text/csv",
+]);
+const EXTENSIONES_ARCHIVO_PERMITIDAS = new Set([
+  ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".gif",
+  ".doc", ".docx", ".xls", ".xlsx", ".odt", ".ods", ".rtf", ".txt", ".csv",
+]);
+
+function archivoPermitido(archivo: File) {
+  if (TIPOS_ARCHIVO_PERMITIDOS.has(archivo.type)) return true;
+  const extension = archivo.name.toLocaleLowerCase("es-AR").match(/\.[^.]+$/)?.[0];
+  return (!archivo.type || archivo.type === "application/octet-stream")
+    && Boolean(extension && EXTENSIONES_ARCHIVO_PERMITIDAS.has(extension));
+}
+
+async function leerArchivos(archivosFormulario: File[]) {
+  return Promise.all(archivosFormulario.map(async (archivo) => ({
+    nombre: archivo.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 180),
+    tipo: archivo.type || "application/octet-stream",
+    tamano: archivo.size,
+    contenido: Buffer.from(await archivo.arrayBuffer()),
+  })));
+}
 
 function idDe(formData: FormData, campo = "id"): number {
   const id = Number(formData.get(campo));
@@ -46,6 +88,11 @@ function volver(id: number | null, aviso: string, tab = "abiertos"): never {
   revalidatePath("/", "layout");
   const seleccion = id ? `&id=${id}` : "";
   redirect(`/agentes/siniestros?tab=${tab}${seleccion}&aviso=${aviso}`);
+}
+
+function pestanaDe(formData: FormData) {
+  const tab = formData.get("tab");
+  return tab === "cerrados" || tab === "archivados" ? tab : "abiertos";
 }
 
 export async function enviarDenuncia(formData: FormData) {
@@ -114,6 +161,45 @@ export async function actualizarTramite(formData: FormData) {
   volver(id, "tramite-actualizado", formData.get("cerrar") === "on" ? "cerrados" : "abiertos");
 }
 
+export async function editarSiniestro(formData: FormData) {
+  await requerirSesion();
+  const id = idDe(formData);
+  const polizaValor = formData.get("polizaId");
+  const aseguradoValor = formData.get("aseguradoId");
+  const polizaId = typeof polizaValor === "string" && polizaValor ? Number(polizaValor) : null;
+  const aseguradoId = typeof aseguradoValor === "string" && aseguradoValor ? Number(aseguradoValor) : null;
+  if ((polizaId !== null && (!Number.isInteger(polizaId) || polizaId <= 0)) || (aseguradoId !== null && (!Number.isInteger(aseguradoId) || aseguradoId <= 0))) {
+    throw new Error("Elegí un asegurado o póliza válidos.");
+  }
+  const compania = formData.get("compania");
+  const ramo = formData.get("ramo");
+  const afectado = formData.get("afectado");
+  const fecha = fechaDe(formData, "fecha");
+  const tipo = formData.get("tipo");
+  const descripcion = formData.get("descripcion");
+  if (fecha && !validarFechaHecho(fecha)) throw new Error("La fecha del hecho no puede ser posterior a la fecha actual.");
+  if (!fecha || typeof tipo !== "string" || !TIPOS_SINIESTRO.some((item) => item.id === tipo) || typeof descripcion !== "string" || !descripcion.trim()) {
+    throw new Error("Completá el tipo, la fecha y la descripción del siniestro.");
+  }
+  const lugar = formData.get("lugar");
+  const relato = formData.get("relato");
+  const avisoDe = formData.get("avisoDe");
+  await editarSiniestroAgente(id, {
+    polizaId,
+    aseguradoId,
+    compania: typeof compania === "string" ? compania.trim().slice(0, 120) || null : null,
+    ramo: typeof ramo === "string" ? ramo.trim().slice(0, 100) || null : null,
+    afectado: typeof afectado === "string" ? afectado.trim().slice(0, 180) || null : null,
+    tipo,
+    descripcion: descripcion.trim().slice(0, 250),
+    fecha,
+    lugar: typeof lugar === "string" ? lugar.trim().slice(0, 250) || null : null,
+    relato: typeof relato === "string" ? relato.trim().slice(0, 4000) || null : null,
+    avisoDe: typeof avisoDe === "string" ? avisoDe.trim().slice(0, 160) || null : null,
+  });
+  volver(id, "siniestro-editado", pestanaDe(formData));
+}
+
 export async function archivarSiniestro(formData: FormData) {
   await requerirSesion();
   const id = idDe(formData);
@@ -146,17 +232,11 @@ export async function cargarSiniestro(formData: FormData) {
   const avisoDe = formData.get("avisoDe");
   const notaInterna = formData.get("notaInterna");
   const archivosFormulario = formData.getAll("archivos").filter((item): item is File => item instanceof File && item.size > 0);
-  const tiposPermitidos = new Set(["application/pdf", "image/jpeg", "image/png"]);
   const tamanoTotal = archivosFormulario.reduce((total, archivo) => total + archivo.size, 0);
   if (archivosFormulario.length > 20) throw new Error("Adjuntá hasta 20 archivos por expediente.");
   if (tamanoTotal > 25 * 1024 * 1024) throw new Error("Los archivos no pueden superar 25 MB en total.");
-  if (archivosFormulario.some((archivo) => !tiposPermitidos.has(archivo.type))) throw new Error("Adjuntá archivos PDF, JPG o PNG.");
-  const archivos = await Promise.all(archivosFormulario.map(async (archivo) => ({
-    nombre: archivo.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 180),
-    tipo: archivo.type,
-    tamano: archivo.size,
-    contenido: Buffer.from(await archivo.arrayBuffer()),
-  })));
+  if (archivosFormulario.some((archivo) => !archivoPermitido(archivo))) throw new Error("Adjuntá un formato de archivo compatible.");
+  const archivos = await leerArchivos(archivosFormulario);
   const id = await cargarSiniestroAgente({
     polizaId,
     aseguradoId,
@@ -173,6 +253,22 @@ export async function cargarSiniestro(formData: FormData) {
     archivos,
   });
   volver(id, "siniestro-cargado");
+}
+
+export async function agregarArchivosSiniestro(formData: FormData) {
+  await requerirSesion();
+  const id = idDe(formData);
+  const archivosFormulario = formData.getAll("archivos").filter((item): item is File => item instanceof File && item.size > 0);
+  const tab = pestanaDe(formData);
+  if (!archivosFormulario.length) volver(id, "archivos-sin-seleccionar", tab);
+  if (archivosFormulario.some((archivo) => !archivoPermitido(archivo))) volver(id, "archivo-invalido", tab);
+  const tamanoTotal = archivosFormulario.reduce((total, archivo) => total + archivo.size, 0);
+  if (archivosFormulario.length > 20 || tamanoTotal > 25 * 1024 * 1024) volver(id, "archivos-limite", tab);
+  const archivos = await leerArchivos(archivosFormulario);
+  const resultado = await agregarArchivosSiniestroAgente(id, archivos);
+  if (resultado === "inexistente") volver(id, "siniestro-inexistente", tab);
+  if (resultado === "limite") volver(id, "archivos-limite", tab);
+  volver(id, "archivos-cargados", tab);
 }
 
 export async function guardarConfiguracionSiniestro(formData: FormData) {

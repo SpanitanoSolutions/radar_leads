@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { TIPOS_SINIESTRO } from "@/lib/siniestros";
-import { cargarSiniestro } from "./actions";
+import { cargarSiniestro, editarSiniestro } from "./actions";
+import type { obtenerSiniestros } from "@/lib/datos-agentes";
+
+type SiniestroParaEditar = Awaited<ReturnType<typeof obtenerSiniestros>>[number]["siniestro"];
 
 type PolizaDisponible = {
   id: number;
@@ -30,11 +33,53 @@ export function FormularioCarga({
   polizas: PolizaDisponible[];
   asegurados: AseguradoDisponible[];
 }) {
+  return <FormularioSiniestro polizas={polizas} asegurados={asegurados} />;
+}
+
+export function FormularioEdicion({
+  polizas,
+  asegurados,
+  siniestro,
+  tab,
+}: {
+  polizas: PolizaDisponible[];
+  asegurados: AseguradoDisponible[];
+  siniestro: SiniestroParaEditar;
+  tab: string;
+}) {
+  return <FormularioSiniestro polizas={polizas} asegurados={asegurados} siniestro={siniestro} tab={tab} />;
+}
+
+function fechaParaInput(fecha: Date | undefined) {
+  if (!fecha) return "";
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(fecha).replace(" ", "T");
+}
+
+function FormularioSiniestro({
+  polizas,
+  asegurados,
+  siniestro,
+  tab,
+}: {
+  polizas: PolizaDisponible[];
+  asegurados: AseguradoDisponible[];
+  siniestro?: SiniestroParaEditar;
+  tab?: string;
+}) {
+  const editando = Boolean(siniestro);
   const [busqueda, setBusqueda] = useState("");
-  const [aseguradoId, setAseguradoId] = useState("");
-  const [polizaId, setPolizaId] = useState("");
-  const [compania, setCompania] = useState("");
-  const [ramo, setRamo] = useState("");
+  const [aseguradoId, setAseguradoId] = useState(siniestro?.aseguradoId ? String(siniestro.aseguradoId) : "");
+  const [polizaId, setPolizaId] = useState(siniestro?.polizaId ? String(siniestro.polizaId) : "");
+  const [compania, setCompania] = useState(siniestro?.compania ?? "");
+  const [ramo, setRamo] = useState(siniestro?.ramo ?? "");
   const companias = [...new Set(polizas.flatMap((poliza) => poliza.compania?.trim() ? [poliza.compania.trim()] : []))]
     .sort((a, b) => a.localeCompare(b, "es-AR"));
 
@@ -75,12 +120,16 @@ export function FormularioCarga({
 
   return (
     <>
-      <div className="panel-cabecera">
-        <h2 id="panel-cargar-siniestro-titulo" className="panel-titulo">Nuevo expediente de siniestro</h2>
-        <p className="texto-suave">Completá los datos disponibles. Podés vincular una póliza ahora o dejar el expediente sin póliza.</p>
-      </div>
-      <div className="panel-cuerpo siniestro-alta-cuerpo">
-        <form action={cargarSiniestro} className="siniestro-form siniestro-form-carga siniestro-alta-form">
+      {!editando && (
+        <div className="panel-cabecera">
+          <h2 id="panel-cargar-siniestro-titulo" className="panel-titulo">Nuevo expediente de siniestro</h2>
+          <p className="texto-suave">Completá los datos disponibles. Podés vincular una póliza ahora o dejar el expediente sin póliza.</p>
+        </div>
+      )}
+      <div className={!editando ? "panel-cuerpo siniestro-alta-cuerpo" : undefined}>
+        <form action={editando ? editarSiniestro : cargarSiniestro} className={`siniestro-form siniestro-form-carga${editando ? " siniestro-form-edicion" : " siniestro-alta-form"}`}>
+          {siniestro && <input type="hidden" name="id" value={siniestro.id} />}
+          {siniestro && <input type="hidden" name="tab" value={tab ?? "abiertos"} />}
           <label className="siniestro-campo-ancho">
             <span>Buscar coincidencias</span>
             <input
@@ -137,55 +186,55 @@ export function FormularioCarga({
 
           <label>
             <span>Tipo de siniestro</span>
-            <select name="tipo" required defaultValue="otro">
+            <select name="tipo" required defaultValue={siniestro?.tipo ?? "otro"}>
               {TIPOS_SINIESTRO.map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>)}
             </select>
           </label>
 
           <label>
             <span>Fecha y hora del hecho</span>
-            <input name="fecha" type="datetime-local" required />
+            <input name="fecha" type="datetime-local" required defaultValue={fechaParaInput(siniestro?.fecha)} />
           </label>
 
           <label className="siniestro-campo-ancho">
             <span>Descripción breve</span>
-            <input name="descripcion" type="text" maxLength={250} required placeholder="Ej.: Choque en Av. Independencia" />
+            <input name="descripcion" type="text" maxLength={250} required defaultValue={siniestro?.descripcion ?? ""} placeholder="Ej.: Choque en Av. Independencia" />
           </label>
 
           <label>
             <span>Afectado o bien involucrado</span>
-            <input name="afectado" type="text" maxLength={180} required={!aseguradoId && !polizaId} placeholder="Persona, vehículo o inmueble" />
+            <input name="afectado" type="text" maxLength={180} required={!aseguradoId && !polizaId} defaultValue={siniestro?.afectado ?? ""} placeholder="Persona, vehículo o inmueble" />
           </label>
 
           <label>
             <span>Lugar del hecho</span>
-            <input name="lugar" type="text" maxLength={250} />
+            <input name="lugar" type="text" maxLength={250} defaultValue={siniestro?.lugar ?? ""} />
           </label>
 
           <label>
             <span>Quién avisó y por qué medio</span>
-            <input name="avisoDe" type="text" placeholder="Ej.: Carolina por WhatsApp" maxLength={160} />
+            <input name="avisoDe" type="text" defaultValue={siniestro?.avisoDe ?? ""} placeholder="Ej.: Carolina por WhatsApp" maxLength={160} />
           </label>
 
           <label>
             <span>Relato del hecho</span>
-            <textarea name="relato" rows={4} maxLength={4000} placeholder="Qué ocurrió y qué daños se informaron" />
+            <textarea name="relato" rows={4} maxLength={4000} defaultValue={siniestro?.relato ?? ""} placeholder="Qué ocurrió y qué daños se informaron" />
           </label>
 
-          <label>
+          {!editando && <label>
             <span>Nota interna</span>
             <textarea name="notaInterna" rows={4} maxLength={2000} placeholder="Contexto para el equipo; no se incluye en la denuncia" />
-          </label>
+          </label>}
 
-          <label className="siniestro-campo-ancho siniestro-adjuntos-alta">
-            <span>Adjuntar documentos (hasta 20 archivos PDF, JPG o PNG; 25 MB en total)</span>
-            <input name="archivos" type="file" multiple accept="application/pdf,image/jpeg,image/png" />
-            <small>Los archivos quedan guardados en el expediente. El análisis automático se activará cuando se configuren proveedor, modelos y ejecución de tareas.</small>
-          </label>
+          {!editando && <label className="siniestro-campo-ancho siniestro-adjuntos-alta">
+            <span>Adjuntar documentación (hasta 20 archivos; 25 MB en total)</span>
+            <input name="archivos" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif,.doc,.docx,.xls,.xlsx,.csv,.txt,.odt,.ods,.rtf" />
+            <small>Se aceptan imágenes, PDF y documentos de oficina. Los archivos quedan guardados en el expediente; su revisión sigue siendo manual.</small>
+          </label>}
 
           <div className="siniestro-alta-pie siniestro-campo-ancho">
-            <p className="texto-suave">La denuncia queda como borrador. El agente no envía nada sin tu aprobación.</p>
-            <button type="submit" className="boton boton-primario">Crear expediente</button>
+            <p className="texto-suave">{editando ? "Los archivos y el borrador de denuncia se conservan. Podés editar la denuncia por separado." : "La denuncia queda como borrador. El agente no envía nada sin tu aprobación."}</p>
+            <button type="submit" className="boton boton-primario">{editando ? "Guardar cambios" : "Crear expediente"}</button>
           </div>
         </form>
       </div>
