@@ -38,9 +38,6 @@ export async function obtenerDatosEstadisticas() {
     db
       .select({ etapa: schema.siniestros.etapa, fecha: schema.siniestros.fecha, cerrado: schema.siniestros.cerrado, cerradoEl: schema.siniestros.cerradoEl, montoAprobado: schema.siniestros.montoAprobado, montoPagado: schema.siniestros.montoPagado })
       .from(schema.siniestros)
-      .innerJoin(schema.polizas, eq(schema.polizas.id, schema.siniestros.polizaId))
-      .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
-      .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl)))
       .orderBy(desc(schema.siniestros.fecha)),
     db.select({ estado: schema.solicitudesCotizacion.estado, creadoEl: schema.solicitudesCotizacion.creadoEl }).from(schema.solicitudesCotizacion),
   ]);

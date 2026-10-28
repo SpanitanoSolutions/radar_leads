@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
 import type { CampoDenuncia, EtapaSiniestro } from "@/db/schema";
 import {
   actualizarTramite as actualizarTramiteAgente,
@@ -11,9 +12,12 @@ import {
   guardarDenuncia as guardarDenunciaAgente,
   mandarRecordatorio as mandarRecordatorioAgente,
   marcarDocumento as marcarDocumentoAgente,
+  archivarSiniestro as archivarSiniestroAgente,
 } from "@/agentes/siniestros";
 import { requerirSesion } from "@/lib/auth";
-import { ETAPAS } from "@/lib/siniestros";
+import { ETAPAS, TIPOS_SINIESTRO } from "@/lib/siniestros";
+import { db, schema } from "@/db";
+import { validarFechaHecho } from "@/lib/siniestros/validaciones";
 
 function idDe(formData: FormData, campo = "id"): number {
   const id = Number(formData.get(campo));
@@ -48,21 +52,21 @@ export async function enviarDenuncia(formData: FormData) {
   await requerirSesion();
   const id = idDe(formData);
   const resultado = await enviarDenunciaAgente(id);
-  volver(id, resultado.ok ? "denuncia-enviada" : "envio-error");
+  volver(id, resultado.ok ? "denuncia-enviada" : resultado.error === "sin-compania" ? "sin-compania" : "envio-error");
 }
 
 export async function mandarRecordatorio(formData: FormData) {
   await requerirSesion();
   const id = idDe(formData);
   const resultado = await mandarRecordatorioAgente(id);
-  volver(id, resultado.ok ? "recordatorio-enviado" : resultado.error === "sin-contacto" ? "sin-contacto" : "envio-error");
+  volver(id, resultado.ok ? "recordatorio-enviado" : resultado.error === "sin-contacto" || resultado.error === "sin-asegurado" ? "sin-contacto" : "envio-error");
 }
 
 export async function enviarReclamo(formData: FormData) {
   await requerirSesion();
   const id = idDe(formData);
   const resultado = await enviarReclamoAgente(id);
-  volver(id, resultado.ok ? "reclamo-enviado" : "envio-error");
+  volver(id, resultado.ok ? "reclamo-enviado" : resultado.error === "sin-compania" ? "sin-compania" : "envio-error");
 }
 
 export async function guardarDenuncia(formData: FormData) {
@@ -110,28 +114,155 @@ export async function actualizarTramite(formData: FormData) {
   volver(id, "tramite-actualizado", formData.get("cerrar") === "on" ? "cerrados" : "abiertos");
 }
 
+export async function archivarSiniestro(formData: FormData) {
+  await requerirSesion();
+  const id = idDe(formData);
+  const archivado = formData.get("archivado") === "true";
+  await archivarSiniestroAgente(id, archivado);
+  volver(id, archivado ? "siniestro-archivado" : "siniestro-restaurado", archivado ? "archivados" : "abiertos");
+}
+
 export async function cargarSiniestro(formData: FormData) {
   await requerirSesion();
-  const polizaId = idDe(formData, "polizaId");
+  const polizaValor = formData.get("polizaId");
+  const aseguradoValor = formData.get("aseguradoId");
+  const polizaId = typeof polizaValor === "string" && polizaValor ? Number(polizaValor) : null;
+  const aseguradoId = typeof aseguradoValor === "string" && aseguradoValor ? Number(aseguradoValor) : null;
+  if ((polizaId !== null && (!Number.isInteger(polizaId) || polizaId <= 0)) || (aseguradoId !== null && (!Number.isInteger(aseguradoId) || aseguradoId <= 0))) {
+    throw new Error("Elegí un asegurado o póliza válidos.");
+  }
   const compania = formData.get("compania");
+  const ramo = formData.get("ramo");
+  const afectado = formData.get("afectado");
   const fecha = fechaDe(formData, "fecha");
   const tipo = formData.get("tipo");
   const descripcion = formData.get("descripcion");
-  if (typeof compania !== "string" || !compania.trim() || !fecha || typeof tipo !== "string" || typeof descripcion !== "string" || !descripcion.trim()) {
-    throw new Error("Completá la empresa, la póliza, el tipo, la fecha y la descripción.");
+  if (fecha && !validarFechaHecho(fecha)) throw new Error("La fecha del hecho no puede ser posterior a la fecha actual.");
+  if (!fecha || typeof tipo !== "string" || !TIPOS_SINIESTRO.some((item) => item.id === tipo) || typeof descripcion !== "string" || !descripcion.trim()) {
+    throw new Error("Completá el tipo, la fecha y la descripción del siniestro.");
   }
   const lugar = formData.get("lugar");
   const relato = formData.get("relato");
   const avisoDe = formData.get("avisoDe");
+  const notaInterna = formData.get("notaInterna");
+  const archivosFormulario = formData.getAll("archivos").filter((item): item is File => item instanceof File && item.size > 0);
+  const tiposPermitidos = new Set(["application/pdf", "image/jpeg", "image/png"]);
+  const tamanoTotal = archivosFormulario.reduce((total, archivo) => total + archivo.size, 0);
+  if (archivosFormulario.length > 20) throw new Error("Adjuntá hasta 20 archivos por expediente.");
+  if (tamanoTotal > 25 * 1024 * 1024) throw new Error("Los archivos no pueden superar 25 MB en total.");
+  if (archivosFormulario.some((archivo) => !tiposPermitidos.has(archivo.type))) throw new Error("Adjuntá archivos PDF, JPG o PNG.");
+  const archivos = await Promise.all(archivosFormulario.map(async (archivo) => ({
+    nombre: archivo.name.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 180),
+    tipo: archivo.type,
+    tamano: archivo.size,
+    contenido: Buffer.from(await archivo.arrayBuffer()),
+  })));
   const id = await cargarSiniestroAgente({
     polizaId,
-    compania: compania.trim(),
+    aseguradoId,
+    compania: typeof compania === "string" ? compania.trim().slice(0, 120) || null : null,
+    ramo: typeof ramo === "string" ? ramo.trim().slice(0, 100) || null : null,
+    afectado: typeof afectado === "string" ? afectado.trim().slice(0, 180) || null : null,
     tipo,
-    descripcion: descripcion.trim(),
+    descripcion: descripcion.trim().slice(0, 250),
     fecha,
-    lugar: typeof lugar === "string" ? lugar.trim() || null : null,
-    relato: typeof relato === "string" ? relato.trim() || null : null,
-    avisoDe: typeof avisoDe === "string" ? avisoDe.trim() || null : null,
+    lugar: typeof lugar === "string" ? lugar.trim().slice(0, 250) || null : null,
+    relato: typeof relato === "string" ? relato.trim().slice(0, 4000) || null : null,
+    avisoDe: typeof avisoDe === "string" ? avisoDe.trim().slice(0, 160) || null : null,
+    notaInterna: typeof notaInterna === "string" ? notaInterna.trim().slice(0, 2000) || null : null,
+    archivos,
   });
   volver(id, "siniestro-cargado");
+}
+
+export async function guardarConfiguracionSiniestro(formData: FormData) {
+  await requerirSesion();
+  const compania = String(formData.get("compania") ?? "").trim();
+  const ramo = String(formData.get("ramo") ?? "").trim();
+  const tipo = String(formData.get("tipo") ?? "");
+  if (!compania || !ramo || !TIPOS_SINIESTRO.some((item) => item.id === tipo)) throw new Error("Completá compañía, ramo y tipo de siniestro.");
+  const leerPlazo = (campo: string) => {
+    const valor = String(formData.get(campo) ?? "").trim();
+    if (!valor) return null;
+    const numero = Number(valor);
+    if (!Number.isInteger(numero) || numero < 1 || numero > 365) throw new Error("Los plazos deben estar entre 1 y 365 días.");
+    return numero;
+  };
+  const requisitos = String(formData.get("requisitos") ?? "")
+    .split(/\r?\n/)
+    .map((linea) => linea.trim())
+    .filter(Boolean)
+    .map((linea) => ({ bloqueante: !linea.startsWith("?"), nombre: linea.replace(/^\?\s*/, "").slice(0, 180) }))
+    .filter((item) => item.nombre);
+  const ordenDossier = String(formData.get("ordenDossier") ?? "")
+    .split(/\r?\n/)
+    .map((linea) => linea.trim().slice(0, 120))
+    .filter(Boolean);
+  await db.insert(schema.siniestroConfiguracion).values({
+    compania,
+    ramo,
+    tipo,
+    requisitos,
+    ordenDossier,
+    plazoAvisoDias: leerPlazo("plazoAvisoDias"),
+    diasSinNovedades: leerPlazo("diasSinNovedades"),
+    vozAgente: String(formData.get("vozAgente") ?? "").trim().slice(0, 250) || null,
+    actualizadoEl: new Date(),
+  }).onConflictDoUpdate({
+    target: [schema.siniestroConfiguracion.compania, schema.siniestroConfiguracion.ramo, schema.siniestroConfiguracion.tipo],
+    set: {
+      requisitos,
+      ordenDossier,
+      plazoAvisoDias: leerPlazo("plazoAvisoDias"),
+      diasSinNovedades: leerPlazo("diasSinNovedades"),
+      vozAgente: String(formData.get("vozAgente") ?? "").trim().slice(0, 250) || null,
+      actualizadoEl: new Date(),
+    },
+  });
+  revalidatePath("/agentes/siniestros");
+  revalidatePath("/agentes/siniestros/configuracion");
+  redirect("/agentes/siniestros/configuracion?aviso=guardado");
+}
+
+export async function registrarGastoSiniestro(formData: FormData) {
+  await requerirSesion();
+  const id = idDe(formData);
+  const tipo = String(formData.get("tipo") ?? "").trim().slice(0, 80);
+  const descripcion = String(formData.get("descripcion") ?? "").trim().slice(0, 250);
+  const fecha = String(formData.get("fecha") ?? "");
+  const monto = numeroDe(formData, "monto");
+  if (!tipo || !descripcion || !monto || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw new Error("Completá el tipo, el detalle, el monto y la fecha del gasto.");
+  const fechaValida = new Date(`${fecha}T00:00:00Z`);
+  if (Number.isNaN(fechaValida.getTime()) || fechaValida.toISOString().slice(0, 10) !== fecha) throw new Error("La fecha del gasto no es válida.");
+  await db.insert(schema.siniestroGastos).values({ siniestroId: id, tipo, descripcion, monto, fecha });
+  await db.insert(schema.siniestroEventos).values({ siniestroId: id, quien: "Vos", texto: `Registraste un gasto de ${monto.toLocaleString("es-AR")} pesos: ${descripcion}.` });
+  volver(id, "gasto-registrado");
+}
+
+export async function crearInformeSiniestro(formData: FormData) {
+  await requerirSesion();
+  const id = idDe(formData);
+  const tipo = String(formData.get("tipo") ?? "resumen");
+  if (!["resumen", "constancia", "denuncia"].includes(tipo)) throw new Error("Tipo de informe inválido.");
+  const [siniestro] = await db.select().from(schema.siniestros).where(eq(schema.siniestros.id, id));
+  if (!siniestro) throw new Error("Siniestro inexistente.");
+  const [asegurado] = siniestro.aseguradoId ? await db.select().from(schema.asegurados).where(eq(schema.asegurados.id, siniestro.aseguradoId)) : [];
+  await db.insert(schema.siniestroInformes).values({
+    siniestroId: id,
+    tipo,
+    contenido: {
+      folio: siniestro.folio ?? `SIN-${String(siniestro.id).padStart(6, "0")}`,
+      asegurado: asegurado?.nombre ?? siniestro.afectado ?? "Sin vincular",
+      compania: siniestro.compania,
+      ramo: siniestro.ramo,
+      descripcion: siniestro.descripcion,
+      fecha: siniestro.fecha.toISOString(),
+      lugar: siniestro.lugar,
+      relato: siniestro.relato,
+      estado: siniestro.etapa,
+      denuncia: siniestro.denuncia ?? [],
+    },
+  });
+  await db.insert(schema.siniestroEventos).values({ siniestroId: id, quien: "Vos", texto: `Preparaste un borrador de ${tipo === "constancia" ? "constancia" : tipo === "denuncia" ? "denuncia" : "resumen del siniestro"}.` });
+  volver(id, "informe-creado");
 }

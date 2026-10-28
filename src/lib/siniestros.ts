@@ -30,6 +30,7 @@ export const TIPOS_SINIESTRO = [
   { id: "cristales", nombre: "Rotura de cristales" },
   { id: "granizo", nombre: "Granizo" },
   { id: "carga", nombre: "Faltante o daño de carga" },
+  { id: "accidentes_personales", nombre: "Accidentes personales" },
   { id: "otro", nombre: "Otro" },
 ] as const;
 
@@ -47,6 +48,7 @@ export const DOCUMENTOS_POR_TIPO: Record<string, string[]> = {
   cristales: ["Denuncia firmada", "Fotos del cristal roto", "Presupuesto de cristalería"],
   granizo: ["Denuncia firmada", "Fotos del vehículo"],
   carga: ["Denuncia y remitos", "Denuncia policial", "Factura de la mercadería"],
+  accidentes_personales: ["Relato del hecho", "Constancia de cobertura", "Comprobantes de gastos reclamados", "Datos de contacto del afectado"],
   otro: ["Relato del hecho", "Fotos", "Denuncia firmada por el asegurado"],
 };
 
@@ -110,7 +112,7 @@ function unir(lista: string[]): string {
 export function ahoraDe(
   s: SiniestroParaReglas,
   faltan: string[],
-  contexto: { ahora: Date; compania: string; plazoDenunciaDias?: number; contacto: string },
+  contexto: { ahora: Date; compania: string; plazoDenunciaDias?: number; diasSinNovedades?: number; contacto: string },
 ): Ahora {
   const hoy = diaEnArgentina(contexto.ahora);
   const cia = contexto.compania;
@@ -129,7 +131,7 @@ export function ahoraDe(
     return {
       tono: "accion",
       titulo: `La denuncia está lista para mandar a ${cia}`,
-      texto: `${quien} avisó ${cuandoAviso(s.fecha, contexto.ahora)}${canal ? ` por ${canal}` : ""}. El agente le pidió fotos y los datos que pide ${cia}, y armó la denuncia. Revisala y aprobala para enviarla.`,
+      texto: `${quien} avisó ${cuandoAviso(s.fecha, contexto.ahora)}${canal ? ` por ${canal}` : ""}. La denuncia está como borrador. Revisala y aprobá su envío cuando esté lista.`,
       acciones: ["enviarDenuncia", "editarDenuncia"],
     };
   }
@@ -139,7 +141,7 @@ export function ahoraDe(
       return {
         tono: "espera",
         titulo: "Recordatorio enviado",
-        texto: `El agente le mandó a ${quien} lo que falta (${unir(faltan).toLowerCase()}). Si no llega, te avisa.`,
+        texto: `Ya se envió a ${quien} el pedido de lo que falta (${unir(faltan).toLowerCase()}). Registrá aquí la respuesta o prepará un nuevo contacto.`,
         acciones: [],
       };
     }
@@ -149,7 +151,7 @@ export function ahoraDe(
     return {
       tono: restan < 0 ? "alerta" : "accion",
       titulo: faltan.length === 1 ? "Falta un documento para presentar" : `Faltan ${faltan.length} documentos para presentar`,
-      texto: `${quien} mandó todo menos ${unir(faltan).toLowerCase()}. ${cia} la pide dentro de los ${contexto.plazoDenunciaDias ?? PLAZO_DENUNCIA_DIAS} días del hecho y el plazo ${cuando}.`,
+      texto: `${quien} mandó todo menos ${unir(faltan).toLowerCase()}. El plazo operativo configurado para ${cia} es de ${contexto.plazoDenunciaDias ?? PLAZO_DENUNCIA_DIAS} días desde el hecho y ${cuando}.`,
       acciones: ["recordar", "llamar"],
     };
   }
@@ -159,24 +161,24 @@ export function ahoraDe(
       return {
         tono: "espera",
         titulo: `Reclamo enviado a ${cia}`,
-        texto: "Si no hay respuesta en 3 días hábiles, el agente te lo vuelve a marcar.",
+        texto: "El reclamo quedó enviado. El seguimiento continúa según los plazos configurados para esta compañía.",
         acciones: [],
       };
     }
     const desde = s.ultimaNovedadCompaniaEl ?? s.denunciaEnviadaEl;
     const sinNovedades = desde ? diasEntre(diaEnArgentina(desde), hoy) : 0;
-    if (sinNovedades > DIAS_SIN_NOVEDADES) {
+    if (sinNovedades > (contexto.diasSinNovedades ?? DIAS_SIN_NOVEDADES)) {
       return {
         tono: "alerta",
         titulo: `${sinNovedades} días sin novedades de la compañía`,
-        texto: `La documentación está completa${s.denunciaEnviadaEl ? ` desde el ${diaYMes(diaEnArgentina(s.denunciaEnviadaEl))}` : ""} y ${cia} todavía no dio novedades. El agente preparó un reclamo para el área de siniestros.`,
+        texto: `La documentación está completa${s.denunciaEnviadaEl ? ` desde el ${diaYMes(diaEnArgentina(s.denunciaEnviadaEl))}` : ""} y ${cia} todavía no dio novedades. Podés revisar el borrador de reclamo antes de enviarlo.`,
         acciones: ["enviarReclamo", "verReclamo"],
       };
     }
     return {
       tono: "espera",
       titulo: `Denuncia presentada en ${cia}`,
-      texto: "El agente consulta el estado en el portal y te avisa si hay novedades o si pasan 14 días sin respuesta.",
+      texto: "Registrá aquí las novedades de la compañía. El agente marcará el seguimiento cuando se cumpla el plazo operativo configurado.",
       acciones: [],
     };
   }
@@ -192,7 +194,7 @@ export function ahoraDe(
     return {
       tono: "espera",
       titulo: `Inspección agendada para el ${diaDeLaSemana(dia)} a las ${hora}`,
-      texto: `El agente le confirmó el horario a ${contexto.contacto} y le va a recordar el día anterior que no arregle nada antes de la inspección.`,
+      texto: `La inspección está registrada para ${contexto.contacto}. Revisá con el asegurado si necesita instrucciones antes de la visita.`,
       acciones: [],
     };
   }
@@ -201,7 +203,7 @@ export function ahoraDe(
     return {
       tono: "ok",
       titulo: `${cia} aprobó la indemnización: ${pesos(s.montoAprobado)}`,
-      texto: `La compañía informa el pago en los próximos días. El agente ya le avisó a ${contexto.contacto} y va a controlar que el dinero llegue.`,
+      texto: `La compañía aprobó el importe. Registrá el pago cuando se acredite y avisá a ${contexto.contacto}.`,
       acciones: [],
     };
   }
@@ -218,7 +220,7 @@ export function ahoraDe(
   return {
     tono: "espera",
     titulo: `${nombreEtapa(s.etapa)} en ${cia}`,
-    texto: "El agente consulta el estado en el portal y te avisa si hay novedades.",
+    texto: "Registrá aquí las novedades de la compañía para mantener actualizado el expediente.",
     acciones: [],
   };
 }

@@ -711,7 +711,11 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
     type DocEj = [string, boolean, number?];
     type EvEj = [number, string, string, string];
     const siniestrosEj: {
-      poliza: string;
+      poliza?: string;
+      asegurado?: string;
+      compania?: string;
+      ramo?: string;
+      afectado?: string;
       tipo: string;
       descripcion: string;
       fecha: Date;
@@ -946,12 +950,37 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
           [-45, "12:00", "Mapfre", "Transfirió la indemnización."],
         ],
       },
+      {
+        tipo: "accidentes_personales",
+        descripcion: "Accidente durante una actividad recreativa",
+        fecha: momento(-3, "11:20"),
+        lugar: "Club de barrio, Mar del Plata",
+        etapa: "documentacion",
+        avisoDe: "Caso de ejemplo",
+        ramo: "Accidentes personales",
+        compania: "Aseguradora de prueba",
+        afectado: "Persona de prueba",
+        relato: "Expediente sintético para mostrar el flujo de accidentes personales.",
+        docs: [
+          ["Relato del hecho", true],
+          ["Constancia de cobertura", false],
+          ["Comprobantes de gastos reclamados", false],
+          ["Datos de contacto del afectado", true],
+        ],
+        eventos: [[-3, "11:30", "Caso de ejemplo", "Se creó un expediente sintético sin póliza vinculada."]],
+      },
     ];
     for (const s of siniestrosEj) {
+      const polizaId = s.poliza ? pol(s.poliza) : null;
+      const [datosPoliza] = polizaId ? await tx.select({ aseguradoId: schema.polizas.aseguradoId, compania: schema.polizas.compania, ramo: schema.polizas.ramo }).from(schema.polizas).where(eq(schema.polizas.id, polizaId)) : [];
       const [fila] = await tx
         .insert(schema.siniestros)
         .values({
-          polizaId: pol(s.poliza),
+          polizaId,
+          aseguradoId: s.asegurado ? aseg(s.asegurado) : datosPoliza?.aseguradoId ?? null,
+          compania: s.compania ?? datosPoliza?.compania ?? null,
+          ramo: s.ramo ?? datosPoliza?.ramo ?? null,
+          afectado: s.afectado ?? null,
           tipo: s.tipo,
           descripcion: s.descripcion,
           fecha: s.fecha,
@@ -968,12 +997,14 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
           montoPagado: s.montoPagado ?? null,
           pagadoEl: s.pagadoEl ?? null,
           cerrado: Boolean(s.cerradoEl),
+          esEjemplo: true,
           cerradoEl: s.cerradoEl ?? null,
           resolucion: s.resolucion ?? null,
           creadoEl: s.fecha,
         })
         .returning({ id: schema.siniestros.id });
-      await tx.insert(schema.siniestroDocumentos).values(
+      await tx.update(schema.siniestros).set({ folio: `SIN-${String(fila.id).padStart(6, "0")}` }).where(eq(schema.siniestros.id, fila.id));
+      await tx.insert(schema.siniestroRequisitos).values(
         s.docs.map(([nombre, recibido, cantidad]) => ({
           siniestroId: fila.id,
           nombre,

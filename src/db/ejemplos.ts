@@ -11,6 +11,14 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * No toca nada que haya cargado el productor.
  */
 export async function borrarEjemplosDeCartera(tx: Tx | typeof db = db): Promise<number> {
+  // La póliza ahora puede quedar desvinculada sin borrar un siniestro real.
+  // Los expedientes sintéticos se limpian por su marca antes de retirar la cartera de ejemplo.
+  await tx.execute(sql`
+    delete from ia_trabajos t
+    using siniestro_archivos sa, siniestros s
+    where sa.trabajo_id = t.id and sa.siniestro_id = s.id and s.es_ejemplo = true
+  `);
+  await tx.execute(sql`delete from siniestros where es_ejemplo = true`);
   const borrados = await tx
     .delete(schema.asegurados)
     .where(eq(schema.asegurados.esEjemplo, true))
@@ -30,6 +38,8 @@ export async function borrarEjemplosDeCartera(tx: Tx | typeof db = db): Promise<
     where not exists (select 1 from comprobantes c where c.archivo_id = a.id)
       and not exists (select 1 from documentos_asegurado d where d.archivo_id = a.id)
       and not exists (select 1 from siniestro_documentos s where s.archivo_id = a.id)
+      and not exists (select 1 from siniestro_requisitos r where r.archivo_id = a.id)
+      and not exists (select 1 from siniestro_archivos s where s.archivo_id = a.id)
   `);
   return borrados.length;
 }

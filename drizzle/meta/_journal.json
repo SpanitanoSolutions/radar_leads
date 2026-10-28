@@ -127,6 +127,48 @@
       "when": 1793196477817,
       "tag": "0017_cotizacion_validacion_riesgo",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793203581736,
+      "tag": "0018_siniestros_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793204002212,
+      "tag": "0019_siniestros_configuracion",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793204084426,
+      "tag": "0020_siniestros_config_unica",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793204477664,
+      "tag": "0021_siniestros_ejemplos",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793204549272,
+      "tag": "0022_siniestros_alcance",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793204659100,
+      "tag": "0023_ia_configuracion",
+      "breakpoints": true
     }
   ]
 }
