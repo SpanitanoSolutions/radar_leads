@@ -23,10 +23,12 @@ import {
   mandarRecordatorio,
   marcarDocumento,
   archivarSiniestro as archivarSiniestroAction,
+  agregarArchivosSiniestro,
   crearInformeSiniestro,
+  editarSiniestro,
   registrarGastoSiniestro,
 } from "./actions";
-import { FormularioCarga as PanelFormularioCarga } from "./FormularioCarga";
+import { FormularioCarga as PanelFormularioCarga, FormularioEdicion } from "./FormularioCarga";
 import "../agentes.css";
 
 export const instant = false;
@@ -49,6 +51,11 @@ const AVISOS: Record<string, string> = {
   "documento-actualizado": "Actualizaste el estado del documento.",
   "tramite-actualizado": "Actualizaste el trámite.",
   "siniestro-cargado": "Cargaste el siniestro.",
+  "siniestro-editado": "Guardaste los cambios del siniestro.",
+  "archivos-cargados": "Agregaste documentación al expediente.",
+  "archivos-sin-seleccionar": "Elegí al menos un archivo para adjuntar.",
+  "archivos-limite": "El expediente admite hasta 20 archivos y 25 MB en total.",
+  "siniestro-inexistente": "No encontramos el siniestro que querías actualizar.",
   "siniestro-archivado": "Archivaste el siniestro.",
   "siniestro-restaurado": "Restauraste el siniestro.",
   "gasto-registrado": "Registraste el gasto del siniestro.",
@@ -59,6 +66,11 @@ const AVISOS: Record<string, string> = {
   "envio-error": "No se pudo enviar. Revisá la conexión y volvé a intentar.",
   "error-operacion": "No pudimos completar la operación por un problema inesperado. Revisá el estado antes de volver a intentarlo.",
 };
+
+function tamanoLegible(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function formatoFechaHora(fecha: Date): string {
   return new Intl.DateTimeFormat("es-AR", {
@@ -148,7 +160,19 @@ function accionesPara(registro: Registro, ahora: Accion) {
   });
 }
 
-function Detalle({ registro, ahora }: { registro: Registro; ahora: Accion }) {
+function Detalle({
+  registro,
+  ahora,
+  polizas,
+  asegurados,
+  tab,
+}: {
+  registro: Registro;
+  ahora: Accion;
+  polizas: Awaited<ReturnType<typeof obtenerPolizasParaSiniestro>>;
+  asegurados: Awaited<ReturnType<typeof obtenerAseguradosParaSiniestro>>;
+  tab: string;
+}) {
   const { siniestro, poliza, asegurado, documentos, eventos, gastos, informes } = registro;
   const nombreAsegurado = asegurado?.nombre ?? siniestro.afectado ?? "Asegurado sin vincular";
   const ramo = siniestro.ramo ?? poliza?.ramo ?? "Ramo sin definir";
@@ -156,6 +180,30 @@ function Detalle({ registro, ahora }: { registro: Registro; ahora: Accion }) {
   const etapaActual = indiceEtapa(siniestro.etapa);
   const recibidos = documentos.filter((doc) => doc.recibido).length;
   const dossierCompleto = documentos.every((doc) => !doc.bloqueante || doc.recibido);
+  const polizasEdicion = poliza && !polizas.some((item) => item.id === poliza.id)
+    ? [{
+        id: poliza.id,
+        aseguradoId: poliza.aseguradoId,
+        ramo: poliza.ramo,
+        compania: poliza.compania,
+        numero: poliza.numero,
+        bien: poliza.bien,
+        asegurado: asegurado?.nombre ?? "Asegurado vinculado",
+      }, ...polizas]
+    : polizas;
+  const aseguradosEdicion = asegurado && !asegurados.some((item) => item.id === asegurado.id)
+    ? [{
+        id: asegurado.id,
+        nombre: asegurado.nombre,
+        tipo: asegurado.tipo,
+        documento: asegurado.documento,
+        documentoDigitos: asegurado.documentoDigitos,
+        domicilio: asegurado.domicilio,
+      }, ...asegurados]
+    : asegurados;
+  const tamanoAdjunto = registro.archivos.reduce((total, archivo) => total + archivo.tamano, 0);
+  const bytesDisponibles = Math.max(0, 25 * 1024 * 1024 - tamanoAdjunto);
+  const cupoDisponible = registro.archivos.length < 20 && bytesDisponibles > 0;
 
   return (
     <article className="tarjeta siniestro-detalle" aria-label="Detalle del siniestro">
@@ -193,6 +241,17 @@ function Detalle({ registro, ahora }: { registro: Registro; ahora: Accion }) {
       </ol>
 
       <div className="siniestro-detalle-cuerpo">
+        <details className="siniestro-editar">
+          <summary className="boton">Editar datos del siniestro</summary>
+          <FormularioEdicion
+            key={`${siniestro.id}-${siniestro.actualizadoEl.getTime()}`}
+            polizas={polizasEdicion}
+            asegurados={aseguradosEdicion}
+            siniestro={siniestro}
+            tab={tab}
+          />
+        </details>
+
         <section className={`siniestro-ahora tono-${ahora.tono}`} aria-labelledby="siniestro-ahora-titulo">
           <span className="siniestro-ahora-etiqueta">Ahora</span>
           <h3 id="siniestro-ahora-titulo">{ahora.titulo}</h3>
@@ -212,9 +271,9 @@ function Detalle({ registro, ahora }: { registro: Registro; ahora: Accion }) {
           </section>
         )}
 
-        {registro.archivos.length > 0 && (
-          <section className="siniestro-seccion">
-            <h3>Archivos del expediente <span className="texto-suave">· {registro.archivos.length}</span></h3>
+        <section className="siniestro-seccion">
+          <h3>Documentación adjunta <span className="texto-suave">· {registro.archivos.length} de 20</span></h3>
+          {registro.archivos.length > 0 ? (
             <ul className="siniestro-documentos siniestro-archivos-lista">
               {registro.archivos.map((archivo) => (
                 <li key={archivo.id}>
@@ -225,9 +284,19 @@ function Detalle({ registro, ahora }: { registro: Registro; ahora: Accion }) {
                 </li>
               ))}
             </ul>
-            <p className="texto-suave">El análisis automático queda pendiente hasta definir proveedor, modelos y ejecución de tareas.</p>
-          </section>
-        )}
+          ) : <p className="texto-suave">Todavía no hay archivos adjuntos en este expediente.</p>}
+          <form action={agregarArchivosSiniestro} className="siniestro-form siniestro-form-carga siniestro-adjuntar-form">
+            <input type="hidden" name="id" value={siniestro.id} />
+            <input type="hidden" name="tab" value={tab} />
+            <label className="siniestro-campo-ancho siniestro-adjuntos-alta">
+              <span>{cupoDisponible ? `Agregar archivos (quedan ${20 - registro.archivos.length} archivos y ${tamanoLegible(bytesDisponibles)} disponibles)` : "Se alcanzó el límite de adjuntos del expediente"}</span>
+              <input name="archivos" type="file" multiple disabled={!cupoDisponible} accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif,.doc,.docx,.xls,.xlsx,.csv,.txt,.odt,.ods,.rtf" />
+              <small>Imágenes, PDF y documentos de oficina · máximo 20 archivos y 25 MB en total por expediente.</small>
+            </label>
+            <button type="submit" className="boton boton-primario" disabled={!cupoDisponible}>Agregar documentación</button>
+          </form>
+          <p className="texto-suave">Los archivos quedan disponibles para descargar. Su revisión es manual; el análisis automático sigue pendiente de configuración.</p>
+        </section>
 
         <div className="siniestro-columnas">
           <section className="siniestro-seccion">
@@ -457,6 +526,10 @@ export default async function Siniestros({
   );
   const buscandoDocumentacion = abiertos.filter((registro) => indiceEtapa(registro.siniestro.etapa) <= 1).length;
   const companias = [...new Set(todos.map((registro) => registro.compania).filter((nombre) => nombre !== "Sin compañía"))].sort((a, b) => a.localeCompare(b, "es-AR"));
+  const avisoEsError = typeof sp.aviso === "string" && [
+    "archivo-invalido", "archivos-sin-seleccionar", "archivos-limite", "siniestro-inexistente",
+    "sin-contacto", "sin-compania", "envio-error", "error-operacion",
+  ].includes(sp.aviso);
 
   return (
     <>
@@ -475,7 +548,7 @@ export default async function Siniestros({
       </EncabezadoAgente>
 
       {typeof sp.aviso === "string" && AVISOS[sp.aviso] && (
-        <p role={sp.aviso === "envio-error" || sp.aviso === "sin-contacto" || sp.aviso === "sin-compania" || sp.aviso === "error-operacion" ? "alert" : "status"} className={`siniestro-aviso${sp.aviso === "envio-error" || sp.aviso === "sin-contacto" || sp.aviso === "sin-compania" || sp.aviso === "error-operacion" ? " error" : ""}`}>
+        <p role={avisoEsError ? "alert" : "status"} className={`siniestro-aviso${avisoEsError ? " error" : ""}`}>
           {AVISOS[sp.aviso]}
         </p>
       )}
@@ -587,7 +660,7 @@ export default async function Siniestros({
           )}
         </ul>
         {seleccionado ? (
-          <Detalle registro={seleccionado} ahora={seleccionado.ahora} />
+          <Detalle registro={seleccionado} ahora={seleccionado.ahora} polizas={polizas} asegurados={asegurados} tab={pestaña} />
         ) : (
           <section className="tarjeta siniestro-sin-seleccion">
             <p className="texto-suave">Elegí un siniestro de la lista o cargá uno nuevo.</p>

@@ -979,6 +979,14 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.siniestro-adjuntar-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+.siniestro-adjuntar-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 .siniestro-alta-cuerpo {
   padding: 20px 24px 28px;
 }
