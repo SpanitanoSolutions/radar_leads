@@ -18,7 +18,7 @@
   padding: 0 10px;
   border: 1px solid var(--borde-campo);
   border-radius: 6px;
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
   font: inherit;
 }
@@ -130,7 +130,7 @@
   background: var(--rojo-texto);
 }
 .estadisticas-barra-valor.ambar {
-  background: #b87912;
+  background: var(--ambar-texto);
 }
 .estadisticas-tabla {
   min-width: 820px;
@@ -201,7 +201,7 @@
   flex-direction: column;
   gap: 5px;
   padding: 12px 14px;
-  background: #fff;
+  background: var(--tarjeta);
 }
 .estadisticas-siniestros-resumen span,
 .estadisticas-cotizaciones-resumen span {

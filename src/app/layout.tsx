@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "@fontsource-variable/inter";
 import "./globals.css";
 
@@ -10,7 +11,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es-AR">
+    <html lang="es-AR" suppressHydrationWarning>
+      <head>
+        <Script id="uniqo-theme-init" strategy="beforeInteractive">
+          {`try {
+            var savedTheme = localStorage.getItem("uniqo-theme");
+            var initialTheme = savedTheme === "dark" ? "dark" : "light";
+            document.documentElement.dataset.theme = initialTheme;
+            document.documentElement.style.colorScheme = initialTheme;
+          } catch (_) {
+            document.documentElement.dataset.theme = "light";
+          }`}
+        </Script>
+      </head>
       <body>{children}</body>
     </html>
   );

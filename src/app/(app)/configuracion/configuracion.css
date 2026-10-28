@@ -25,7 +25,7 @@
   justify-content: center;
   border-radius: 10px;
   border: 1px solid var(--borde-suave);
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto-2);
 }
 .conexion-icono-activa {
@@ -96,7 +96,7 @@
 }
 .paso-conexion .paso-numero-actual {
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-contraste);
 }
 .paso-conexion .paso-numero-hecho {
   background: var(--verde-suave);
@@ -120,7 +120,7 @@
   padding: 16px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 .cuenta-logo h2 {
   margin: 0;
@@ -185,7 +185,7 @@
   padding: 14px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 .cuenta-productor-cabecera {
   display: flex;
