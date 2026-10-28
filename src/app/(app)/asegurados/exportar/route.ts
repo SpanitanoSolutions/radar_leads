@@ -22,26 +22,35 @@ export async function GET(request: NextRequest) {
     elegidos = new Set(filtrarAsegurados(filas, leerFiltrosAsegurados(params)).map((f) => f.id));
   }
 
+  const columnasPoliza = [
+    "Ramo",
+    "Compañía",
+    "N° de póliza",
+    "Bien asegurado",
+    "Producto",
+    "Cobertura",
+    "Vigencia desde",
+    "Vigencia hasta",
+    "Prima anual",
+    "Premio anual",
+    "Suma asegurada",
+    "Cuotas",
+    "Forma de pago",
+    "Otros datos de la compañía",
+  ];
   const filas: (string | number | null)[][] = [
     [
       "Tipo",
       "Asegurado",
       "DNI/CUIT",
+      "Fecha de nacimiento",
       "Localidad",
       "Teléfono",
       "Email",
       "Domicilio",
+      "Código postal",
       "Contacto",
-      "Ramo",
-      "Compañía",
-      "N° de póliza",
-      "Bien asegurado",
-      "Cobertura",
-      "Vigencia desde",
-      "Vigencia hasta",
-      "Prima anual",
-      "Cuotas",
-      "Forma de pago",
+      ...columnasPoliza,
     ],
   ];
   for (const a of todos) {
@@ -50,14 +59,16 @@ export async function GET(request: NextRequest) {
       a.tipo === "empresa" ? "Empresa" : "Persona",
       a.nombre,
       a.documento,
+      fechaCsv(a.fechaNacimiento),
       a.localidad,
       a.telefono ?? a.contactoTelefono,
       a.email ?? a.contactoEmail,
       a.domicilio,
+      a.codigoPostal,
       a.contactoNombre,
     ];
     const vigentes = a.polizas.filter((p) => esVigente(p, hoy));
-    if (!vigentes.length) filas.push([...datos, ...Array(10).fill("")]);
+    if (!vigentes.length) filas.push([...datos, ...Array(columnasPoliza.length).fill("")]);
     for (const p of vigentes) {
       filas.push([
         ...datos,
@@ -65,12 +76,16 @@ export async function GET(request: NextRequest) {
         p.compania,
         p.numero,
         p.bien,
+        p.producto,
         p.cobertura,
         fechaCsv(p.vigenciaDesde),
         fechaCsv(p.vigenciaHasta),
         montoCsv(p.prima),
+        montoCsv(p.premio),
+        montoCsv(p.sumaAsegurada),
         p.cantidadCuotas,
         p.formaPago,
+        (p.datosCompania ?? []).map((d) => `${d.etiqueta}: ${d.valor}`).join("; "),
       ]);
     }
   }

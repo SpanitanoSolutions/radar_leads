@@ -132,6 +132,13 @@
 .texto-con-margen {
   padding: 14px 20px 0;
 }
+.compania-archivo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 380px;
+  padding: 14px 20px 0;
+}
 .tabla-mapeo {
   min-width: 760px;
   margin-top: 12px;
@@ -139,6 +146,10 @@
 .tabla-mapeo td {
   padding: 8px 16px;
   font-size: 13px;
+}
+.motivo-omitida {
+  max-width: 260px;
+  margin-top: 4px;
 }
 .columna-archivo {
   font-family: ui-monospace, Menlo, Consolas, monospace;

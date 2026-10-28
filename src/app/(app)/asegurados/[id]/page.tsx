@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Fragment } from "react";
 import { Aviso } from "@/components/Aviso";
 import { IconoAtras, IconoTelefono } from "@/components/iconos";
 import {
@@ -15,7 +16,7 @@ import {
 } from "@/lib/asegurados";
 import { enlaceWhatsApp } from "@/lib/contacto";
 import { obtenerFichaAsegurado } from "@/lib/datos-cartera";
-import { diaEnArgentina, diasEntre, fechaCorta } from "@/lib/fechas";
+import { diaEnArgentina, diasEntre, edad, fechaCorta } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { oportunidadesDe } from "@/lib/oportunidades";
 import { nombreEtapa } from "@/lib/siniestros";
@@ -226,9 +227,18 @@ export default async function FichaAsegurado({
             <dd className={contacto.email ? undefined : "sin-dato-rojo"}>{contacto.email ?? "Sin dato"}</dd>
             <dt>Dirección</dt>
             <dd className={a.domicilio ? undefined : "sin-dato-rojo"}>
-              {[a.domicilio, a.localidad && a.domicilio !== a.localidad ? a.localidad : null].filter(Boolean).join(", ") ||
-                "Sin dato"}
+              {[a.domicilio, a.localidad && a.domicilio !== a.localidad ? a.localidad : null, a.codigoPostal && `CP ${a.codigoPostal}`]
+                .filter(Boolean)
+                .join(", ") || "Sin dato"}
             </dd>
+            {a.fechaNacimiento && (
+              <>
+                <dt>Nacimiento</dt>
+                <dd>
+                  {fechaCorta(a.fechaNacimiento)} · {edad(a.fechaNacimiento, hoy)} años
+                </dd>
+              </>
+            )}
           </dl>
           {(!contacto.telefono || !contacto.email) && (
             <Link href={`${base}?editar=1`} className="boton-texto">
@@ -255,10 +265,16 @@ export default async function FichaAsegurado({
                   <th scope="col">Ramo</th>
                   <th scope="col">Compañía</th>
                   <th scope="col">N° de póliza</th>
-                  <th scope="col">Bien asegurado</th>
+                  <th scope="col">Bien y producto</th>
                   <th scope="col">Vence</th>
                   <th scope="col" className="numero">
+                    Suma asegurada
+                  </th>
+                  <th scope="col" className="numero">
                     Prima anual
+                  </th>
+                  <th scope="col" className="numero">
+                    Premio anual
                   </th>
                   <th scope="col">Estado</th>
                 </tr>
@@ -268,18 +284,40 @@ export default async function FichaAsegurado({
                   const dias = p.vigenciaHasta ? diasEntre(hoy, p.vigenciaHasta) : null;
                   const estado = dias === null ? "Vigente" : dias < 0 ? "Vencida" : dias <= 30 ? "Por vencer" : "Vigente";
                   const clase = estado === "Vencida" ? "pastilla-gris" : estado === "Por vencer" ? "pastilla-ambar-fuerte" : "pastilla-verde";
+                  const otros = [
+                    ...(p.formaPago ? [{ etiqueta: "Forma de pago", valor: p.formaPago }] : []),
+                    ...(p.datosCompania ?? []),
+                  ];
                   return (
-                    <tr key={p.id}>
-                      <td className="celda-fuerte">{p.ramo}</td>
-                      <td>{p.compania ?? "—"}</td>
-                      <td className="tabular">{p.numero ?? "—"}</td>
-                      <td>{[p.bien, p.cobertura].filter(Boolean).join(" · ") || "—"}</td>
-                      <td className="tabular">{p.vigenciaHasta ? fechaCorta(p.vigenciaHasta) : "—"}</td>
-                      <td className="numero tabular">{p.prima !== null ? pesos(p.prima) : "—"}</td>
-                      <td>
-                        <span className={`pastilla ${clase}`}>{estado}</span>
-                      </td>
-                    </tr>
+                    <Fragment key={p.id}>
+                      <tr className={otros.length ? "fila-con-datos" : undefined}>
+                        <td className="celda-fuerte">{p.ramo}</td>
+                        <td>{p.compania ?? "—"}</td>
+                        <td className="tabular">{p.numero ?? "—"}</td>
+                        <td>{[p.bien, p.producto, p.cobertura].filter(Boolean).join(" · ") || "—"}</td>
+                        <td className="tabular">{p.vigenciaHasta ? fechaCorta(p.vigenciaHasta) : "—"}</td>
+                        <td className="numero tabular">{p.sumaAsegurada !== null ? pesos(p.sumaAsegurada) : "—"}</td>
+                        <td className="numero tabular">{p.prima !== null ? pesos(p.prima) : "—"}</td>
+                        <td className="numero tabular">{p.premio !== null ? pesos(p.premio) : "—"}</td>
+                        <td>
+                          <span className={`pastilla ${clase}`}>{estado}</span>
+                        </td>
+                      </tr>
+                      {otros.length > 0 && (
+                        <tr className="fila-datos-compania">
+                          <td colSpan={9}>
+                            <dl className="datos-compania">
+                              {otros.map((d) => (
+                                <div key={d.etiqueta}>
+                                  <dt>{d.etiqueta}</dt>
+                                  <dd>{d.valor}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

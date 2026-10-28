@@ -156,6 +156,22 @@ de guardar. **Combinar** actualiza por DNI/CUIT y número de póliza; **Reemplaz
 marca como no vigentes las pólizas ausentes del archivo, sin borrarlas. Cada
 importación queda en el historial y en el menú lateral.
 
+Obligatorios: asegurado, DNI/CUIT, ramo, fin de vigencia y compañía (si el
+archivo no la trae en una columna, se elige para todo el archivo). Del resto se
+importa todo lo que el productor necesita ver de sus pólizas y asegurados: lo
+que tiene un dato propio en UNIQO (producto, prima, premio, suma asegurada,
+fecha de nacimiento, código postal…) va ahí, y lo demás se guarda como "otro
+dato" de la póliza y se muestra en la ficha. Solo quedan afuera las columnas
+vacías, repetidas o que vienen rotas, y nunca se estima un valor.
+
+Los listados que exporta cada compañía con sus propios encabezados (hoy, la
+cartera vigente de Mapfre y el detalle de cartera de Sancor) se reconocen solos:
+columnas, compañía y códigos de ramo. Se definen en
+`src/lib/formatos-cartera.ts`, donde cada columna dice a qué dato va o por qué
+no se importa (el motivo se muestra al relacionar columnas). Para sumar una
+compañía, agregá su formato con un test que use sus encabezados reales y datos
+inventados.
+
 La cartera vive en `asegurados`, `polizas` y tablas relacionadas; la antigua
 tabla `cartera` queda sin uso para conservar la historia de migración. Los leads
 que coinciden por CUIT muestran **Ya es cliente** con un enlace a su ficha.

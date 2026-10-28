@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { guardarImportacion } from "@/db/importar-cartera";
 import { requerirSesion } from "@/lib/auth";
+import { detectarFormato } from "@/lib/formatos-cartera";
 import {
   CAMPOS_CARTERA,
   leerArchivoTabla,
@@ -49,7 +50,10 @@ export async function importarCartera(_previo: EstadoImportacion, formData: Form
     Object.entries(leerJson<Record<string, string>>(formData.get("ramos"), {})).filter(([, r]) => RAMOS.has(r)),
   );
 
-  const validacion = validarCartera(tabla, mapeo, ramos);
+  const compania = formData.get("compania");
+  const companiaArchivo = typeof compania === "string" && compania.trim() ? compania.trim().slice(0, 100) : null;
+
+  const validacion = validarCartera(tabla, mapeo, { ramos, compania: companiaArchivo, formato: detectarFormato(tabla.encabezados) });
   if (validacion.faltanObligatorios.length) {
     return { error: `Falta relacionar: ${validacion.faltanObligatorios.join(", ")}.` };
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaYMes, haceCuanto, sumarDias } from "./fechas";
+import { diaYMes, edad, haceCuanto, sumarDias } from "./fechas";
 
 describe("haceCuanto", () => {
   // 22/10 a las 10:00 en Argentina (UTC-3)
@@ -22,5 +22,13 @@ describe("sumarDias y diaYMes", () => {
     expect(sumarDias("2026-10-28", 7)).toBe("2026-11-04");
     expect(sumarDias("2026-12-30", 3)).toBe("2027-01-02");
     expect(diaYMes("2026-11-04")).toBe("04/11");
+  });
+});
+
+describe("edad", () => {
+  it("cuenta los años cumplidos", () => {
+    expect(edad("1977-02-16", "2026-10-28")).toBe(49);
+    expect(edad("1977-10-28", "2026-10-28")).toBe(49);
+    expect(edad("1977-10-29", "2026-10-28")).toBe(48);
   });
 });

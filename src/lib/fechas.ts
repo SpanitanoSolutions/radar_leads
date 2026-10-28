@@ -57,6 +57,12 @@ export function fechaCorta(iso: string): string {
   return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 }
 
+/** Años cumplidos a la fecha `hoy`. */
+export function edad(nacimiento: string, hoy: string): number {
+  const anios = Number(hoy.slice(0, 4)) - Number(nacimiento.slice(0, 4));
+  return hoy.slice(5) < nacimiento.slice(5) ? anios - 1 : anios;
+}
+
 /** Fecha y hora en Argentina: "27/10 10:14". */
 export function diaYHora(fecha: Date): string {
   const partes = new Intl.DateTimeFormat("es-AR", {

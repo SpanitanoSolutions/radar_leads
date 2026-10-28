@@ -36,6 +36,9 @@ export type AlcanceLicitacion = (typeof alcanceEnum.enumValues)[number];
 
 export type Productor = { nombre: string; matricula: string };
 
+/** Un dato de la póliza que trae la cartera de la compañía y no tiene columna propia ("Anualidad": "14"). */
+export type DatoCompania = { etiqueta: string; valor: string };
+
 export const sectores = pgTable("sectores", {
   id: text("id").primaryKey(),
   nombre: text("nombre").notNull(),
@@ -257,6 +260,9 @@ export const asegurados = pgTable(
     telefono: text("telefono"),
     email: text("email"),
     domicilio: text("domicilio"),
+    codigoPostal: text("codigo_postal"),
+    /** Para cotizar (las compañías tarifan por edad) y para saludar en el cumpleaños. */
+    fechaNacimiento: date("fecha_nacimiento", { mode: "string" }),
     /** Empresas: a quién escribirle por pagos y vencimientos. */
     contactoNombre: text("contacto_nombre"),
     contactoTelefono: text("contacto_telefono"),
@@ -287,10 +293,18 @@ export const polizas = pgTable(
     /** Qué se asegura: "Peugeot 208 · AF 221 QR", "22 empleados", "Casa, Miramar". */
     bien: text("bien"),
     cobertura: text("cobertura"),
+    /** Plan o producto de la compañía: "POLIZA MAS", "864". */
+    producto: text("producto"),
     vigenciaDesde: date("vigencia_desde", { mode: "string" }),
     vigenciaHasta: date("vigencia_hasta", { mode: "string" }),
-    /** Prima anual en pesos. */
+    /** Prima anual en pesos (sin impuestos: sobre ella se calcula la comisión). */
     prima: pesos("prima"),
+    /** Premio anual en pesos: la prima con impuestos y recargos, lo que paga el cliente. */
+    premio: pesos("premio"),
+    /** Suma asegurada en pesos, como la informa la compañía. */
+    sumaAsegurada: pesos("suma_asegurada"),
+    /** Lo demás que informa la compañía en la cartera, tal como viene: anualidad, siniestros, productor. */
+    datosCompania: jsonb("datos_compania").$type<DatoCompania[]>(),
     cantidadCuotas: integer("cantidad_cuotas").notNull().default(12),
     formaPago: text("forma_pago"),
     /** Año de la última actualización de la suma asegurada (para avisar si quedó corta). */
