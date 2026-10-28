@@ -1,0 +1,4194 @@
+{
+  "id": "755018cf-2343-4723-825a-ae22cd5df388",
+  "prevId": "8226ca22-7502-44cb-9fef-f58ac063e508",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.actividad_agentes": {
+      "name": "actividad_agentes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agente": {
+          "name": "agente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "referencia": {
+          "name": "referencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "es_ejemplo": {
+          "name": "es_ejemplo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {
+        "actividad_agente_idx": {
+          "name": "actividad_agente_idx",
+          "columns": [
+            {
+              "expression": "agente",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fecha",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.acuerdos_comision": {
+      "name": "acuerdos_comision",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "compania": {
+          "name": "compania",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ramo": {
+          "name": "ramo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "porcentaje": {
+          "name": "porcentaje",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "acuerdos_compania_ramo_idx": {
+          "name": "acuerdos_compania_ramo_idx",
+          "columns": [
+            {
+              "expression": "compania",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ramo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ajustes": {
+      "name": "ajustes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "zonas": {
+          "name": "zonas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "licitaciones": {
+          "name": "licitaciones",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "productor_nombre": {
+          "name": "productor_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "productor_matricula": {
+          "name": "productor_matricula",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "productores": {
+          "name": "productores",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "productor_organizacion": {
+          "name": "productor_organizacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'HR Productores'"
+        },
+        "productor_logo": {
+          "name": "productor_logo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "productor_telefono": {
+          "name": "productor_telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "productor_email": {
+          "name": "productor_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.archivos": {
+      "name": "archivos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tamano": {
+          "name": "tamano",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contenido": {
+          "name": "contenido",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subido_el": {
+          "name": "subido_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.asegurados": {
+      "name": "asegurados",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_asegurado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "documento": {
+          "name": "documento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "documento_digitos": {
+          "name": "documento_digitos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "localidad": {
+          "name": "localidad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "domicilio": {
+          "name": "domicilio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "codigo_postal": {
+          "name": "codigo_postal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_nacimiento": {
+          "name": "fecha_nacimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_nombre": {
+          "name": "contacto_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_telefono": {
+          "name": "contacto_telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_email": {
+          "name": "contacto_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cliente_desde": {
+          "name": "cliente_desde",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notas": {
+          "name": "notas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "es_ejemplo": {
+          "name": "es_ejemplo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "importacion_id": {
+          "name": "importacion_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "baja_el": {
+          "name": "baja_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "asegurados_documento_idx": {
+          "name": "asegurados_documento_idx",
+          "columns": [
+            {
+              "expression": "documento_digitos",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "asegurados_importacion_id_importaciones_id_fk": {
+          "name": "asegurados_importacion_id_importaciones_id_fk",
+          "tableFrom": "asegurados",
+          "tableTo": "importaciones",
+          "columnsFrom": [
+            "importacion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.capturas": {
+      "name": "capturas",
+      "schema": "",
+      "columns": {
+        "fuente": {
+          "name": "fuente",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ejecutado_el": {
+          "name": "ejecutado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "nuevos": {
+          "name": "nuevos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cartera": {
+      "name": "cartera",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cliente": {
+          "name": "cliente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cuit": {
+          "name": "cuit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ramos": {
+          "name": "ramos",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "compania": {
+          "name": "compania",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vencimiento": {
+          "name": "vencimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cargado_el": {
+          "name": "cargado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.companias": {
+      "name": "companias",
+      "schema": "",
+      "columns": {
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cuentas": {
+          "name": "cuentas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "dias_gracia": {
+          "name": "dias_gracia",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 30
+        },
+        "plazo_denuncia_dias": {
+          "name": "plazo_denuncia_dias",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 3
+        },
+        "email_comisiones": {
+          "name": "email_comisiones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_siniestros": {
+          "name": "email_siniestros",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_cotizaciones": {
+          "name": "email_cotizaciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "medios_pago": {
+          "name": "medios_pago",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.comprobantes": {
+      "name": "comprobantes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cuota_id": {
+          "name": "cuota_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "canal": {
+          "name": "canal",
+          "type": "canal_comprobante",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "medio": {
+          "name": "medio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destino": {
+          "name": "destino",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "numero_operacion": {
+          "name": "numero_operacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archivo_id": {
+          "name": "archivo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chequeos": {
+          "name": "chequeos",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_comprobante",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'por_revisar'"
+        },
+        "recibido_el": {
+          "name": "recibido_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "revisado_el": {
+          "name": "revisado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "comprobantes_cuota_id_cuotas_id_fk": {
+          "name": "comprobantes_cuota_id_cuotas_id_fk",
+          "tableFrom": "comprobantes",
+          "tableTo": "cuotas",
+          "columnsFrom": [
+            "cuota_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "comprobantes_archivo_id_archivos_id_fk": {
+          "name": "comprobantes_archivo_id_archivos_id_fk",
+          "tableFrom": "comprobantes",
+          "tableTo": "archivos",
+          "columnsFrom": [
+            "archivo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.conexiones": {
+      "name": "conexiones",
+      "schema": "",
+      "columns": {
+        "clave": {
+          "name": "clave",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "compania": {
+          "name": "compania",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_conexion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sin_conectar'"
+        },
+        "requerida": {
+          "name": "requerida",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "datos": {
+          "name": "datos",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.configuracion_agentes": {
+      "name": "configuracion_agentes",
+      "schema": "",
+      "columns": {
+        "agente": {
+          "name": "agente",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "configurado": {
+          "name": "configurado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "config": {
+          "name": "config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_archivos": {
+      "name": "cotizacion_archivos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "solicitud_id": {
+          "name": "solicitud_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "envio_id": {
+          "name": "envio_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime": {
+          "name": "mime",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bytes": {
+          "name": "bytes",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tamano": {
+          "name": "tamano",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "cotizacion_archivos_solicitud_id_solicitudes_cotizacion_id_fk": {
+          "name": "cotizacion_archivos_solicitud_id_solicitudes_cotizacion_id_fk",
+          "tableFrom": "cotizacion_archivos",
+          "tableTo": "solicitudes_cotizacion",
+          "columnsFrom": [
+            "solicitud_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cotizacion_archivos_envio_id_cotizacion_envios_id_fk": {
+          "name": "cotizacion_archivos_envio_id_cotizacion_envios_id_fk",
+          "tableFrom": "cotizacion_archivos",
+          "tableTo": "cotizacion_envios",
+          "columnsFrom": [
+            "envio_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_aseguradoras": {
+      "name": "cotizacion_aseguradoras",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ramos": {
+          "name": "ramos",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "canal": {
+          "name": "canal",
+          "type": "canal_cotizacion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'correo'"
+        },
+        "contactos": {
+          "name": "contactos",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "codigo_productor": {
+          "name": "codigo_productor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activa": {
+          "name": "activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "asunto": {
+          "name": "asunto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "instrucciones": {
+          "name": "instrucciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "cotizacion_aseguradoras_nombre_unique": {
+          "name": "cotizacion_aseguradoras_nombre_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nombre"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_borradores_ia": {
+      "name": "cotizacion_borradores_ia",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "solicitud_id": {
+          "name": "solicitud_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contenido": {
+          "name": "contenido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "modelo": {
+          "name": "modelo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tokens_entrada": {
+          "name": "tokens_entrada",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tokens_salida": {
+          "name": "tokens_salida",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "costo_usd": {
+          "name": "costo_usd",
+          "type": "numeric(12, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_contenido_ia",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'borrador'"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "cotizacion_borradores_ia_solicitud_id_solicitudes_cotizacion_id_fk": {
+          "name": "cotizacion_borradores_ia_solicitud_id_solicitudes_cotizacion_id_fk",
+          "tableFrom": "cotizacion_borradores_ia",
+          "tableTo": "solicitudes_cotizacion",
+          "columnsFrom": [
+            "solicitud_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_config": {
+      "name": "cotizacion_config",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "persona": {
+          "name": "persona",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Verónica'"
+        },
+        "nombre_agente": {
+          "name": "nombre_agente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Verónica'"
+        },
+        "personalidad": {
+          "name": "personalidad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Profesional, cortés y meticulosa.'"
+        },
+        "intervalo_horas": {
+          "name": "intervalo_horas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 48
+        },
+        "estrategia_seguimiento": {
+          "name": "estrategia_seguimiento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Cada 3 días hábiles; si la aseguradora ya dio un folio, esperar la cotización.'"
+        },
+        "max_seguimientos": {
+          "name": "max_seguimientos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 3
+        },
+        "pais_feriados": {
+          "name": "pais_feriados",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'AR'"
+        },
+        "idioma": {
+          "name": "idioma",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'es-AR'"
+        },
+        "plantilla_asunto": {
+          "name": "plantilla_asunto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'SOLICITUD – [RAMO] – [CLIENTE] – [ASEGURADORA] – [CLAVE]'"
+        },
+        "plantilla_cuerpo": {
+          "name": "plantilla_cuerpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Buenos días. Solicitamos una propuesta para {cliente}, CUIT {cuit}, ramo {ramo}. Productor: {productor}. Organización: {organizacion}. Moneda: {moneda}. Forma de pago: {forma_de_pago}.'"
+        },
+        "instrucciones_cuerpo": {
+          "name": "instrucciones_cuerpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "cuenta_saliente": {
+          "name": "cuenta_saliente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cotizar_automaticamente": {
+          "name": "cotizar_automaticamente",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "agente_activo": {
+          "name": "agente_activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cotizacion_config_ambito_idx": {
+          "name": "cotizacion_config_ambito_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "producer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_envios": {
+      "name": "cotizacion_envios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "solicitud_id": {
+          "name": "solicitud_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aseguradora_id": {
+          "name": "aseguradora_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "compania": {
+          "name": "compania",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paquete_id": {
+          "name": "paquete_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "canal": {
+          "name": "canal",
+          "type": "canal_cotizacion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'correo'"
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_envio_cotizacion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "folio": {
+          "name": "folio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proximo_seguimiento": {
+          "name": "proximo_seguimiento",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cantidad_seguimientos": {
+          "name": "cantidad_seguimientos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "preguntas_pendientes": {
+          "name": "preguntas_pendientes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ultima_actividad": {
+          "name": "ultima_actividad",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "asunto_borrador": {
+          "name": "asunto_borrador",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cuerpo_borrador": {
+          "name": "cuerpo_borrador",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado_borrador": {
+          "name": "estado_borrador",
+          "type": "estado_borrador_cotizacion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "aprobado_el": {
+          "name": "aprobado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cotizacion_envio_solicitud_compania_idx": {
+          "name": "cotizacion_envio_solicitud_compania_idx",
+          "columns": [
+            {
+              "expression": "solicitud_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "compania",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cotizacion_envios_solicitud_id_solicitudes_cotizacion_id_fk": {
+          "name": "cotizacion_envios_solicitud_id_solicitudes_cotizacion_id_fk",
+          "tableFrom": "cotizacion_envios",
+          "tableTo": "solicitudes_cotizacion",
+          "columnsFrom": [
+            "solicitud_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cotizacion_envios_aseguradora_id_cotizacion_aseguradoras_id_fk": {
+          "name": "cotizacion_envios_aseguradora_id_cotizacion_aseguradoras_id_fk",
+          "tableFrom": "cotizacion_envios",
+          "tableTo": "cotizacion_aseguradoras",
+          "columnsFrom": [
+            "aseguradora_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "cotizacion_envios_paquete_id_cotizacion_paquetes_id_fk": {
+          "name": "cotizacion_envios_paquete_id_cotizacion_paquetes_id_fk",
+          "tableFrom": "cotizacion_envios",
+          "tableTo": "cotizacion_paquetes",
+          "columnsFrom": [
+            "paquete_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_eventos": {
+      "name": "cotizacion_eventos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "solicitud_id": {
+          "name": "solicitud_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "envio_id": {
+          "name": "envio_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'productor'"
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "detalle": {
+          "name": "detalle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "modelo": {
+          "name": "modelo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tokens_entrada": {
+          "name": "tokens_entrada",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tokens_salida": {
+          "name": "tokens_salida",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "costo_usd": {
+          "name": "costo_usd",
+          "type": "numeric(12, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cotizacion_evento_solicitud_fecha_idx": {
+          "name": "cotizacion_evento_solicitud_fecha_idx",
+          "columns": [
+            {
+              "expression": "solicitud_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fecha",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cotizacion_eventos_solicitud_id_solicitudes_cotizacion_id_fk": {
+          "name": "cotizacion_eventos_solicitud_id_solicitudes_cotizacion_id_fk",
+          "tableFrom": "cotizacion_eventos",
+          "tableTo": "solicitudes_cotizacion",
+          "columnsFrom": [
+            "solicitud_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cotizacion_eventos_envio_id_cotizacion_envios_id_fk": {
+          "name": "cotizacion_eventos_envio_id_cotizacion_envios_id_fk",
+          "tableFrom": "cotizacion_eventos",
+          "tableTo": "cotizacion_envios",
+          "columnsFrom": [
+            "envio_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_paquetes": {
+      "name": "cotizacion_paquetes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "aseguradora_id": {
+          "name": "aseguradora_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ramo": {
+          "name": "ramo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "condiciones": {
+          "name": "condiciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deducible": {
+          "name": "deducible",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suma_asegurada": {
+          "name": "suma_asegurada",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coberturas": {
+          "name": "coberturas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cotizacion_paquete_compania_ramo_nombre_idx": {
+          "name": "cotizacion_paquete_compania_ramo_nombre_idx",
+          "columns": [
+            {
+              "expression": "aseguradora_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ramo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "nombre",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cotizacion_paquetes_aseguradora_id_cotizacion_aseguradoras_id_fk": {
+          "name": "cotizacion_paquetes_aseguradora_id_cotizacion_aseguradoras_id_fk",
+          "tableFrom": "cotizacion_paquetes",
+          "tableTo": "cotizacion_aseguradoras",
+          "columnsFrom": [
+            "aseguradora_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_propuestas": {
+      "name": "cotizacion_propuestas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "solicitud_id": {
+          "name": "solicitud_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bytes": {
+          "name": "bytes",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'borrador'"
+        },
+        "aprobado_el": {
+          "name": "aprobado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "cotizacion_propuestas_solicitud_id_solicitudes_cotizacion_id_fk": {
+          "name": "cotizacion_propuestas_solicitud_id_solicitudes_cotizacion_id_fk",
+          "tableFrom": "cotizacion_propuestas",
+          "tableTo": "solicitudes_cotizacion",
+          "columnsFrom": [
+            "solicitud_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_resultados": {
+      "name": "cotizacion_resultados",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "envio_id": {
+          "name": "envio_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prima_neta": {
+          "name": "prima_neta",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prima_total": {
+          "name": "prima_total",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gastos": {
+          "name": "gastos",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "impuestos": {
+          "name": "impuestos",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "moneda": {
+          "name": "moneda",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ARS'"
+        },
+        "coberturas": {
+          "name": "coberturas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "condiciones": {
+          "name": "condiciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "franquicia": {
+          "name": "franquicia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suma_asegurada": {
+          "name": "suma_asegurada",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vigencia": {
+          "name": "vigencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "riesgo_cotizado": {
+          "name": "riesgo_cotizado",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "confirmado": {
+          "name": "confirmado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recibido_el": {
+          "name": "recibido_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "cotizacion_resultados_envio_id_cotizacion_envios_id_fk": {
+          "name": "cotizacion_resultados_envio_id_cotizacion_envios_id_fk",
+          "tableFrom": "cotizacion_resultados",
+          "tableTo": "cotizacion_envios",
+          "columnsFrom": [
+            "envio_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cotizacion_tipos_seguro": {
+      "name": "cotizacion_tipos_seguro",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ramo": {
+          "name": "ramo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "sub_tipos": {
+          "name": "sub_tipos",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "cotizacion_tipos_seguro_ramo_unique": {
+          "name": "cotizacion_tipos_seguro_ramo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "ramo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cuotas": {
+      "name": "cuotas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "poliza_id": {
+          "name": "poliza_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "numero": {
+          "name": "numero",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vencimiento": {
+          "name": "vencimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_cuota",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "pagada_el": {
+          "name": "pagada_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "medio_pago": {
+          "name": "medio_pago",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "cuotas_poliza_numero_idx": {
+          "name": "cuotas_poliza_numero_idx",
+          "columns": [
+            {
+              "expression": "poliza_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "numero",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "cuotas_vence_idx": {
+          "name": "cuotas_vence_idx",
+          "columns": [
+            {
+              "expression": "vencimiento",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cuotas_poliza_id_polizas_id_fk": {
+          "name": "cuotas_poliza_id_polizas_id_fk",
+          "tableFrom": "cuotas",
+          "tableTo": "polizas",
+          "columnsFrom": [
+            "poliza_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.documentos_asegurado": {
+      "name": "documentos_asegurado",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "asegurado_id": {
+          "name": "asegurado_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "archivo_id": {
+          "name": "archivo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subido_el": {
+          "name": "subido_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "documentos_asegurado_asegurado_id_asegurados_id_fk": {
+          "name": "documentos_asegurado_asegurado_id_asegurados_id_fk",
+          "tableFrom": "documentos_asegurado",
+          "tableTo": "asegurados",
+          "columnsFrom": [
+            "asegurado_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "documentos_asegurado_archivo_id_archivos_id_fk": {
+          "name": "documentos_asegurado_archivo_id_archivos_id_fk",
+          "tableFrom": "documentos_asegurado",
+          "tableTo": "archivos",
+          "columnsFrom": [
+            "archivo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.importaciones": {
+      "name": "importaciones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "archivo": {
+          "name": "archivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "modo": {
+          "name": "modo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'combinar'"
+        },
+        "filas": {
+          "name": "filas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "errores": {
+          "name": "errores",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "advertencias": {
+          "name": "advertencias",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "resumen": {
+          "name": "resumen",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "es_ejemplo": {
+          "name": "es_ejemplo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.leads": {
+      "name": "leads",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "empresa": {
+          "name": "empresa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cuit": {
+          "name": "cuit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rubro": {
+          "name": "rubro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "localidad": {
+          "name": "localidad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "zona": {
+          "name": "zona",
+          "type": "zona",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sector_id": {
+          "name": "sector_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "motivo": {
+          "name": "motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fuente": {
+          "name": "fuente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fuente_url": {
+          "name": "fuente_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fuente_referencia": {
+          "name": "fuente_referencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alcance_licitacion": {
+          "name": "alcance_licitacion",
+          "type": "alcance_licitacion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ramos": {
+          "name": "ramos",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score_base": {
+          "name": "score_base",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texto_clasificacion": {
+          "name": "texto_clasificacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_evento": {
+          "name": "fecha_evento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_lead",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'nuevo'"
+        },
+        "nota": {
+          "name": "nota",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recordatorio": {
+          "name": "recordatorio",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contactado_el": {
+          "name": "contactado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reunion_el": {
+          "name": "reunion_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cerrado_el": {
+          "name": "cerrado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cierre_ramos": {
+          "name": "cierre_ramos",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cierre_prima": {
+          "name": "cierre_prima",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cierre_comision": {
+          "name": "cierre_comision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo_descarte": {
+          "name": "motivo_descarte",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono_fuente": {
+          "name": "telefono_fuente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono_buscado_el": {
+          "name": "telefono_buscado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "place_id": {
+          "name": "place_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_estado": {
+          "name": "contacto_estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_buscado_el": {
+          "name": "contacto_buscado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "domicilio": {
+          "name": "domicilio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "art_actual": {
+          "name": "art_actual",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deuda_bcra": {
+          "name": "deuda_bcra",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "es_ejemplo": {
+          "name": "es_ejemplo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "clave": {
+          "name": "clave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detectado_el": {
+          "name": "detectado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "leads_sector_id_sectores_id_fk": {
+          "name": "leads_sector_id_sectores_id_fk",
+          "tableFrom": "leads",
+          "tableTo": "sectores",
+          "columnsFrom": [
+            "sector_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "leads_clave_unique": {
+          "name": "leads_clave_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "clave"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.liquidacion_items": {
+      "name": "liquidacion_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "liquidacion_id": {
+          "name": "liquidacion_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "poliza_numero": {
+          "name": "poliza_numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "poliza_id": {
+          "name": "poliza_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cuota_numero": {
+          "name": "cuota_numero",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base": {
+          "name": "base",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "porcentaje": {
+          "name": "porcentaje",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comision": {
+          "name": "comision",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "liquidacion_items_liquidacion_id_liquidaciones_comision_id_fk": {
+          "name": "liquidacion_items_liquidacion_id_liquidaciones_comision_id_fk",
+          "tableFrom": "liquidacion_items",
+          "tableTo": "liquidaciones_comision",
+          "columnsFrom": [
+            "liquidacion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "liquidacion_items_poliza_id_polizas_id_fk": {
+          "name": "liquidacion_items_poliza_id_polizas_id_fk",
+          "tableFrom": "liquidacion_items",
+          "tableTo": "polizas",
+          "columnsFrom": [
+            "poliza_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.liquidaciones_comision": {
+      "name": "liquidaciones_comision",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "compania": {
+          "name": "compania",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "periodo": {
+          "name": "periodo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recibida_el": {
+          "name": "recibida_el",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origen": {
+          "name": "origen",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'archivo'"
+        },
+        "monto_liquidado": {
+          "name": "monto_liquidado",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depositado": {
+          "name": "depositado",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depositado_el": {
+          "name": "depositado_el",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retenciones": {
+          "name": "retenciones",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "es_ejemplo": {
+          "name": "es_ejemplo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "liquidaciones_compania_periodo_idx": {
+          "name": "liquidaciones_compania_periodo_idx",
+          "columns": [
+            {
+              "expression": "compania",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "periodo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.mensajes": {
+      "name": "mensajes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "asegurado_id": {
+          "name": "asegurado_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "canal": {
+          "name": "canal",
+          "type": "canal_mensaje",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destinatario": {
+          "name": "destinatario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asunto": {
+          "name": "asunto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_mensaje",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'borrador'"
+        },
+        "agente": {
+          "name": "agente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "motivo": {
+          "name": "motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etiqueta": {
+          "name": "etiqueta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referencia": {
+          "name": "referencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mostrar_desde": {
+          "name": "mostrar_desde",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "es_ejemplo": {
+          "name": "es_ejemplo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "enviado_el": {
+          "name": "enviado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "mensajes_estado_idx": {
+          "name": "mensajes_estado_idx",
+          "columns": [
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "agente",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mensajes_referencia_idx": {
+          "name": "mensajes_referencia_idx",
+          "columns": [
+            {
+              "expression": "referencia",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "mensajes_asegurado_id_asegurados_id_fk": {
+          "name": "mensajes_asegurado_id_asegurados_id_fk",
+          "tableFrom": "mensajes",
+          "tableTo": "asegurados",
+          "columnsFrom": [
+            "asegurado_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.notas_asegurado": {
+      "name": "notas_asegurado",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "asegurado_id": {
+          "name": "asegurado_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'nota'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "notas_asegurado_asegurado_id_asegurados_id_fk": {
+          "name": "notas_asegurado_asegurado_id_asegurados_id_fk",
+          "tableFrom": "notas_asegurado",
+          "tableTo": "asegurados",
+          "columnsFrom": [
+            "asegurado_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.oportunidades_seguimiento": {
+      "name": "oportunidades_seguimiento",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "asegurado_id": {
+          "name": "asegurado_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clave": {
+          "name": "clave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "oportunidades_seguimiento_idx": {
+          "name": "oportunidades_seguimiento_idx",
+          "columns": [
+            {
+              "expression": "asegurado_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clave",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "oportunidades_seguimiento_asegurado_id_asegurados_id_fk": {
+          "name": "oportunidades_seguimiento_asegurado_id_asegurados_id_fk",
+          "tableFrom": "oportunidades_seguimiento",
+          "tableTo": "asegurados",
+          "columnsFrom": [
+            "asegurado_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.org_features": {
+      "name": "org_features",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feature": {
+          "name": "feature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activa": {
+          "name": "activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "org_features_org_feature_idx": {
+          "name": "org_features_org_feature_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "feature",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.polizas": {
+      "name": "polizas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "asegurado_id": {
+          "name": "asegurado_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ramo": {
+          "name": "ramo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "compania": {
+          "name": "compania",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "numero": {
+          "name": "numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bien": {
+          "name": "bien",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cobertura": {
+          "name": "cobertura",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producto": {
+          "name": "producto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vigencia_desde": {
+          "name": "vigencia_desde",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vigencia_hasta": {
+          "name": "vigencia_hasta",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prima": {
+          "name": "prima",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "premio": {
+          "name": "premio",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suma_asegurada": {
+          "name": "suma_asegurada",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "datos_compania": {
+          "name": "datos_compania",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cantidad_cuotas": {
+          "name": "cantidad_cuotas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 12
+        },
+        "forma_pago": {
+          "name": "forma_pago",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suma_actualizada_anio": {
+          "name": "suma_actualizada_anio",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "importacion_id": {
+          "name": "importacion_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "baja_el": {
+          "name": "baja_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "polizas_asegurado_idx": {
+          "name": "polizas_asegurado_idx",
+          "columns": [
+            {
+              "expression": "asegurado_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "polizas_vence_idx": {
+          "name": "polizas_vence_idx",
+          "columns": [
+            {
+              "expression": "vigencia_hasta",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "polizas_asegurado_id_asegurados_id_fk": {
+          "name": "polizas_asegurado_id_asegurados_id_fk",
+          "tableFrom": "polizas",
+          "tableTo": "asegurados",
+          "columnsFrom": [
+            "asegurado_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "polizas_importacion_id_importaciones_id_fk": {
+          "name": "polizas_importacion_id_importaciones_id_fk",
+          "tableFrom": "polizas",
+          "tableTo": "importaciones",
+          "columnsFrom": [
+            "importacion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sectores": {
+      "name": "sectores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ejemplos": {
+          "name": "ejemplos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ramos_tipicos": {
+          "name": "ramos_tipicos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal": {
+          "name": "principal",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "prioridad": {
+          "name": "prioridad",
+          "type": "prioridad",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'media'"
+        },
+        "orden": {
+          "name": "orden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.seguimientos_cobranza": {
+      "name": "seguimientos_cobranza",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cuota_id": {
+          "name": "cuota_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paso": {
+          "name": "paso",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_seguimiento",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'activo'"
+        },
+        "motivo_pausa": {
+          "name": "motivo_pausa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "promesa_pago_el": {
+          "name": "promesa_pago_el",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ultima_novedad": {
+          "name": "ultima_novedad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ultima_novedad_el": {
+          "name": "ultima_novedad_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ultimo_contacto": {
+          "name": "ultimo_contacto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "seguimientos_cobranza_cuota_id_cuotas_id_fk": {
+          "name": "seguimientos_cobranza_cuota_id_cuotas_id_fk",
+          "tableFrom": "seguimientos_cobranza",
+          "tableTo": "cuotas",
+          "columnsFrom": [
+            "cuota_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "seguimientos_cobranza_cuota_id_unique": {
+          "name": "seguimientos_cobranza_cuota_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "cuota_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.siniestro_documentos": {
+      "name": "siniestro_documentos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "siniestro_id": {
+          "name": "siniestro_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recibido": {
+          "name": "recibido",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cantidad": {
+          "name": "cantidad",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archivo_id": {
+          "name": "archivo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recibido_el": {
+          "name": "recibido_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "siniestro_documentos_siniestro_id_siniestros_id_fk": {
+          "name": "siniestro_documentos_siniestro_id_siniestros_id_fk",
+          "tableFrom": "siniestro_documentos",
+          "tableTo": "siniestros",
+          "columnsFrom": [
+            "siniestro_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "siniestro_documentos_archivo_id_archivos_id_fk": {
+          "name": "siniestro_documentos_archivo_id_archivos_id_fk",
+          "tableFrom": "siniestro_documentos",
+          "tableTo": "archivos",
+          "columnsFrom": [
+            "archivo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.siniestro_eventos": {
+      "name": "siniestro_eventos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "siniestro_id": {
+          "name": "siniestro_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "quien": {
+          "name": "quien",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "siniestro_eventos_siniestro_id_siniestros_id_fk": {
+          "name": "siniestro_eventos_siniestro_id_siniestros_id_fk",
+          "tableFrom": "siniestro_eventos",
+          "tableTo": "siniestros",
+          "columnsFrom": [
+            "siniestro_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.siniestros": {
+      "name": "siniestros",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "poliza_id": {
+          "name": "poliza_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lugar": {
+          "name": "lugar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "relato": {
+          "name": "relato",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "numero_compania": {
+          "name": "numero_compania",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etapa": {
+          "name": "etapa",
+          "type": "etapa_siniestro",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'aviso'"
+        },
+        "aviso_de": {
+          "name": "aviso_de",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "denuncia": {
+          "name": "denuncia",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "denuncia_enviada_el": {
+          "name": "denuncia_enviada_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ultima_novedad_compania_el": {
+          "name": "ultima_novedad_compania_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reclamo_enviado_el": {
+          "name": "reclamo_enviado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recordatorio_enviado_el": {
+          "name": "recordatorio_enviado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inspeccion_el": {
+          "name": "inspeccion_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monto_aprobado": {
+          "name": "monto_aprobado",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monto_pagado": {
+          "name": "monto_pagado",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pagado_el": {
+          "name": "pagado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cerrado": {
+          "name": "cerrado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "cerrado_el": {
+          "name": "cerrado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolucion": {
+          "name": "resolucion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "siniestros_poliza_id_polizas_id_fk": {
+          "name": "siniestros_poliza_id_polizas_id_fk",
+          "tableFrom": "siniestros",
+          "tableTo": "polizas",
+          "columnsFrom": [
+            "poliza_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.solicitudes_cotizacion": {
+      "name": "solicitudes_cotizacion",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "numero": {
+          "name": "numero",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asegurado_id": {
+          "name": "asegurado_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lead_id": {
+          "name": "lead_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cliente": {
+          "name": "cliente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ramo": {
+          "name": "ramo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bien": {
+          "name": "bien",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo": {
+          "name": "motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origen": {
+          "name": "origen",
+          "type": "origen_solicitud",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_solicitud",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'esperando'"
+        },
+        "nota": {
+          "name": "nota",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "companias": {
+          "name": "companias",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cotizaciones": {
+          "name": "cotizaciones",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "datos_riesgo": {
+          "name": "datos_riesgo",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "ejecutivo": {
+          "name": "ejecutivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completado_el": {
+          "name": "completado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "producer_id": {
+          "name": "producer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "es_ejemplo": {
+          "name": "es_ejemplo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "creado_el": {
+          "name": "creado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_el": {
+          "name": "actualizado_el",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "solicitudes_cotizacion_asegurado_id_asegurados_id_fk": {
+          "name": "solicitudes_cotizacion_asegurado_id_asegurados_id_fk",
+          "tableFrom": "solicitudes_cotizacion",
+          "tableTo": "asegurados",
+          "columnsFrom": [
+            "asegurado_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "solicitudes_cotizacion_lead_id_leads_id_fk": {
+          "name": "solicitudes_cotizacion_lead_id_leads_id_fk",
+          "tableFrom": "solicitudes_cotizacion",
+          "tableTo": "leads",
+          "columnsFrom": [
+            "lead_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "solicitudes_cotizacion_numero_unique": {
+          "name": "solicitudes_cotizacion_numero_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "numero"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.alcance_licitacion": {
+      "name": "alcance_licitacion",
+      "schema": "public",
+      "values": [
+        "municipal",
+        "provincial",
+        "nacional"
+      ]
+    },
+    "public.canal_comprobante": {
+      "name": "canal_comprobante",
+      "schema": "public",
+      "values": [
+        "whatsapp",
+        "email",
+        "manual"
+      ]
+    },
+    "public.canal_cotizacion": {
+      "name": "canal_cotizacion",
+      "schema": "public",
+      "values": [
+        "correo",
+        "portal",
+        "ambos"
+      ]
+    },
+    "public.canal_mensaje": {
+      "name": "canal_mensaje",
+      "schema": "public",
+      "values": [
+        "whatsapp",
+        "email",
+        "llamada"
+      ]
+    },
+    "public.estado_borrador_cotizacion": {
+      "name": "estado_borrador_cotizacion",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "aprobado",
+        "omitido"
+      ]
+    },
+    "public.estado_comprobante": {
+      "name": "estado_comprobante",
+      "schema": "public",
+      "values": [
+        "por_revisar",
+        "confirmado",
+        "rechazado"
+      ]
+    },
+    "public.estado_conexion": {
+      "name": "estado_conexion",
+      "schema": "public",
+      "values": [
+        "conectado",
+        "sin_conectar",
+        "en_proceso",
+        "por_email"
+      ]
+    },
+    "public.estado_contenido_ia": {
+      "name": "estado_contenido_ia",
+      "schema": "public",
+      "values": [
+        "borrador",
+        "aprobado",
+        "omitido"
+      ]
+    },
+    "public.estado_cuota": {
+      "name": "estado_cuota",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "pagada",
+        "vencida"
+      ]
+    },
+    "public.estado_lead": {
+      "name": "estado_lead",
+      "schema": "public",
+      "values": [
+        "nuevo",
+        "llamado",
+        "reunion",
+        "cerrado",
+        "descartado"
+      ]
+    },
+    "public.estado_envio_cotizacion": {
+      "name": "estado_envio_cotizacion",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "borrador",
+        "enviado",
+        "en_seguimiento",
+        "requiere_atencion",
+        "cotizado",
+        "rechazado",
+        "error"
+      ]
+    },
+    "public.estado_mensaje": {
+      "name": "estado_mensaje",
+      "schema": "public",
+      "values": [
+        "borrador",
+        "aprobado",
+        "enviado",
+        "omitido",
+        "hecho"
+      ]
+    },
+    "public.estado_seguimiento": {
+      "name": "estado_seguimiento",
+      "schema": "public",
+      "values": [
+        "activo",
+        "pausado",
+        "terminado"
+      ]
+    },
+    "public.estado_solicitud": {
+      "name": "estado_solicitud",
+      "schema": "public",
+      "values": [
+        "atencion",
+        "esperando",
+        "lista",
+        "enviada",
+        "ganada",
+        "perdida"
+      ]
+    },
+    "public.etapa_siniestro": {
+      "name": "etapa_siniestro",
+      "schema": "public",
+      "values": [
+        "aviso",
+        "documentacion",
+        "compania",
+        "inspeccion",
+        "liquidacion",
+        "pago"
+      ]
+    },
+    "public.origen_solicitud": {
+      "name": "origen_solicitud",
+      "schema": "public",
+      "values": [
+        "whatsapp",
+        "email",
+        "manual"
+      ]
+    },
+    "public.prioridad": {
+      "name": "prioridad",
+      "schema": "public",
+      "values": [
+        "alta",
+        "media",
+        "baja"
+      ]
+    },
+    "public.tipo_asegurado": {
+      "name": "tipo_asegurado",
+      "schema": "public",
+      "values": [
+        "persona",
+        "empresa"
+      ]
+    },
+    "public.zona": {
+      "name": "zona",
+      "schema": "public",
+      "values": [
+        "mdp",
+        "costa",
+        "provincia"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

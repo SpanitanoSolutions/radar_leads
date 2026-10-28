@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { EncabezadoAgente, Bitacora } from "@/components/agentes/Agente";
-import { companiasCotizables } from "@/conexiones/catalogo";
 import { obtenerCuenta, obtenerConexiones } from "@/lib/datos";
-import { agenteConfigurado, obtenerActividad, obtenerOpcionesSolicitud, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
+import { agenteConfigurado, obtenerActividad, obtenerAseguradorasCotizacion, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerOpcionesSolicitud, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
 import { mejorCotizacion, filtrarSolicitudes, resumenCotizacion, ESTADOS_COTIZACION } from "@/lib/cotizacion";
 import { diaEnArgentina } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
-import { actualizarSolicitud, cargarResultadoCotizacion, nuevaSolicitud } from "./actions";
+import { metricasPorAseguradora, rankingProductores, solicitudesDetenidas } from "@/lib/cotizacion/metricas";
+import { actualizarSolicitud, aprobarEnvioCotizacion, cargarResultadoCotizacion, nuevaSolicitud, omitirBorradorCotizacion } from "./actions";
 import "../agentes.css";
 
 export const instant = false;
@@ -30,6 +30,13 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   "resultado-cotizacion-guardado": { texto: "Guardamos la respuesta y actualizamos la comparativa." },
   "resultado-cotizacion-invalido": { texto: "Ingresá una compañía y un precio anual mayor que cero.", error: true },
   "error-resultado-cotizacion": { texto: "No pudimos guardar esa respuesta. Revisá si la solicitud sigue abierta y si la compañía pertenece a ella.", error: true },
+  "envio-aprobado": { texto: "Aprobaste el borrador. La salida quedó registrada como simulada." },
+  "borrador-omitido": { texto: "Omitiste el borrador; no se envió nada." },
+  "borrador-no-disponible": { texto: "Ese borrador ya no está pendiente de aprobación.", error: true },
+  "envio-invalido": { texto: "No encontramos ese envío.", error: true },
+  "error-aprobar-envio": { texto: "No pudimos aprobar el borrador. No se registró el envío.", error: true },
+  "solicitud-riesgo-invalido": { texto: "Revisá los datos del riesgo y el CUIT/CUIL; no guardamos la solicitud.", error: true },
+  "archivo-invalido": { texto: "El archivo debe ser PDF, Word, Excel o imagen y pesar hasta 25 MB.", error: true },
 };
 
 function desdeInicioDeMes(): Date {
@@ -51,10 +58,16 @@ function nombreOrigen(origen: string): string {
   return ORIGENES.find((opcion) => opcion.id === origen)?.texto ?? origen;
 }
 
-function hrefSolicitudes(filtros: { q: string; estado: string; ramo: string; origen: string }): string {
+function hrefSolicitudes(filtros: { q: string; estado: string; ramo: string; origen: string; ejecutivo: string; desde: string; hasta: string }): string {
   const parametros = new URLSearchParams({ tab: "solicitudes" });
   for (const [clave, valor] of Object.entries(filtros)) if (valor) parametros.set(clave, valor);
   return `/agentes/cotizacion?${parametros.toString()}`;
+}
+
+function hrefExportacion(filtros: { q: string; estado: string; ramo: string; origen: string; ejecutivo: string; desde: string; hasta: string }, formato?: string): string {
+  const parametros = new URLSearchParams(Object.fromEntries(Object.entries(filtros).filter(([, valor]) => Boolean(valor))));
+  if (formato) parametros.set("formato", formato);
+  return `/agentes/cotizacion/exportar?${parametros.toString()}`;
 }
 
 export default async function Cotizacion({
@@ -68,13 +81,19 @@ export default async function Cotizacion({
   const estado = typeof sp.estado === "string" ? sp.estado : "";
   const ramo = typeof sp.ramo === "string" ? sp.ramo : "";
   const origen = typeof sp.origen === "string" ? sp.origen : "";
-  const [registros, opciones, actividad, activo, conexiones, cuenta] = await Promise.all([
+  const ejecutivo = typeof sp.ejecutivo === "string" ? sp.ejecutivo : "";
+  const desde = typeof sp.desde === "string" ? sp.desde : "";
+  const hasta = typeof sp.hasta === "string" ? sp.hasta : "";
+  const [registros, opciones, actividad, activo, conexiones, cuenta, aseguradoras, enviosCotizacion, datosMetricas] = await Promise.all([
     obtenerSolicitudesCotizacion(),
     obtenerOpcionesSolicitud(),
     tab === "bitacora" ? obtenerActividad("cotizacion") : Promise.resolve([]),
     agenteConfigurado("cotizacion"),
     obtenerConexiones(),
     obtenerCuenta(),
+    obtenerAseguradorasCotizacion(),
+    obtenerEnviosCotizacion(),
+    tab === "desempeno" ? obtenerMetricasCotizacion() : Promise.resolve({ envios: [], solicitudes: [] }),
   ]);
   const solicitudes = registros.map(({ solicitud, asegurado, lead }) => ({
     ...solicitud,
@@ -86,8 +105,9 @@ export default async function Cotizacion({
   }));
   const mesSolicitudes = solicitudes.filter((solicitud) => solicitud.creadoEl >= desdeInicioDeMes());
   const kpis = resumenCotizacion(mesSolicitudes);
-  const filtradas = filtrarSolicitudes(solicitudes, { q, estado, ramo, origen });
+  const filtradas = filtrarSolicitudes(solicitudes, { q, estado, ramo, origen, ejecutivo, desde, hasta });
   const ramos = [...new Set(solicitudes.map((solicitud) => solicitud.ramo))].sort((a, b) => a.localeCompare(b, "es"));
+  const ejecutivos = [...new Set(solicitudes.map((solicitud) => solicitud.ejecutivo).filter((nombre): nombre is string => Boolean(nombre)))].sort((a, b) => a.localeCompare(b, "es"));
   const cerradas = solicitudes.filter((solicitud) => solicitud.estado === "ganada" || solicitud.estado === "perdida");
   const tasaGanada = cerradas.length ? Math.round((solicitudes.filter((solicitud) => solicitud.estado === "ganada").length / cerradas.length) * 100) : null;
   const preciosPorCompania = new Map<string, number>();
@@ -97,6 +117,9 @@ export default async function Cotizacion({
     if (menor) preciosPorCompania.set(menor.compania, (preciosPorCompania.get(menor.compania) ?? 0) + 1);
   }
   const primeraCompania = [...preciosPorCompania].sort((a, b) => b[1] - a[1])[0];
+  const metricasAseguradoras = metricasPorAseguradora(datosMetricas.envios);
+  const ranking = rankingProductores(datosMetricas.envios);
+  const detenidas = solicitudesDetenidas(datosMetricas.solicitudes, new Date());
   const aviso = typeof sp.aviso === "string"
     ? AVISOS[sp.aviso] ?? (/^solicitud-(\d+)$/.test(sp.aviso)
       ? { texto: `Creaste la solicitud ${sp.aviso.slice("solicitud-".length)}.`, error: false }
@@ -104,7 +127,7 @@ export default async function Cotizacion({
     : null;
   const estados = ESTADOS_COTIZACION;
   const portales = conexiones.filter((conexion) => conexion.tipo === "portal");
-  const companiasCotizacion = companiasCotizables(conexiones);
+  const companiasCotizacion = aseguradoras.filter((aseguradora) => aseguradora.activa).map((aseguradora) => aseguradora.nombre);
   const checklist = [
     { listo: activo, texto: "Activá el agente", href: "/agentes/cotizacion" },
     {
@@ -123,10 +146,10 @@ export default async function Cotizacion({
         agente="cotizacion"
         titulo="Agente de cotización"
         activo={activo}
-        descripcion="Recibe pedidos por WhatsApp y email, pide precios a tus compañías y te arma la comparativa para enviarle al cliente."
-        extra={<span className="cotizacion-correo">El agente intenta enviar cada solicitud a las compañías configuradas; los portales todavía no tienen conectores activos.</span>}
+        descripcion="Prepará solicitudes, revisá las respuestas de tus compañías y compará las coberturas antes de hacer una propuesta."
+        extra={<span className="cotizacion-correo">El agente deja cada correo como borrador. Nada sale sin tu aprobación.</span>}
       >
-        <Link href="/configuracion" className="boton">Configuración</Link>
+        <Link href="/agentes/cotizacion/configuracion" className="boton">Configuración</Link>
         <details className="cotizacion-nueva">
           <summary className="boton boton-primario">Nueva solicitud</summary>
           <form action={nuevaSolicitud} className="cotizacion-form-nueva">
@@ -139,14 +162,27 @@ export default async function Cotizacion({
               </select>
             </label>
             <div className="cotizacion-campos-dos">
-              <label><span>Tipo</span><select name="tipo" defaultValue="renovacion"><option value="renovacion">Renovación</option><option value="mejora">Mejora</option><option value="nueva">Nueva</option></select></label>
-              <label><span>Ramo</span><input name="ramo" type="text" maxLength={100} required placeholder="Auto, Flota, Hogar" /></label>
+              <label><span>Tipo</span><select name="tipo" defaultValue="negocio_nuevo"><option value="negocio_nuevo">Negocio nuevo</option><option value="renovacion">Renovación</option></select></label>
+              <label><span>Ramo</span><select name="ramo" defaultValue="Automotor" required>{["Automotor", "Flotas", "Hogar", "Integral de comercio", "Incendio", "RC", "Caución", "ART", "AP", "Vida", "Salud"].map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
+            <details><summary>Datos del riesgo (Automotor y Flotas)</summary>
+              <div className="cotizacion-campos-dos">
+                <label><span>Marca</span><input name="marca" maxLength={80} /></label><label><span>Modelo</span><input name="modelo" maxLength={80} /></label>
+                <label><span>Año</span><input name="anio" type="number" min="1900" max={new Date().getFullYear() + 1} /></label><label><span>Versión</span><input name="version" maxLength={100} /></label>
+                <label><span>Uso</span><input name="uso" maxLength={100} /></label><label><span>Código postal</span><input name="codigoPostal" maxLength={12} /></label>
+                <label><span>CUIT/CUIL</span><input name="cuitCuil" maxLength={13} /></label><label><span>Forma de pago</span><input name="formaDePago" maxLength={80} /></label>
+                <label><span>Unidades en la flota</span><input name="cantidadUnidades" type="number" min="1" /></label><label><span>Actividad de la flota</span><input name="actividad" maxLength={120} /></label>
+                <label><span>Suma asegurada solicitada</span><input name="sumaAsegurada" type="number" min="0" step="0.01" /></label>
+                <label><span>Coberturas solicitadas</span><input name="coberturasSolicitadas" maxLength={500} placeholder="RC, cristales…" /></label>
+              </div>
+            </details>
             <label><span>Bien a asegurar</span><input name="bien" type="text" maxLength={250} /></label>
             <label><span>Motivo</span><input name="motivo" type="text" maxLength={500} placeholder="Vence en 12 días, mejorar cobertura…" /></label>
+            <label><span>Adjuntar ficha o cotización (opcional, hasta 25 MB)</span><input name="archivoInicial" type="file" accept=".pdf,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp" /></label>
             <p className="texto-suave">
-              Compañías configuradas: {companiasCotizacion.length ? companiasCotizacion.join(", ") : "ninguna; configurá las compañías antes de cotizar."}
+              Compañías activas: {companiasCotizacion.length ? companiasCotizacion.join(", ") : "ninguna; agregá una en Configuración."} (seleccioná las que quieras incluir)
             </p>
+            <fieldset className="cotizacion-companias"><legend>Aseguradoras</legend>{aseguradoras.filter((aseguradora) => aseguradora.activa).map((aseguradora) => <label key={aseguradora.id}><input type="checkbox" name="companias" value={aseguradora.nombre} defaultChecked /> {aseguradora.nombre}{!aseguradora.ramos.includes("Automotor") && <small> · revisá sus ramos disponibles</small>}</label>)}</fieldset>
             <button type="submit" className="boton boton-primario" disabled={!companiasCotizacion.length}>Crear solicitud</button>
           </form>
         </details>
@@ -180,10 +216,10 @@ export default async function Cotizacion({
       {tab === "solicitudes" && (
         <>
           <section aria-label="Resumen" className="kpis-agente cotizacion-kpis">
-            <Link href={hrefSolicitudes({ q, estado: "", ramo, origen })} className="kpi-agente cotizacion-kpi-link">
+            <Link href={hrefSolicitudes({ q, estado: "", ramo, origen, ejecutivo, desde, hasta })} className="kpi-agente cotizacion-kpi-link">
               <span className="kpi-agente-titulo">Activas</span><span className="kpi-agente-valor">{kpis.activas}</span>
             </Link>
-            <Link href={hrefSolicitudes({ q, estado: estado === "atencion" ? "" : "atencion", ramo, origen })} aria-pressed={estado === "atencion"} className="kpi-agente cotizacion-kpi-link">
+            <Link href={hrefSolicitudes({ q, estado: estado === "atencion" ? "" : "atencion", ramo, origen, ejecutivo, desde, hasta })} aria-pressed={estado === "atencion"} className="kpi-agente cotizacion-kpi-link">
               <span className="kpi-agente-titulo">Requieren tu atención</span><span className="kpi-agente-valor texto-rojo">{kpis.atencion}</span>
             </Link>
             <div className="kpi-agente"><span className="kpi-agente-titulo">Solicitudes del mes</span><span className="kpi-agente-valor">{kpis.delMes}</span></div>
@@ -201,9 +237,14 @@ export default async function Cotizacion({
               <select id="cotizacion-ramo" name="ramo" defaultValue={ramo}><option value="">Todos los ramos</option>{ramos.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <label className="visualmente-oculto" htmlFor="cotizacion-origen">Origen</label>
               <select id="cotizacion-origen" name="origen" defaultValue={origen}><option value="">Todos los orígenes</option>{ORIGENES.map((item) => <option key={item.id} value={item.id}>{item.texto}</option>)}</select>
+              <label className="visualmente-oculto" htmlFor="cotizacion-ejecutivo">Ejecutivo</label>
+              <select id="cotizacion-ejecutivo" name="ejecutivo" defaultValue={ejecutivo}><option value="">Todos los ejecutivos</option>{ejecutivos.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <label className="visualmente-oculto" htmlFor="cotizacion-desde">Desde</label><input id="cotizacion-desde" type="date" name="desde" defaultValue={desde} />
+              <label className="visualmente-oculto" htmlFor="cotizacion-hasta">Hasta</label><input id="cotizacion-hasta" type="date" name="hasta" defaultValue={hasta} />
               <button type="submit" className="boton">Filtrar</button>
-              {(q || estado || ramo || origen) && <Link href="/agentes/cotizacion?tab=solicitudes" className="cotizacion-limpiar">Limpiar</Link>}
+              {(q || estado || ramo || origen || ejecutivo || desde || hasta) && <Link href="/agentes/cotizacion?tab=solicitudes" className="cotizacion-limpiar">Limpiar</Link>}
             </form>
+            <div className="cotizacion-botones-borrador"><Link className="boton" href={hrefExportacion({ q, estado, ramo, origen, ejecutivo, desde, hasta })}>Exportar CSV</Link><Link className="boton" href={hrefExportacion({ q, estado, ramo, origen, ejecutivo, desde, hasta }, "xlsx")}>Exportar Excel</Link></div>
             <div className="tabla-scroll">
               <table className="tabla cotizacion-tabla">
                 <thead><tr><th>N°</th><th>Cliente</th><th>Pedido</th><th>Origen</th><th>Compañías</th><th className="numero">Mejor precio</th><th>Estado</th><th>Actualizado</th></tr></thead>
@@ -213,7 +254,7 @@ export default async function Cotizacion({
                     const estadoSolicitud = estados.find((item) => item.id === solicitud.estado);
                     return (
                       <tr key={solicitud.id}>
-                        <td>{solicitud.numero}</td>
+                        <td><Link href={`/agentes/cotizacion/${solicitud.id}`}><strong>{solicitud.numero}</strong></Link></td>
                         <td><strong>{solicitud.cliente}</strong><span className="cotizacion-relacion">{solicitud.relacion}</span></td>
                         <td><strong>{solicitud.ramo}{solicitud.bien ? ` · ${solicitud.bien}` : ""}</strong><span className="cotizacion-relacion">{solicitud.motivo ?? "Sin motivo informado"}</span></td>
                         <td>{solicitud.origenTexto}</td>
@@ -226,11 +267,16 @@ export default async function Cotizacion({
                               {solicitud.companias.map((compania) => {
                                 const resultado = solicitud.cotizaciones.find((item) => item.compania === compania);
                                 const cotizacion = resultado?.precio !== null ? resultado : undefined;
+                                const envio = enviosCotizacion.find((item) => item.solicitudId === solicitud.id && item.compania === compania);
                                 return (
                                   <section key={compania}>
                                     <strong>{compania}</strong>
-                                    {cotizacion ? <p>{pesos(cotizacion.precio!)}{cotizacion.recibidaEl ? ` · recibida ${cotizacion.recibidaEl.slice(0, 10)}` : ""}</p> : resultado?.estado === "error" ? <p role="alert">No se envió: {resultado.error ?? "falló la integración del portal"}</p> : resultado?.estado === "enviada" ? <p>Solicitud enviada; esperando el precio.</p> : <p>Pendiente de envío</p>}
+                                    {cotizacion ? <p>{pesos(cotizacion.precio!)}{cotizacion.recibidaEl ? ` · recibida ${cotizacion.recibidaEl.slice(0, 10)}` : ""}</p> : envio?.estadoBorrador === "pendiente" ? <p>Borrador pendiente de tu aprobación.</p> : envio?.estadoBorrador === "omitido" ? <p>Omitido; no se envió nada.</p> : envio?.estado === "enviado" ? <p>Salida simulada aprobada; esperando respuesta.</p> : resultado?.estado === "error" ? <p role="alert">No se envió el pedido.</p> : <p>Pendiente</p>}
                                     {cotizacion?.observacion && <p>{cotizacion.observacion}</p>}
+                                    {envio?.estadoBorrador === "pendiente" && <div className="cotizacion-botones-borrador">
+                                      <form action={aprobarEnvioCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton boton-primario">Aprobar borrador</button></form>
+                                      <form action={omitirBorradorCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Omitir</button></form>
+                                    </div>}
                                     {["ganada", "perdida"].includes(solicitud.estado) ? <p>Solicitud cerrada.</p> : (
                                       <form action={cargarResultadoCotizacion}>
                                         <input type="hidden" name="solicitudId" value={solicitud.id} />
@@ -247,7 +293,7 @@ export default async function Cotizacion({
                                   </section>
                                 );
                               })}
-                              <p className="texto-suave">La integración actual no consulta los portales. Hasta conectar cada portal, cargá aquí el precio que recibiste.</p>
+                              <p className="texto-suave">La aprobación registra una salida simulada; no contacta a la compañía. Cargá acá la respuesta que recibiste.</p>
                             </div>
                           </details>
                         </td>
@@ -284,11 +330,18 @@ export default async function Cotizacion({
       {tab === "bitacora" && <Bitacora actividad={actividad} />}
 
       {tab === "desempeno" && (
-        <section aria-label="Desempeño" className="cotizacion-desempeno">
-          <article className="tarjeta"><span>Solicitudes ganadas</span><strong>{tasaGanada === null ? "—" : `${kpis.ganadas} de ${kpis.cerradas} · ${tasaGanada} %`}</strong></article>
-          <article className="tarjeta"><span>Compañía con más primeros puestos</span><strong>{primeraCompania ? `${primeraCompania[0]} · ${primeraCompania[1]}` : "Todavía no hay comparativas"}</strong></article>
-          <article className="tarjeta"><span>Solicitudes activas</span><strong>{kpis.activas}</strong></article>
-        </section>
+        <div className="cotizacion-metricas">
+          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Desempeño por aseguradora</h2><div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Intentos</th><th>Cotizadas</th><th>Rechazos</th><th>Respuesta promedio</th><th>Seguimientos</th><th>Prima neta promedio</th></tr></thead><tbody>
+            {metricasAseguradoras.map((item) => <tr key={item.compania}><td>{item.compania}</td><td>{item.intentos}</td><td>{Math.round(item.tasaCotizacion * 100)} %</td><td>{Math.round(item.tasaRechazo * 100)} %</td><td>{item.tiempoPromedioHoras == null ? "—" : `${item.tiempoPromedioHoras.toFixed(1)} h`}</td><td>{item.seguimientosPromedio.toFixed(1)}</td><td>{item.primaNetaPromedio == null ? "—" : pesos(item.primaNetaPromedio)}</td></tr>)}
+            {!metricasAseguradoras.length && <tr><td colSpan={7}>Todavía no hay envíos registrados.</td></tr>}
+          </tbody></table></div></section>
+          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Ranking de productores</h2><div className="tabla-scroll"><table className="tabla"><thead><tr><th>Productor</th><th>Solicitudes</th><th>Cerradas</th><th>Activas</th><th>Tasa de cotización</th><th>Pendientes</th></tr></thead><tbody>
+            {ranking.map((item) => <tr key={item.productor}><td>{item.productor}</td><td>{item.solicitudes}</td><td>{item.cerradas}</td><td>{item.activas}</td><td>{Math.round(item.tasaCotizacion * 100)} %</td><td>{item.pendientes}</td></tr>)}
+            {!ranking.length && <tr><td colSpan={6}>Todavía no hay actividad para medir.</td></tr>}
+          </tbody></table></div></section>
+          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Solicitudes detenidas</h2>{detenidas.length ? <ul>{detenidas.slice(0, 10).map((item) => <li key={item.id}><Link href={`/agentes/cotizacion/${item.id}`}>Solicitud {item.id}</Link> · {item.estado} · desde {fechaActualizada(item.actualizadoEl)}</li>)}</ul> : <p>No hay solicitudes activas detenidas.</p>}</section>
+          <div className="cotizacion-desempeno"><article className="tarjeta"><span>Tasa de cierre ganada</span><strong>{tasaGanada === null ? "—" : `${kpis.ganadas} de ${kpis.cerradas} · ${tasaGanada} %`}</strong></article><article className="tarjeta"><span>Compañía con más primeros puestos</span><strong>{primeraCompania ? `${primeraCompania[0]} · ${primeraCompania[1]}` : "Todavía no hay comparativas"}</strong></article></div>
+        </div>
       )}
     </>
   );

@@ -1,20 +1,19 @@
 import "server-only";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { companiasCotizables } from "@/conexiones/catalogo";
-import { portal } from "@/conexiones/portal";
 import type { EstadoCotizacion } from "@/lib/cotizacion";
 
 export type NuevaSolicitud = {
   aseguradoId?: number | null;
   leadId?: number | null;
   cliente: string;
-  tipo: "renovacion" | "mejora" | "nueva";
+  tipo: "renovacion" | "mejora" | "nueva" | "negocio_nuevo";
   ramo: string;
   bien?: string | null;
   motivo?: string | null;
   /** Si no se indica, se incluyen todas las compañías configuradas para cotizar. */
   companias?: string[];
+  datosRiesgo?: Record<string, string | number | boolean | null>;
 };
 
 export class SinCompaniasCotizablesError extends Error {
@@ -30,11 +29,8 @@ export class SinCompaniasCotizablesError extends Error {
  * el conjunto de compañías habilitadas. Devuelve el número visible.
  */
 export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
-  const filas = await db
-    .select({ compania: schema.conexiones.compania, estado: schema.conexiones.estado, datos: schema.conexiones.datos })
-    .from(schema.conexiones)
-    .where(eq(schema.conexiones.tipo, "portal"));
-  const habilitadas = companiasCotizables(filas);
+  const aseguradoras = await db.select().from(schema.cotizacionAseguradoras).where(eq(schema.cotizacionAseguradoras.activa, true));
+  const habilitadas = aseguradoras.filter((aseguradora) => !aseguradora.ramos.length || aseguradora.ramos.includes(s.ramo)).map(({ nombre }) => nombre);
   if (!habilitadas.length) throw new SinCompaniasCotizablesError();
 
   const solicitadas = s.companias?.length ? [...new Set(s.companias)] : habilitadas;
@@ -42,6 +38,7 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
     throw new Error("La solicitud incluye una compañía que no está configurada para cotizar.");
   }
   const companias = habilitadas.filter((compania) => solicitadas.includes(compania));
+  const config = (await db.select().from(schema.cotizacionConfig).limit(1))[0];
   const creada = await db.transaction(async (tx) => {
     const [{ numero }] = (await tx.execute(
       sql`select coalesce(max(numero), 1000)::int + 1 as numero from solicitudes_cotizacion`,
@@ -60,73 +57,44 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
       nota: "Pendiente de integración para enviar a las compañías",
       companias,
       cotizaciones: companias.map((compania) => ({ compania, precio: null, estado: "pendiente" as const })),
+      datosRiesgo: s.datosRiesgo ?? {},
     }).returning({ id: schema.solicitudesCotizacion.id });
+    const envios = companias.map((compania) => {
+      const aseguradora = aseguradoras.find((fila) => fila.nombre === compania);
+      const asunto = (aseguradora?.asunto || config?.plantillaAsunto || "SOLICITUD – [RAMO] – [CLIENTE] – [ASEGURADORA] – [CLAVE]")
+        .replaceAll("[RAMO]", s.ramo).replaceAll("[CLIENTE]", s.cliente).replaceAll("[ASEGURADORA]", compania)
+        .replaceAll("[CLAVE]", aseguradora?.codigoProductor ?? "");
+      const valores: Record<string, string> = {
+        productor: "Productor", organizacion: "UNIQO", aseguradora: compania, cliente: s.cliente,
+        cuit: String(s.datosRiesgo?.cuitCuil ?? ""), ramo: s.ramo, moneda: "ARS", forma_de_pago: String(s.datosRiesgo?.formaDePago ?? "a convenir"),
+      };
+      let cuerpo = config?.plantillaCuerpo ?? "Buenos días. Solicitamos una propuesta para {cliente}, CUIT {cuit}, ramo {ramo}. Productor: {productor}.";
+      for (const [clave, valor] of Object.entries(valores)) cuerpo = cuerpo.replaceAll(`{${clave}}`, valor);
+      if (aseguradora?.instrucciones) cuerpo += `\n\n${aseguradora.instrucciones}`;
+      return {
+        solicitudId: insertada.id,
+        aseguradoraId: aseguradora?.id,
+        compania,
+        canal: aseguradora?.canal ?? "correo" as const,
+        estado: "pendiente" as const,
+        asuntoBorrador: asunto,
+        cuerpoBorrador: cuerpo,
+      };
+    });
+    const insertados = await tx.insert(schema.cotizacionEnvios).values(envios).returning({ id: schema.cotizacionEnvios.id, compania: schema.cotizacionEnvios.compania });
+    await tx.insert(schema.cotizacionEventos).values([
+      { solicitudId: insertada.id, tipo: "solicitud_creada", detalle: "Se creó la solicitud y quedaron borradores pendientes de aprobación." },
+      ...insertados.map(({ id, compania }) => ({ solicitudId: insertada.id, envioId: id, tipo: "borrador_creado", detalle: `Borrador preparado para ${compania}; requiere aprobación del productor.` })),
+    ]);
     await tx.insert(schema.actividadAgentes).values({
       agente: "cotizacion",
       referencia: `solicitud:${numero}`,
-      texto: `Creó la solicitud ${numero} (${s.ramo} · ${s.cliente}) e inició el envío automatizado a las compañías configuradas: ${companias.join(", ")}.`,
+      texto: `Creó la solicitud ${numero}; hay ${companias.length} borradores pendientes de aprobación.`,
     });
     return { id: insertada.id, numero };
   });
 
-  const resultados = await Promise.all(
-    companias.map(async (compania) => {
-      try {
-        const respuesta = await portal.pedirCotizacion(compania, {
-          solicitudId: creada.id,
-          solicitudNumero: creada.numero,
-          cliente: s.cliente,
-          tipo: s.tipo,
-          ramo: s.ramo,
-          bien: s.bien ?? null,
-          motivo: s.motivo ?? null,
-        });
-        return { compania, precio: null, estado: "enviada" as const, referencia: respuesta.referencia };
-      } catch (error) {
-        const detalle = error instanceof Error ? error.message : "No se pudo contactar el portal.";
-        return { compania, precio: null, estado: "error" as const, error: detalle.slice(0, 250) };
-      }
-    }),
-  );
-  const persistidos = await db.transaction(async (tx) => {
-    await tx.execute(sql`select id from solicitudes_cotizacion where id = ${creada.id} for update`);
-    const [actual] = await tx
-      .select({ cotizaciones: schema.solicitudesCotizacion.cotizaciones })
-      .from(schema.solicitudesCotizacion)
-      .where(eq(schema.solicitudesCotizacion.id, creada.id));
-    const fusionados = resultados.map((resultado) => {
-      const recibido = actual?.cotizaciones.find((cotizacion) => cotizacion.compania === resultado.compania && cotizacion.precio !== null);
-      return recibido ?? resultado;
-    });
-    await tx
-      .update(schema.solicitudesCotizacion)
-      .set({ cotizaciones: fusionados, actualizadoEl: new Date() })
-      .where(eq(schema.solicitudesCotizacion.id, creada.id));
-    return fusionados;
-  });
-  const enviados = persistidos.filter((resultado) => resultado.estado === "enviada");
-  const fallidos = persistidos.filter((resultado) => resultado.estado === "error");
-  const recibidos = persistidos.filter((resultado) => resultado.precio !== null);
-  const nota = fallidos.length
-    ? enviados.length
-      ? `Enviado a ${enviados.map((resultado) => resultado.compania).join(", ")}. No enviado a ${fallidos.map((resultado) => resultado.compania).join(", ")}.`
-      : `No se enviaron solicitudes a ${fallidos.map((resultado) => resultado.compania).join(", ")}: ${fallidos[0].error}`
-    : recibidos.length === persistidos.length
-      ? "Todas las cotizaciones llegaron; comparativa lista."
-      : `Solicitudes enviadas a ${enviados.map((resultado) => resultado.compania).join(", ")}; esperando precios.`;
-  await db
-    .update(schema.solicitudesCotizacion)
-    .set({ nota, actualizadoEl: new Date() })
-    .where(eq(schema.solicitudesCotizacion.id, creada.id));
-  await db.insert(schema.actividadAgentes).values({
-    agente: "cotizacion",
-    referencia: `solicitud:${creada.numero}`,
-    texto: enviados.length
-      ? `Envió solicitudes de cotización a ${enviados.map((resultado) => resultado.compania).join(", ")}.${fallidos.length ? `Falló el envío a ${fallidos.map((resultado) => resultado.compania).join(", ")}.` : ""}`
-      : recibidos.length === persistidos.length
-        ? `Recibió todas las cotizaciones de la solicitud ${creada.numero}; comparativa lista.`
-        : `No pudo enviar la solicitud ${creada.numero}. ${fallidos.map((resultado) => `${resultado.compania}: ${resultado.error}`).join("; ")}`,
-  });
+  await db.update(schema.solicitudesCotizacion).set({ nota: `${companias.length} borradores listos para revisar. Todavía no se envió nada.`, actualizadoEl: new Date() }).where(eq(schema.solicitudesCotizacion.id, creada.id));
   return creada.numero;
 }
 
@@ -137,6 +105,16 @@ export async function registrarResultadoCotizacion(datos: {
   precio: number;
   observacion?: string | null;
   origen?: "portal" | "manual";
+  primaNeta?: number | null;
+  gastos?: number;
+  impuestos?: number;
+  franquicia?: string | null;
+  sumaAsegurada?: number | null;
+  condiciones?: string | null;
+  vigencia?: string | null;
+  confirmado?: boolean;
+  coberturas?: { nombre: string; valor?: string; incluida?: boolean }[];
+  riesgoCotizado?: Record<string, string>;
 }): Promise<void> {
   if (!Number.isInteger(datos.solicitudId) || datos.solicitudId <= 0) throw new Error("Solicitud inválida.");
   if (!Number.isFinite(datos.precio) || datos.precio <= 0) throw new Error("El precio debe ser mayor que cero.");
@@ -176,12 +154,35 @@ export async function registrarResultadoCotizacion(datos: {
       .update(schema.solicitudesCotizacion)
       .set({ cotizaciones, estado, nota, actualizadoEl: new Date() })
       .where(eq(schema.solicitudesCotizacion.id, datos.solicitudId));
+    const [envio] = await tx.select().from(schema.cotizacionEnvios).where(and(
+      eq(schema.cotizacionEnvios.solicitudId, datos.solicitudId),
+      eq(schema.cotizacionEnvios.compania, datos.compania),
+    ));
+    if (envio) {
+      const resultado = {
+        envioId: envio.id,
+        primaNeta: datos.primaNeta ?? null,
+        primaTotal: datos.precio,
+        gastos: datos.gastos ?? 0,
+        impuestos: datos.impuestos ?? 0,
+        franquicia: datos.franquicia ?? null,
+        sumaAsegurada: datos.sumaAsegurada ?? null,
+        condiciones: datos.condiciones ?? null,
+        vigencia: datos.vigencia ?? null,
+        coberturas: datos.coberturas ?? [],
+        riesgoCotizado: datos.riesgoCotizado ?? {},
+        confirmado: datos.confirmado ?? true,
+      };
+      const [existente] = await tx.select({ id: schema.cotizacionResultados.id }).from(schema.cotizacionResultados).where(eq(schema.cotizacionResultados.envioId, envio.id)).limit(1);
+      if (existente) await tx.update(schema.cotizacionResultados).set(resultado).where(eq(schema.cotizacionResultados.id, existente.id));
+      else await tx.insert(schema.cotizacionResultados).values(resultado);
+      await tx.update(schema.cotizacionEnvios).set({ estado: "cotizado", ultimaActividad: new Date() }).where(eq(schema.cotizacionEnvios.id, envio.id));
+      await tx.insert(schema.cotizacionEventos).values({ solicitudId: datos.solicitudId, envioId: envio.id, actor: "productor", tipo: "cotizacion_cargada", detalle: `El productor cargó y confirmó el precio de ${datos.compania}.` });
+    }
     await tx.insert(schema.actividadAgentes).values({
       agente: "cotizacion",
       referencia: `solicitud:${solicitud.numero}`,
-      texto: `Registró una cotización de ${datos.compania} por $ ${datos.precio.toLocaleString("es-AR")}${
-        datos.origen === "portal" ? " recibida del portal" : " cargada por el productor"
-      }. ${pendientes.length ? `Faltan respuestas de ${pendientes.join(", ")}.` : "La comparativa está completa."}`,
+      texto: `Registró una respuesta de ${datos.compania}${datos.origen === "portal" ? " recibida del portal simulado" : " cargada por el productor"}. ${pendientes.length ? `Faltan respuestas de ${pendientes.join(", ")}.` : "La comparativa está completa."}`,
     });
   });
 }

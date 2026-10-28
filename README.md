@@ -29,7 +29,7 @@ datos de personas solo se muestran detrás del login.
   (`/sectores`): captación, seguimiento y preferencias de fuentes.
 - **Configuracion** (`/configuracion`): conexiones OAuth/API con autorizacion real y datos del productor.
 
-Todo esta protegido con una contrasena unica (APP_PASSWORD). Los agentes usan reglas y plantillas; no llaman a modelos de IA.
+Todo esta protegido con una contrasena unica (APP_PASSWORD). El agente de Cotizacion usa reglas y plantillas como base; la IA es opcional y requiere activacion para la organizacion.
 
 Las conexiones ya no aceptan datos escritos como prueba de una conexion. Gmail, Google Calendar y Mercado Pago usan OAuth; WhatsApp valida y envia con Meta Cloud API. Sus credenciales de aplicacion deben estar configuradas en el entorno del servidor. Los tokens OAuth se cifran con SESSION_SECRET.
 
@@ -375,3 +375,15 @@ e2e/                   prueba de punta a punta
 2. Licitaciones **municipales** de General Pueyrredón y la costa.
 3. Habilitaciones y búsquedas laborales: buscar una fuente que publique la
    empresa (por ejemplo, pedir el dato al municipio).
+
+## Agente de Cotización v2
+
+En `/agentes/cotizacion` podés crear solicitudes vinculadas a un asegurado o lead, configurar aseguradoras, ramos, paquetes y plantillas, cargar respuestas y comparar primas totales. El detalle de cada solicitud permite registrar contactos, adjuntar documentos, revisar eventos, exportar la lista y la comparativa a CSV o Excel y descargar una comparativa PDF o generar una propuesta PDF para el cliente.
+
+La creación de una solicitud prepara borradores por aseguradora. No envía correos ni opera portales automáticamente. Cada borrador y cada propuesta PDF necesita aprobación del productor; la aprobación del PDF solo habilita su descarga para compartirla manualmente. Las cotizaciones cargadas por el productor quedan confirmadas; las sugeridas por IA esperan confirmación.
+
+La configuración está en `/agentes/cotizacion/configuracion`. Las credenciales de portales se cifran en el servidor con `COTIZACION_CREDENTIALS_KEY` (32 bytes en Base64). La clave no debe guardarse en el repositorio. El acceso a IA requiere `ANTHROPIC_API_KEY` y activar la función en la configuración; el enfoque inicial se limita a chat acotado, redacción de correos y extracción de datos de PDF con revisión humana. El uso y costo de tokens se registra por borrador.
+
+El cron `/api/cron/cotizacion` protegido por `CRON_SECRET` solo crea borradores de seguimiento. La programación de Vercel lo ejecuta de lunes a viernes. Para respuestas de prueba, usá el simulador de una solicitud de ejemplo fuera de producción. Los adjuntos se guardan en PostgreSQL, con un límite de 25 MB por archivo.
+
+Las migraciones del módulo empiezan en `0014_cotizacion_v2.sql`; `0016` agrega propuestas PDF y `0017` los datos de riesgo para validación. Las columnas `org_id` y `producer_id` quedan nullable hasta que la aplicación incorpore identidad multi-organización persistida; las sesiones actuales no permiten asignarlas de forma segura. Los catálogos iniciales contienen aseguradoras argentinas y se pueden editar desde la configuración.

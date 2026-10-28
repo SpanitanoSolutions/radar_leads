@@ -1,0 +1,1 @@
+ALTER TABLE "cotizacion_resultados" ADD COLUMN "riesgo_cotizado" jsonb DEFAULT '{}'::jsonb NOT NULL;
