@@ -23,7 +23,7 @@
 }
 .dashboard-kpi:hover {
   border-color: var(--borde-campo);
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
 }
 .dashboard-kpi > span {

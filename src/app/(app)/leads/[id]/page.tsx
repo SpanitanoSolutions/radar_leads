@@ -20,9 +20,9 @@ import { cambiarEstado, cerrarLead, descartarLead, guardarSeguimiento, pedirCoti
 export const instant = false;
 
 const COLOR_SCORE = {
-  alto: { background: "var(--acento)", color: "#fff" },
+  alto: { background: "var(--acento)", color: "var(--acento-contraste)" },
   medio: { background: "var(--acento-suave)", color: "var(--acento-texto)" },
-  bajo: { background: "var(--gris-suave)", color: "#3f4757" },
+  bajo: { background: "var(--gris-suave)", color: "var(--gris-texto)" },
 };
 
 export default async function FichaLead({

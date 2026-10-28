@@ -15,7 +15,7 @@
   padding: 8px 14px 8px 8px;
   border: 1px solid var(--borde);
   border-radius: 999px;
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto-2);
   font-size: 14px;
   font-weight: 500;
@@ -40,7 +40,7 @@
 }
 .paso-actual .paso-numero {
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-contraste);
 }
 .paso-hecho {
   color: var(--verde-texto);
@@ -71,9 +71,9 @@
   align-items: center;
   gap: 12px;
   padding: 48px 24px;
-  border: 2px dashed #b8c4e6;
+  border: 2px dashed var(--borde-campo);
   border-radius: 10px;
-  background: #f7f9ff;
+  background: var(--acento-suave);
   text-align: center;
 }
 .zona-archivo-encima {

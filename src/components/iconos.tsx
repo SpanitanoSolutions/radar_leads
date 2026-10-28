@@ -197,6 +197,23 @@ export function IconoAyuda({ size = 20 }: Props) {
   );
 }
 
+export function IconoSol({ size = 19 }: Props) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+export function IconoLuna({ size = 19 }: Props) {
+  return (
+    <svg {...base(size)}>
+      <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" />
+    </svg>
+  );
+}
+
 export function IconoMenu({ size = 20 }: Props) {
   return (
     <svg {...base(size)}>

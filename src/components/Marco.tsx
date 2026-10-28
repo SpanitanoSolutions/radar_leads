@@ -29,6 +29,8 @@ import {
   IconoMoneda,
   IconoRadar,
   IconoSubir,
+  IconoSol,
+  IconoLuna,
   IconoTarjeta,
   IconoUsuarios,
 } from "./iconos";
@@ -63,8 +65,25 @@ export function Marco({
 }) {
   const pathname = usePathname();
   const [abierto, setAbierto] = useState(false);
+  const [temaOscuro, setTemaOscuro] = useState(false);
   const boton = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    setTemaOscuro(document.documentElement.dataset.theme === "dark");
+  }, []);
+
+  function alternarTema() {
+    const nuevoTema = temaOscuro ? "light" : "dark";
+    document.documentElement.dataset.theme = nuevoTema;
+    document.documentElement.style.colorScheme = nuevoTema;
+    try {
+      localStorage.setItem("uniqo-theme", nuevoTema);
+    } catch {
+      // El tema sigue activo durante esta sesión aunque el navegador bloquee el almacenamiento.
+    }
+    setTemaOscuro(nuevoTema === "dark");
+  }
 
   function cerrar() {
     setAbierto(false);
@@ -131,10 +150,9 @@ export function Marco({
           <span className="visualmente-oculto">Menú</span>
         </button>
         <Link href="/" className="barra-marca">
-          <span className="marca-icono marca-icono-chico" aria-hidden="true">
-            <IconoRadar size={16} />
+          <span className="barra-nombre">
+            UNI<span className="barra-nombre-q">Q</span>O
           </span>
-          <span className="barra-nombre">UNIQO</span>
           <span className="barra-producto">Administración de seguros</span>
         </Link>
         {(productor || cuenta.logoEmpresa) && (
@@ -156,6 +174,16 @@ export function Marco({
           </>
         )}
         <div className="barra-acciones">
+          <button
+            type="button"
+            className="barra-icono"
+            aria-label="Modo oscuro"
+            aria-pressed={temaOscuro}
+            title={temaOscuro ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
+            onClick={alternarTema}
+          >
+            {temaOscuro ? <IconoSol /> : <IconoLuna />}
+          </button>
           <Link href="/ayuda" className="barra-icono" aria-label="Ayuda">
             <IconoAyuda />
           </Link>

@@ -12,7 +12,7 @@
   padding: 12px 16px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 .aviso-agente p {
   flex: 1 1 360px;
@@ -97,7 +97,7 @@
   border-bottom: none;
 }
 .tabla-cobros tbody.cobro-abierto {
-  background: #fafbfc;
+  background: var(--fondo-suave);
 }
 .celda-boton {
   width: 52px;
@@ -127,7 +127,7 @@
   padding: 14px 16px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
   font-size: 13px;
 }
 .caja-comprobante-titulo {
@@ -209,7 +209,7 @@
   padding: 14px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 @media (max-width: 640px) {
   .fila-detalle > td {
@@ -238,10 +238,10 @@
   padding: 18px 20px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 .pendiente-llamada {
-  border-left: 4px solid #c5221f;
+  border-left: 4px solid var(--rojo-texto);
 }
 .pendiente-datos {
   flex: 1 1 260px;
@@ -309,7 +309,7 @@
   padding: 13px 15px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
   text-align: left;
   text-decoration: none;
@@ -359,7 +359,7 @@
 }
 .siniestro-nuevo {
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-contraste);
 }
 .siniestro-estado.atencion {
   background: var(--rojo-suave);
@@ -437,7 +437,7 @@
   background: var(--acento);
 }
 .siniestro-etapa-barra.actual {
-  background: #8fa9eb;
+  background: var(--acento-hover);
 }
 .siniestro-etapa-barra.actual.tono-alerta {
   background: var(--rojo-texto);
@@ -465,11 +465,11 @@
   background: var(--ambar-suave);
 }
 .siniestro-ahora.tono-alerta {
-  border-color: #f5b8af;
+  border-color: var(--rojo-borde);
   background: var(--rojo-suave);
 }
 .siniestro-ahora.tono-ok {
-  border-color: #b7dfc2;
+  border-color: var(--verde-borde);
   background: var(--verde-suave);
 }
 .siniestro-ahora-etiqueta {
@@ -606,7 +606,7 @@
   left: -19px;
   width: 9px;
   height: 9px;
-  border: 2px solid #8a93a3;
+  border: 2px solid var(--etiqueta);
   border-radius: 50%;
   background: #fff;
   content: "";
@@ -645,7 +645,7 @@
   padding: 14px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 .siniestro-form-carga {
   display: grid;
@@ -668,7 +668,7 @@
   padding: 8px 10px;
   border: 1px solid var(--borde-campo);
   border-radius: 6px;
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
   font: inherit;
   font-size: 14px;
@@ -685,7 +685,7 @@
   padding: 14px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
   font: inherit;
   font-size: 13px;
@@ -695,14 +695,14 @@
 .siniestro-aviso {
   margin: 0;
   padding: 12px 16px;
-  border: 1px solid #b7dfc2;
+  border: 1px solid var(--verde-borde);
   border-radius: var(--radio);
   background: var(--verde-suave);
   color: var(--verde-texto);
   font-size: 14px;
 }
 .siniestro-aviso.error {
-  border-color: #f5b8af;
+  border-color: var(--rojo-borde);
   background: var(--rojo-suave);
   color: var(--rojo-texto);
 }
@@ -767,7 +767,7 @@
   padding: 0 10px;
   border: 1px solid var(--borde-campo);
   border-radius: 6px;
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
   font: inherit;
   font-size: 14px;
@@ -796,7 +796,7 @@
   padding: 16px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
   box-shadow: 0 8px 24px rgba(20, 26, 38, 0.12);
 }
 .conciliacion-subir-form label,
@@ -849,7 +849,7 @@
   min-width: 950px;
 }
 .conciliacion-tabla tbody tr[aria-current="true"] {
-  background: #f2f5fd;
+  background: var(--acento-suave);
 }
 .conciliacion-tabla tfoot th,
 .conciliacion-tabla tfoot td {
@@ -915,11 +915,11 @@
   padding: 12px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 .conciliacion-hallazgo.faltante,
 .conciliacion-hallazgo.porcentaje {
-  background: #fffbfa;
+  background: var(--rojo-suave);
 }
 .conciliacion-hallazgo-icono {
   width: 22px;
@@ -980,7 +980,7 @@
   padding: 9px 10px;
   border: 1px solid var(--borde-campo);
   border-radius: 6px;
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
   font: inherit;
   font-size: 13px;
@@ -1003,14 +1003,14 @@
 .conciliacion-aviso {
   margin: 0;
   padding: 12px 16px;
-  border: 1px solid #b7dfc2;
+  border: 1px solid var(--verde-borde);
   border-radius: var(--radio);
   background: var(--verde-suave);
   color: var(--verde-texto);
   font-size: 14px;
 }
 .conciliacion-aviso.error {
-  border-color: #f5b8af;
+  border-color: var(--rojo-borde);
   background: var(--rojo-suave);
   color: var(--rojo-texto);
 }
@@ -1050,7 +1050,7 @@
   padding: 16px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
   box-shadow: 0 8px 24px rgba(20, 26, 38, 0.12);
 }
 .cotizacion-form-nueva label,
@@ -1072,7 +1072,7 @@
   padding: 8px 10px;
   border: 1px solid var(--borde-campo);
   border-radius: 6px;
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
   font: inherit;
   font-size: 14px;
@@ -1091,7 +1091,7 @@
   padding: 14px 16px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 .cotizacion-configuracion h2,
 .cotizacion-configuracion p {
@@ -1168,7 +1168,7 @@
   padding: 0 11px;
   border: 1px solid var(--borde-campo);
   border-radius: 999px;
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--texto);
   font: inherit;
   font-size: 13px;
@@ -1271,7 +1271,7 @@
   padding: 12px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
   box-shadow: 0 8px 24px rgba(20, 26, 38, 0.12);
 }
 .cotizacion-respuestas {
@@ -1285,7 +1285,7 @@
   padding: 12px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
   box-shadow: 0 8px 24px rgba(20, 26, 38, 0.12);
 }
 .cotizacion-respuestas section {
@@ -1377,7 +1377,7 @@
   border-radius: 8px;
   padding: 8px 10px;
   color: var(--texto);
-  background: #fff;
+  background: var(--tarjeta);
   font: inherit;
 }
 .cotizacion-ajuste-form textarea {
@@ -1510,14 +1510,14 @@
 .cotizacion-aviso {
   margin: 0;
   padding: 12px 16px;
-  border: 1px solid #b7dfc2;
+  border: 1px solid var(--verde-borde);
   border-radius: var(--radio);
   background: var(--verde-suave);
   color: var(--verde-texto);
   font-size: 14px;
 }
 .cotizacion-aviso.error {
-  border-color: #e8b3ad;
+  border-color: var(--rojo-borde);
   background: var(--rojo-suave);
   color: var(--rojo-texto);
 }
@@ -1544,7 +1544,7 @@
 }
 .barra-progreso > div {
   height: 100%;
-  background: #1e8e3e;
+  background: var(--acento);
 }
 .tabla-seguimiento {
   min-width: 1060px;
@@ -1568,7 +1568,7 @@
   background: var(--acento);
 }
 .paso-barra-rojo {
-  background: #c5221f;
+  background: var(--rojo-texto);
 }
 .estado-ok {
   color: var(--verde-texto);
@@ -1604,7 +1604,7 @@
   padding: 18px 20px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  background: #fff;
+  background: var(--tarjeta);
 }
 .secuencia-numero {
   width: 32px;
@@ -1665,6 +1665,6 @@
 .cotizacion-validacion-resultado { margin: 14px 0; padding: 14px; border: 1px solid var(--borde); border-radius: var(--radio); }
 .cotizacion-validacion-resultado ul { display: grid; gap: 8px; padding-left: 20px; }
 .cotizacion-validacion-resultado li { display: grid; gap: 3px; }
-.cotizacion-validacion-coincide strong { color: #23734d; }
-.cotizacion-validacion-diferencia strong { color: #a33d30; }
-.cotizacion-validacion-sin_dato strong { color: #80620f; }
+.cotizacion-validacion-coincide strong { color: var(--verde-texto); }
+.cotizacion-validacion-diferencia strong { color: var(--rojo-texto); }
+.cotizacion-validacion-sin_dato strong { color: var(--ambar-texto); }
