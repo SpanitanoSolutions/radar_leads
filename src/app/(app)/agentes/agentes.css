@@ -464,7 +464,16 @@
   margin: 0;
 }
 .siniestro-archivos-lista li {
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  width: 100%;
+}
+.siniestro-archivo-eliminar {
+  padding: 5px 9px;
+  border-color: var(--rojo-texto);
+  color: var(--rojo-texto);
+  font-size: 12px;
 }
 .siniestro-archivo-enlace {
   min-width: 0;
