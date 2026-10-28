@@ -210,13 +210,9 @@ export function vistaConexion(c: ConexionCatalogo, fila: Fila): VistaConexion {
         ? `${d("numero") || "Número"} · verificado`
         : c.tipo === "email"
           ? [d("direccion"), d("proveedor")].filter(Boolean).join(" · ")
-          : c.tipo === "portal"
-            ? `Portal de productores · usuario ${d("usuario") || "cargado"}`
-            : c.tipo === "mercadopago"
-              ? `Cuenta vinculada${d("cuenta") ? ` · ${d("cuenta")}` : ""}`
-              : c.tipo === "banco"
-                ? [d("banco"), d("alias") && `alias ${d("alias")}`].filter(Boolean).join(" · ")
-                : `Calendario ${d("calendario") || "principal"}`;
+          : c.tipo === "mercadopago"
+            ? `Cuenta vinculada${d("cuenta") ? ` · ${d("cuenta")}` : ""}`
+            : `Calendario ${d("calendario") || "principal"}`;
     return { estado: "conectado", estadoTexto: "Conectado", detalle: detalle || c.detalle, boton: "Administrar", primario: false };
   }
   if (fila?.estado === "por_email" && COMPANIAS_POR_EMAIL.includes(c.compania ?? "")) {
@@ -229,15 +225,6 @@ export function vistaConexion(c: ConexionCatalogo, fila: Fila): VistaConexion {
         : "Sin portal: el agente pide la cotización por email. Falta el contacto.",
       boton: contacto ? "Administrar" : "Agregar contacto",
       primario: !contacto,
-    };
-  }
-  if (fila?.estado === "por_email" && c.tipo === "portal") {
-    return {
-      estado: "en_proceso",
-      estadoTexto: "A medio conectar",
-      detalle: "Esta compañía se configura con su portal de productor, no por email.",
-      boton: "Continuar",
-      primario: true,
     };
   }
   if (fila?.estado === "en_proceso") {
@@ -256,7 +243,7 @@ export function vistaConexion(c: ConexionCatalogo, fila: Fila): VistaConexion {
     estado: c.requerida ? "pendiente" : "sin_conectar",
     estadoTexto: "Sin conectar",
     detalle: c.detalle,
-    boton: c.tipo === "banco" ? "Configurar" : "Conectar",
+    boton: "Conectar",
     primario: c.requerida,
   };
 }
