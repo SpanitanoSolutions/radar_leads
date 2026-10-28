@@ -100,6 +100,17 @@ export const VISTAS: Vista[] = [
   { id: "empresas", titulo: "Empresas", detalle: "Personas jurídicas", tono: "neutro", incluye: (f) => f.tipo === "empresa" },
 ];
 
+export const OPCIONES_POR_PAGINA = [25, 50, 100] as const;
+export type PorPagina = (typeof OPCIONES_POR_PAGINA)[number];
+export const POR_PAGINA: PorPagina = 25;
+/** Cuántas filas por página eligió el productor, para la próxima vez que entre. */
+export const COOKIE_POR_PAGINA = "uniqo_por_pagina";
+
+export function porPaginaValido(valor: unknown): PorPagina | null {
+  const n = Number(valor);
+  return OPCIONES_POR_PAGINA.find((o) => o === n) ?? null;
+}
+
 export type FiltrosAsegurados = {
   vista: Vista["id"] | "";
   q: string;
@@ -109,12 +120,14 @@ export type FiltrosAsegurados = {
   loc: string;
   tipo: "" | "persona" | "empresa";
   pagina: number;
+  por: PorPagina;
 };
 
 type Params = Record<string, string | string[] | undefined>;
 const uno = (v: string | string[] | undefined) => ((Array.isArray(v) ? v[0] : v) ?? "").trim();
 
-export function leerFiltrosAsegurados(params: Params): FiltrosAsegurados {
+/** `porDefecto`: las filas por página guardadas, si la URL no las dice. */
+export function leerFiltrosAsegurados(params: Params, porDefecto: PorPagina = POR_PAGINA): FiltrosAsegurados {
   const vista = uno(params.vista);
   const venc = uno(params.venc);
   const tipo = uno(params.tipo);
@@ -128,6 +141,7 @@ export function leerFiltrosAsegurados(params: Params): FiltrosAsegurados {
     loc: uno(params.loc),
     tipo: tipo === "persona" || tipo === "empresa" ? tipo : "",
     pagina: Number.isInteger(pagina) && pagina > 1 ? pagina : 1,
+    por: porPaginaValido(uno(params.por)) ?? porDefecto,
   };
 }
 
@@ -146,6 +160,7 @@ export function urlAsegurados(f: FiltrosAsegurados, cambios: Partial<FiltrosAseg
   if (t.loc) p.set("loc", t.loc);
   if (t.tipo) p.set("tipo", t.tipo);
   if (t.pagina > 1) p.set("pagina", String(t.pagina));
+  if (t.por !== POR_PAGINA) p.set("por", String(t.por));
   if (ver) p.set("ver", String(ver));
   const qs = p.toString();
   return qs ? `/asegurados?${qs}` : "/asegurados";
@@ -183,12 +198,22 @@ export function filtrarAsegurados(filas: FilaAsegurado[], f: FiltrosAsegurados):
     .sort((a, b) => (a.dias ?? Infinity) - (b.dias ?? Infinity) || a.nombre.localeCompare(b.nombre, "es"));
 }
 
-export const POR_PAGINA = 25;
-
-export function paginar<T>(filas: T[], pagina: number): { filas: T[]; paginas: number; pagina: number } {
-  const paginas = Math.max(1, Math.ceil(filas.length / POR_PAGINA));
+export function paginar<T>(
+  filas: T[],
+  pagina: number,
+  porPagina: number = POR_PAGINA,
+): { filas: T[]; paginas: number; pagina: number; desde: number; hasta: number } {
+  const paginas = Math.max(1, Math.ceil(filas.length / porPagina));
   const actual = Math.min(pagina, paginas);
-  return { filas: filas.slice((actual - 1) * POR_PAGINA, actual * POR_PAGINA), paginas, pagina: actual };
+  const desde = (actual - 1) * porPagina;
+  const visibles = filas.slice(desde, desde + porPagina);
+  return { filas: visibles, paginas, pagina: actual, desde: visibles.length ? desde + 1 : 0, hasta: desde + visibles.length };
+}
+
+/** Los números de página a mostrar: siempre la primera, la última y las vecinas de la actual ("…" en los saltos). */
+export function numerosDePagina(actual: number, total: number): (number | "…")[] {
+  const numeros = [...new Set([1, actual - 1, actual, actual + 1, total])].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  return numeros.flatMap((n, i) => (i > 0 && n - numeros[i - 1] > 1 ? (n - numeros[i - 1] === 2 ? [n - 1, n] : ["…" as const, n]) : [n]));
 }
 
 // ---------- Panel y ficha ----------

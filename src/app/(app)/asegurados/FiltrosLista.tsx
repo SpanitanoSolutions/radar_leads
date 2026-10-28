@@ -100,13 +100,13 @@ export function FiltrosLista({
             </select>
           </>
         )}
+        <button type="button" className="boton-texto" aria-expanded={mas} onClick={() => setMas((m) => !m)}>
+          <span className={mas ? "chevron chevron-arriba" : "chevron"}>
+            <IconoChevron size={14} />
+          </span>
+          {mas ? "Menos filtros" : "Más filtros (2)"}
+        </button>
       </div>
-      <button type="button" className="boton-texto" aria-expanded={mas} onClick={() => setMas((m) => !m)}>
-        <span className={mas ? "chevron chevron-arriba" : "chevron"}>
-          <IconoChevron size={14} />
-        </span>
-        {mas ? "Mostrar menos filtros" : "Mostrar más filtros (2)"}
-      </button>
     </form>
   );
 }

@@ -107,7 +107,7 @@
 .enlace-fuerte {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: 32px;
   font-size: 14px;
   font-weight: 600;
 }
@@ -118,8 +118,8 @@
   gap: 12px;
 }
 .archivo-icono {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radio);
   display: flex;
   align-items: center;
@@ -165,7 +165,7 @@
 .campo-angosto {
   width: 100%;
   min-width: 200px;
-  height: 40px;
+  height: var(--alto-control);
   font-size: 13px;
 }
 .vista-previa {
@@ -190,7 +190,7 @@
   padding: 16px 18px;
 }
 .cifra {
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

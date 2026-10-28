@@ -24,7 +24,7 @@
 .aviso-agente a {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: 32px;
   font-size: 13px;
   font-weight: 600;
 }
@@ -45,7 +45,7 @@
   background: var(--fondo-suave);
 }
 .kpi-monto {
-  font-size: 26px;
+  font-size: 20px;
 }
 .bitacora {
   list-style: none;
@@ -71,7 +71,7 @@
   flex: 1 1 auto;
 }
 .campo-pildora {
-  height: 40px;
+  height: var(--alto-control);
   border-radius: 999px;
 }
 .buscar-pildora {
@@ -762,7 +762,7 @@
   font-size: 13px;
 }
 .conciliacion-periodo-form select {
-  min-height: 40px;
+  min-height: var(--alto-control);
   max-width: 210px;
   padding: 0 10px;
   border: 1px solid var(--borde-campo);
@@ -1068,7 +1068,7 @@
 .cotizacion-actualizar input,
 .cotizacion-actualizar select {
   width: 100%;
-  min-height: 40px;
+  min-height: var(--alto-control);
   padding: 8px 10px;
   border: 1px solid var(--borde-campo);
   border-radius: 6px;
@@ -1117,7 +1117,7 @@
 }
 .cotizacion-configuracion li {
   min-width: 0;
-  min-height: 42px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -1164,7 +1164,7 @@
 .cotizacion-filtros input,
 .cotizacion-filtros select {
   min-width: 0;
-  height: 40px;
+  height: var(--alto-control);
   padding: 0 11px;
   border: 1px solid var(--borde-campo);
   border-radius: 999px;
@@ -1182,7 +1182,7 @@
   max-width: 220px;
 }
 .cotizacion-limpiar {
-  min-height: 40px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   padding: 0 8px;

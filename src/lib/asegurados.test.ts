@@ -6,6 +6,7 @@ import {
   gruposDeVencimiento,
   iniciales,
   leerFiltrosAsegurados,
+  numerosDePagina,
   paginar,
   resumirAsegurado,
   saludoPara,
@@ -153,10 +154,31 @@ describe("filtros", () => {
     expect(urlAsegurados(f, { ver: 4 })).toBe("/asegurados?vista=vencen&q=gomez&tipo=empresa&pagina=2&ver=4");
   });
 
-  it("pagina de a 25", () => {
-    const muchas = Array.from({ length: 30 }, (_, i) => i);
-    expect(paginar(muchas, 2)).toEqual({ filas: [25, 26, 27, 28, 29], paginas: 2, pagina: 2 });
-    expect(paginar(muchas, 9).pagina).toBe(2);
+  it("pagina de a 25 o de la cantidad elegida", () => {
+    const muchas = Array.from({ length: 130 }, (_, i) => i);
+    expect(paginar(muchas.slice(0, 30), 2)).toEqual({ filas: [25, 26, 27, 28, 29], paginas: 2, pagina: 2, desde: 26, hasta: 30 });
+    expect(paginar(muchas.slice(0, 30), 9).pagina).toBe(2);
+    expect(paginar(muchas, 2, 50)).toMatchObject({ paginas: 3, desde: 51, hasta: 100 });
+    expect(paginar(muchas, 1, 100)).toMatchObject({ paginas: 2, desde: 1, hasta: 100 });
+    expect(paginar([], 1)).toMatchObject({ filas: [], paginas: 1, desde: 0, hasta: 0 });
+  });
+
+  it("recuerda las filas por página en la URL solo si no son las de siempre", () => {
+    expect(leerFiltrosAsegurados({ por: "50" }).por).toBe(50);
+    expect(leerFiltrosAsegurados({ por: "30" }).por).toBe(25);
+    expect(leerFiltrosAsegurados({}, 100).por).toBe(100);
+    expect(leerFiltrosAsegurados({ por: "25" }, 100).por).toBe(25);
+    const f = leerFiltrosAsegurados({ q: "gomez", pagina: "3" });
+    expect(urlAsegurados(f, { por: 100, pagina: 1 })).toBe("/asegurados?q=gomez&por=100");
+    expect(urlAsegurados({ ...f, por: 50 }, { pagina: 2 })).toBe("/asegurados?q=gomez&pagina=2&por=50");
+  });
+
+  it("muestra la primera, la última y las páginas vecinas", () => {
+    expect(numerosDePagina(1, 1)).toEqual([1]);
+    expect(numerosDePagina(1, 4)).toEqual([1, 2, 3, 4]);
+    expect(numerosDePagina(1, 7)).toEqual([1, 2, "…", 7]);
+    expect(numerosDePagina(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(numerosDePagina(5, 12)).toEqual([1, "…", 4, 5, 6, "…", 12]);
   });
 });
 

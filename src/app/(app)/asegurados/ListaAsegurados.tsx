@@ -93,9 +93,8 @@ export function ListaAsegurados({ filas, abierto }: { filas: FilaVista[]; abiert
                   />
                 </label>
               </th>
-              <th scope="col">Alertas</th>
               <th scope="col">Asegurado</th>
-              <th scope="col">DNI / CUIT</th>
+              <th scope="col">Alertas</th>
               <th scope="col">Ramos</th>
               <th scope="col">Compañías</th>
               <th scope="col">Próx. vencimiento</th>
@@ -121,6 +120,14 @@ export function ListaAsegurados({ filas, abierto }: { filas: FilaVista[]; abiert
                   </label>
                 </td>
                 <td>
+                  <Link href={f.href} scroll={false} className="nombre-asegurado" id={`abrir-${f.id}`}>
+                    {f.nombre}
+                  </Link>
+                  <div className="celda-secundaria">
+                    {f.sub} · <span className="tabular">{f.documento}</span>
+                  </div>
+                </td>
+                <td>
                   <div className="alertas">
                     {f.alertas.map((a) => (
                       <span key={a.texto} className={`alerta alerta-${a.tono}`}>
@@ -130,13 +137,6 @@ export function ListaAsegurados({ filas, abierto }: { filas: FilaVista[]; abiert
                     ))}
                   </div>
                 </td>
-                <td>
-                  <Link href={f.href} scroll={false} className="nombre-asegurado" id={`abrir-${f.id}`}>
-                    {f.nombre}
-                  </Link>
-                  <div className="celda-secundaria">{f.sub}</div>
-                </td>
-                <td className="tabular">{f.documento}</td>
                 <td>
                   <div className="ramos">
                     {f.ramos.map((r) => (
