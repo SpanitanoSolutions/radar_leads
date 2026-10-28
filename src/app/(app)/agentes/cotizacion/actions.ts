@@ -25,6 +25,11 @@ function volver(aviso: string, query = ""): never {
   redirect(`/agentes/cotizacion${query}&aviso=${encodeURIComponent(aviso)}`);
 }
 
+function volverNuevaSolicitud(aviso: string): never {
+  revalidatePath("/", "layout");
+  redirect(`/agentes/cotizacion/nueva?aviso=${encodeURIComponent(aviso)}`);
+}
+
 function queryDeFiltros(formData: FormData): string {
   const filtros = new URLSearchParams({ tab: "solicitudes" });
   for (const [clave, campo] of [["q", "filtroQ"], ["estado", "filtroEstado"], ["ramo", "filtroRamo"], ["origen", "filtroOrigen"], ["ejecutivo", "filtroEjecutivo"], ["desde", "filtroDesde"], ["hasta", "filtroHasta"]]) {
@@ -69,19 +74,19 @@ export async function nuevaSolicitud(formData: FormData) {
   const bien = mensajeDe(formData, "bien").slice(0, 250);
   const motivo = mensajeDe(formData, "motivo").slice(0, 500);
   if (!Number.isInteger(id) || id <= 0 || !ramo || !["renovacion", "negocio_nuevo", "nueva", "mejora"].includes(tipo)) {
-    volver("solicitud-incompleta", "?tab=solicitudes");
+    volverNuevaSolicitud("solicitud-incompleta");
   }
-  if (tipoVinculo !== "asegurado" && tipoVinculo !== "lead") volver("solicitud-vinculo-invalido", "?tab=solicitudes");
+  if (tipoVinculo !== "asegurado" && tipoVinculo !== "lead") volverNuevaSolicitud("solicitud-vinculo-invalido");
 
   const camposRiesgo = ["marca", "modelo", "anio", "version", "uso", "conductor", "fechaNacimiento", "codigoPostal", "cuitCuil", "formaDePago", "cantidadUnidades", "actividad", "zona", "sumaAsegurada", "coberturasSolicitadas"];
   const datosRiesgo = Object.fromEntries(camposRiesgo.map((campo) => [campo, mensajeDe(formData, campo)]).filter(([, valor]) => valor));
   const erroresRiesgo = validarDatosRiesgo(ramo, datosRiesgo as Record<string, string>);
-  if (erroresRiesgo.length) volver("solicitud-riesgo-invalido", "?tab=solicitudes");
+  if (erroresRiesgo.length) volverNuevaSolicitud("solicitud-riesgo-invalido");
   const archivoInicial = formData.get("archivoInicial");
   const extensionesPermitidas = /\.(pdf|docx|xlsx?|png|jpe?g|webp)$/i;
   if (archivoInicial instanceof File && archivoInicial.size > 0
     && (archivoInicial.size > 25 * 1024 * 1024 || !extensionesPermitidas.test(archivoInicial.name))) {
-    volver("solicitud-adjunto-invalido", "?tab=solicitudes");
+    volverNuevaSolicitud("solicitud-adjunto-invalido");
   }
   const companias = formData.getAll("companias").filter((valor): valor is string => typeof valor === "string").map((valor) => valor.trim()).filter(Boolean);
 
@@ -100,7 +105,7 @@ export async function nuevaSolicitud(formData: FormData) {
   } catch (error) {
     if (error instanceof SinCompaniasCotizablesError) aviso = "sin-companias-configuradas";
   }
-  if (numero === null) volver(aviso, "?tab=solicitudes");
+  if (numero === null) volverNuevaSolicitud(aviso);
   if (archivoInicial instanceof File && archivoInicial.size > 0) {
     const [solicitudCreada] = await db.select({ id: schema.solicitudesCotizacion.id }).from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.numero, numero));
     if (solicitudCreada) {
