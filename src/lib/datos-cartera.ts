@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import type { AseguradoConPolizas } from "./asegurados";
+import { claveDeAsegurado, claveDePoliza } from "./importacion";
 
 // Lecturas de la cartera. Como todo en src/lib/datos.ts, esperan a connection():
 // son datos vivos y nunca se leen durante el build.
@@ -92,14 +93,22 @@ export async function obtenerAvisosPendientes() {
     .orderBy(asc(schema.mensajes.creadoEl));
 }
 
-/** Documentos (solo dígitos) de los asegurados cargados: el paso 3 de la importación muestra cuáles son nuevos. */
-export async function obtenerDocumentosCargados(): Promise<string[]> {
+/** Cómo se reconoce a cada asegurado cargado (`claveDeAsegurado`): el paso 3 de la importación muestra cuáles son nuevos. */
+export async function obtenerClavesDeAsegurados(): Promise<string[]> {
+  await connection();
+  // También los dados de baja: si vuelven en una importación, se reactivan.
+  const filas = await db.select({ documentoDigitos: asegurados.documentoDigitos, nombre: asegurados.nombre }).from(asegurados);
+  return filas.map((f) => claveDeAsegurado(f.documentoDigitos, f.nombre));
+}
+
+/** Las pólizas cargadas (`claveDePoliza`): por ellas el paso 3 reconoce a quien se le corrigió el documento en la ficha. */
+export async function obtenerClavesDePolizas(): Promise<string[]> {
   await connection();
   const filas = await db
-    .select({ d: asegurados.documentoDigitos })
-    .from(asegurados)
-    .where(and(isNull(asegurados.bajaEl), isNotNull(asegurados.documentoDigitos)));
-  return filas.map((f) => f.d!);
+    .select({ compania: polizas.compania, numero: polizas.numero })
+    .from(polizas)
+    .where(and(isNotNull(polizas.compania), isNotNull(polizas.numero)));
+  return filas.map((f) => claveDePoliza(f.compania!, f.numero!));
 }
 
 export async function obtenerImportaciones(cuantas = 5) {

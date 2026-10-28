@@ -59,7 +59,7 @@ await page.waitForURL(/\/asegurados\/\d+/, { waitUntil: "commit" });
 await page.getByRole("heading", { name: "Gómez, Lucía", level: 1 }).waitFor();
 ok("cartera: buscar, abrir panel lateral y entrar a la ficha");
 
-// 5. Importar con una fila inválida, conservar la cartera y combinar la válida
+// 5. Importar con una fila con datos inválidos: se importa igual, marcada para corregir
 await page.goto(BASE + "/importar");
 await page.locator("#archivo-importar").setInputFiles(fileURLToPath(new URL("./fixtures/cartera-importacion.csv", import.meta.url)));
 await page.getByRole("button", { name: "Revisar importación" }).waitFor();
@@ -68,12 +68,12 @@ await page.locator(".lista-problemas li").filter({ hasText: "Fila 3" }).filter({
 const quitarEjemplos = page.getByLabel("Quitar los datos de ejemplo");
 if (await quitarEjemplos.count()) await quitarEjemplos.uncheck();
 await page.getByLabel("Combinar").check();
-await page.getByRole("button", { name: "Importar 1 póliza" }).click();
+await page.getByRole("button", { name: "Importar 2 pólizas" }).click();
 await page.waitForURL(/\/asegurados\?aviso=importado-/);
 await page.getByRole("searchbox", { name: "Buscar por nombre, DNI, CUIT o número de póliza" }).fill("Empresa Prueba E2E SA");
 await page.waitForFunction(() => new URL(location.href).searchParams.get("q") === "Empresa Prueba E2E SA");
 await page.getByRole("link", { name: "Empresa Prueba E2E SA" }).first().waitFor();
-ok("importación: informa la fila inválida y combina la póliza válida");
+ok("importación: informa la fila con la fecha inválida y no deja ninguna póliza afuera");
 
 // 6. Leads: filtros de zona y sector combinados
 await page.goto(BASE + "/leads");
