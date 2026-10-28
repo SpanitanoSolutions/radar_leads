@@ -3,10 +3,27 @@ import { IconoEscudo, IconoMoneda } from "./iconos";
 import type { TipoConexion } from "@/conexiones/catalogo";
 
 const LOGOS: Record<string, string> = {
+  prevencionart: "/logos/prevencion-art.svg",
+  lacaja: "/logos/la-caja.svg",
+  provinciaart: "/logos/provincia-art.svg",
+  sancristobal: "/logos/san-cristobal.svg",
   mapfre: "/logos/mapfre.svg",
   sancor: "/logos/sancor.svg",
   federacionpatronal: "/logos/federacion-patronal.png",
   lasegunda: "/logos/lasegunda.svg",
+  lasegundaart: "/logos/lasegunda.svg",
+  mercantilandina: "/logos/mercantil-andina.svg",
+  zurich: "/logos/zurich.svg",
+  segurosrivadavia: "/logos/rivadavia.png",
+  nacionseguros: "/logos/nacion-seguros.png",
+  expertaart: "/logos/experta-seguros.png",
+  provinciaseguros: "/logos/provincia-seguros.png",
+  allianz: "/logos/allianz.svg",
+  asociartart: "/logos/asociart-art.webp",
+  lameridional: "/logos/la-meridional.svg",
+  lifeseguros: "/logos/life-seguros.jpg",
+  swissmedicalart: "/logos/swiss-medical-seguros.svg",
+  sudamericanasegurosgalicia: "/logos/galicia-seguros.png",
   fianzasycredito: "/logos/fianzasycredito.svg",
 };
 
