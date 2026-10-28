@@ -5,10 +5,13 @@ import { bajarCsv, PasosAsistente, TablaMapeo, VistaPrevia, ZonaArchivo } from "
 import { aCsv } from "@/lib/csv";
 import {
   CAMPOS_CARTERA,
+  COMPANIAS,
+  companiaMencionada,
   companiasDelArchivo,
+  conOtrosDatos,
+  faltanEnCartera,
   filasParaCorregir,
   leerArchivoTabla,
-  obligatoriosSinColumna,
   resumirCartera,
   sugerirMapeo,
   TAMANO_MAXIMO_ARCHIVO,
@@ -16,12 +19,14 @@ import {
   type CampoCartera,
   type Tabla,
 } from "@/lib/importacion";
+import { detectarFormato, FORMATOS_CARTERA, mapeoDeFormato, motivosDeFormato, type FormatoCartera } from "@/lib/formatos-cartera";
 import { unirConY } from "@/lib/asegurados";
 import { RAMOS_CARTERA } from "@/lib/ramos";
 import { importarCartera, type EstadoImportacion } from "./actions";
 
 const PASOS = ["Subir archivo", "Relacionar columnas", "Revisar e importar"];
 const PROBLEMAS_VISIBLES = 12;
+const OBLIGATORIOS = CAMPOS_CARTERA.filter((c) => c.obligatorio).length;
 
 function descripcionSeparador(s: string | null) {
   if (s === ";") return "separado por punto y coma";
@@ -43,7 +48,10 @@ export function AsistenteImportar({
   const [paso, setPaso] = useState(1);
   const [archivo, setArchivo] = useState<File | null>(null);
   const [tabla, setTabla] = useState<Tabla | null>(null);
+  const [formato, setFormato] = useState<FormatoCartera | null>(null);
   const [mapeo, setMapeo] = useState<(CampoCartera | "")[]>([]);
+  /** La compañía de todo el archivo, si no viene en una columna. */
+  const [compania, setCompania] = useState("");
   const [ramos, setRamos] = useState<Record<string, string>>({});
   const [modo, setModo] = useState<"combinar" | "reemplazar">("combinar");
   const [quitarEjemplos, setQuitarEjemplos] = useState(hayEjemplos);
@@ -53,10 +61,23 @@ export function AsistenteImportar({
   const [estado, importar, importando] = useActionState<EstadoImportacion, FormData>(importarCartera, {});
 
   const existentes = useMemo(() => new Set(documentos), [documentos]);
-  const validacion = useMemo(() => (tabla && paso === 3 ? validarCartera(tabla, mapeo, ramos) : null), [tabla, mapeo, ramos, paso]);
+  const conColumnaCompania = mapeo.includes("compania");
+  const companiaArchivo = conColumnaCompania ? null : compania.trim() || null;
+  const validacion = useMemo(
+    () => (tabla && paso === 3 ? validarCartera(tabla, mapeo, { ramos, compania: companiaArchivo, formato }) : null),
+    [tabla, mapeo, ramos, companiaArchivo, formato, paso],
+  );
+  const motivos = tabla && formato ? motivosDeFormato(tabla.encabezados, formato) : [];
   const resumen = validacion ? resumirCartera(validacion, existentes, hoy) : null;
-  const faltan = obligatoriosSinColumna(mapeo, CAMPOS_CARTERA);
+  const faltan = faltanEnCartera(mapeo, companiaArchivo);
   const companias = validacion ? companiasDelArchivo(validacion.filas) : [];
+  // Los códigos de ramo que trae el formato también se muestran, para revisarlos.
+  const columnaRamo = mapeo.indexOf("ramo");
+  const codigosDelFormato =
+    formato?.ramos && tabla && columnaRamo >= 0
+      ? [...new Set(tabla.filas.map((f) => (f[columnaRamo] ?? "").trim()))].filter((r) => r in formato.ramos!)
+      : [];
+  const ramosParaElegir = validacion ? [...new Set([...validacion.ramosDesconocidos, ...codigosDelFormato])] : [];
 
   async function elegir(nuevo: File) {
     setErrorArchivo(null);
@@ -75,10 +96,15 @@ export function AsistenteImportar({
         setErrorArchivo("El archivo está vacío o no tiene filas debajo de los encabezados.");
         return;
       }
+      const reconocido = detectarFormato(leida.encabezados);
+      const sugerido = reconocido ? mapeoDeFormato(leida.encabezados, reconocido) : sugerirMapeo(leida.encabezados, CAMPOS_CARTERA);
+      const omitidas = reconocido ? motivosDeFormato(leida.encabezados, reconocido) : [];
       setArchivo(nuevo);
       setTabla(leida);
-      setMapeo(sugerirMapeo(leida.encabezados, CAMPOS_CARTERA));
-      setRamos({});
+      setFormato(reconocido);
+      setMapeo(conOtrosDatos(leida, sugerido, (col) => Boolean(omitidas[col])));
+      setCompania(reconocido?.compania ?? companiaMencionada(nuevo.name) ?? "");
+      setRamos(reconocido?.ramos ?? {});
       setPaso(2);
     } catch (e) {
       setErrorArchivo(e instanceof Error ? e.message : "No pude leer el archivo.");
@@ -93,6 +119,7 @@ export function AsistenteImportar({
     datos.set("archivo", archivo);
     datos.set("mapeo", JSON.stringify(mapeo));
     datos.set("ramos", JSON.stringify(ramos));
+    datos.set("compania", companiaArchivo ?? "");
     datos.set("modo", modo);
     datos.set("quitarEjemplos", quitarEjemplos ? "1" : "0");
     importar(datos);
@@ -131,7 +158,8 @@ export function AsistenteImportar({
               <li>Si sale en Excel, podés subirlo así (.xlsx) o usar &quot;Guardar como&quot; → CSV.</li>
             </ol>
             <p className="texto-suave">
-              Podés importar un archivo por compañía, uno detrás de otro. UNIQO junta las pólizas de cada asegurado.
+              Podés importar un archivo por compañía, uno detrás de otro. UNIQO junta las pólizas de cada asegurado. Los
+              listados de {unirConY(FORMATOS_CARTERA.map((f) => f.compania))} se reconocen solos.
             </p>
             <a href="/importar/plantilla" download className="enlace-fuerte">
               Descargar plantilla de ejemplo
@@ -155,20 +183,52 @@ export function AsistenteImportar({
               </div>
             </div>
             {faltan.length === 0 ? (
-              <span className="pastilla pastilla-verde">Los 4 campos obligatorios están relacionados</span>
+              <span className="pastilla pastilla-verde">Los {OBLIGATORIOS} datos obligatorios están relacionados</span>
             ) : (
               <span className="pastilla pastilla-ambar">Falta relacionar: {faltan.join(", ")}</span>
             )}
           </div>
           <p className="texto-suave texto-con-margen">
-            Revisá a qué dato de UNIQO corresponde cada columna. UNIQO sugirió las que reconoció por el nombre; cambiá las
-            que no estén bien.
+            {formato
+              ? `Reconocimos el ${formato.nombre}: las columnas ya están relacionadas. Revisalas si querés cambiar alguna.`
+              : "Revisá a qué dato de UNIQO corresponde cada columna. UNIQO sugirió las que reconoció por el nombre; cambiá las que no estén bien."}{" "}
+            Las que no tienen un dato propio se guardan como “Otro dato” y se ven en cada póliza: elegí “No importar” en
+            la que no te sirva.
           </p>
+          {!conColumnaCompania && (
+            <div className="compania-archivo">
+              <label htmlFor="compania-archivo" className="etiqueta">
+                ¿De qué compañía es este archivo?
+              </label>
+              <input
+                id="compania-archivo"
+                className="campo campo-angosto"
+                list="companias-conocidas"
+                value={compania}
+                maxLength={100}
+                placeholder="Mapfre, Sancor…"
+                onChange={(e) => setCompania(e.target.value)}
+              />
+              <datalist id="companias-conocidas">
+                {COMPANIAS.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+              <p className="nota-pie">
+                {compania.trim()
+                  ? "El archivo no trae la compañía en una columna: se la ponemos a todas sus pólizas."
+                  : "Elegila para seguir: UNIQO la necesita para conciliar las comisiones."}
+              </p>
+            </div>
+          )}
           <TablaMapeo
             tabla={tabla}
             campos={CAMPOS_CARTERA}
             mapeo={mapeo}
-            alCambiar={(i, campo) => setMapeo((m) => m.map((x, j) => (j === i ? campo : x === campo && campo ? "" : x)))}
+            motivos={motivos}
+            alCambiar={(i, campo) =>
+              setMapeo((m) => m.map((x, j) => (j === i ? campo : x === campo && campo && campo !== "otro" ? "" : x)))
+            }
           />
           <details className="vista-previa">
             <summary className="boton-texto">Ver las primeras filas del archivo</summary>
@@ -238,10 +298,15 @@ export function AsistenteImportar({
               </button>
             )}
 
-            {validacion.ramosDesconocidos.length > 0 && (
+            {ramosParaElegir.length > 0 && (
               <fieldset className="opciones ramos-desconocidos">
                 <legend className="titulo-tarjeta">Elegí a qué ramo corresponde</legend>
-                {validacion.ramosDesconocidos.map((r) => (
+                {codigosDelFormato.length > 0 && formato && (
+                  <p className="texto-suave">
+                    Los códigos de ramo de {formato.compania} ya vienen elegidos: cambiá el que no corresponda.
+                  </p>
+                )}
+                {ramosParaElegir.map((r) => (
                   <label key={r} className="fila-dato">
                     <span className="columna-archivo">{r}</span>
                     <select

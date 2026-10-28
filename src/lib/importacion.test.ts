@@ -41,6 +41,15 @@ describe("lectura del archivo", () => {
     expect(t.separador).toBe(";");
     expect(t.encabezados).toHaveLength(11);
     expect(t.filas).toHaveLength(7); // la vacía se conserva para numerar bien
+    expect(t.filaInicial).toBe(2);
+  });
+
+  it("saltea el título de arriba y numera las filas como en el archivo", async () => {
+    const t = await leerTablaCsv(["Cartera al 28/10/2026", "Asegurado,DNI,Ramo,Vence", "Gómez Lucía,31455872,Auto,08/11/2026"].join("\n"));
+    expect(t.separador).toBe(",");
+    expect(t.encabezados).toEqual(["Asegurado", "DNI", "Ramo", "Vence"]);
+    expect(t.filaInicial).toBe(3);
+    expect(validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA), { compania: "Sancor" }).filas[0].fila).toBe(3);
   });
 });
 
@@ -103,15 +112,56 @@ describe("validarCartera", () => {
 
   it("acepta el ramo que elige el productor para los que no reconoce", async () => {
     const t = await tabla();
-    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA), { "COMB FLIAR 2": "Hogar" });
+    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA), { ramos: { "COMB FLIAR 2": "Hogar" } });
     expect(v.filas.find((f) => f.fila === 7)?.ramo).toBe("Hogar");
     expect(v.ramosDesconocidos).toEqual([]);
+  });
+
+  it("usa la compañía del archivo cuando no viene en una columna", async () => {
+    const t = await leerTablaCsv(["Asegurado;DNI;Ramo;Vence", "Gómez Lucía;31455872;Auto;08/11/2026"].join("\n"));
+    const mapeo = sugerirMapeo(t.encabezados, CAMPOS_CARTERA);
+    expect(validarCartera(t, mapeo, { compania: "SANCOR SEGUROS" }).filas[0].compania).toBe("Sancor");
+    expect(validarCartera(t, mapeo).faltanObligatorios).toEqual(["Compañía"]);
+  });
+
+  it("no importa una fila sin compañía, ni teléfonos que no son teléfonos", async () => {
+    const t = await leerTablaCsv(
+      [
+        "Asegurado;DNI;Ramo;Vence;Compañía;Teléfono;Suma asegurada",
+        "Gómez Lucía;31455872;Auto;08/11/2026;Mapfre;000000000;14.500.000,00",
+        "Pereyra Martín;28761334;Auto;08/11/2026;;223 512-4471;0,00",
+      ].join("\n"),
+    );
+    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA));
+    expect(v.filas).toHaveLength(1);
+    expect(v.filas[0]).toMatchObject({ telefono: null, sumaAsegurada: 14500000 });
+    expect(v.problemas).toEqual([
+      { fila: 2, mensaje: 'El teléfono "000000000" no parece válido: queda sin cargar.', tipo: "advertencia" },
+      { fila: 3, mensaje: "Falta la compañía.", tipo: "error" },
+    ]);
+  });
+
+  it("une los certificados de una póliza y avisa las filas repetidas", async () => {
+    const t = await leerTablaCsv(
+      [
+        "Asegurado;CUIT;Ramo;Poliza;Certificado;Vence;Prima",
+        "Transportes SA;30-71588214-6;Flota;F-1;1;05/11/2026;100.000",
+        "Transportes SA;30-71588214-6;Flota;F-1;2;05/11/2026;50.000",
+        "Transportes SA;30-71588214-6;Flota;F-1;2;05/11/2026;50.000",
+      ].join("\n"),
+    );
+    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA), { compania: "Federación Patronal" });
+    expect(v.filas).toHaveLength(1);
+    expect(v.filas[0].prima).toBe(150000);
+    expect(v.problemas.filter((p) => p.tipo === "advertencia" && p.mensaje.startsWith("Repite"))).toEqual([
+      { fila: 4, mensaje: "Repite la póliza de la fila 3: se toma esta.", tipo: "advertencia" },
+    ]);
   });
 
   it("avisa qué datos obligatorios no tienen columna", async () => {
     const t = await tabla();
     const v = validarCartera(t, ["nombre", "documento", "", "", "", "", "", "", "", "", ""]);
-    expect(v.faltanObligatorios).toEqual(["Fin de vigencia", "Ramo"]);
+    expect(v.faltanObligatorios).toEqual(["Fin de vigencia", "Ramo", "Compañía"]);
     expect(v.filas).toEqual([]);
   });
 
@@ -159,6 +209,10 @@ describe("valores", () => {
     expect(leerDocumento("30715882146")).toEqual({ digitos: "30715882146", texto: "30-71588214-6", tipo: "cuit" });
     expect(leerDocumento("31.455.872")).toEqual({ digitos: "31455872", texto: "31.455.872", tipo: "dni" });
     expect(leerDocumento("30-1234")).toEqual({ error: 'el CUIT "30-1234" está incompleto' });
+    // Con la letra y los ceros con que completan algunas compañías.
+    expect(leerDocumento("D0000031000444")).toEqual({ digitos: "31000444", texto: "31.000.444", tipo: "dni" });
+    expect(leerDocumento("C0000001999888")).toEqual({ digitos: "1999888", texto: "1.999.888", tipo: "dni" });
+    expect(leerDocumento("J30-70000000-8")).toEqual({ digitos: "30700000008", texto: "30-70000000-8", tipo: "cuit" });
     expect(leerDocumento("")).toBeNull();
   });
 

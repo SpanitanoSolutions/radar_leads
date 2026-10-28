@@ -87,9 +87,9 @@ export async function subirLiquidacion(formData: FormData) {
     const cuotaTexto = leer("cuota");
     const porcentaje = leerMonto(leer("porcentaje"));
     if (!compania || !periodoValido(periodo) || !poliza || comision === null || comision < 0) {
-      volver(periodoActual, `fila-invalida-${posicion + 2}`);
+      volver(periodoActual, `fila-invalida-${posicion + tabla.filaInicial}`);
     }
-    if (cuotaTexto && !/^\d+$/.test(cuotaTexto)) volver(periodoActual, `fila-invalida-${posicion + 2}`);
+    if (cuotaTexto && !/^\d+$/.test(cuotaTexto)) volver(periodoActual, `fila-invalida-${posicion + tabla.filaInicial}`);
     registros.push({ compania, periodo, poliza, cuota: cuotaTexto ? Number(cuotaTexto) : null, comision, porcentaje });
     const valorDepositado = leerMonto(leer("depositado"));
     const valorIibb = leerMonto(leer("iibb"));

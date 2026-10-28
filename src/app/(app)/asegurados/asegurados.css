@@ -363,6 +363,34 @@
   font-size: 12px;
   color: var(--etiqueta);
 }
+
+/* Lo demás que informa la compañía, debajo de cada póliza. */
+.tabla .fila-con-datos td {
+  border-bottom: none;
+  padding-bottom: 4px;
+}
+.tabla .fila-datos-compania td {
+  padding-top: 0;
+  text-align: left;
+}
+.datos-compania {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 12px;
+}
+.datos-compania div {
+  display: flex;
+  gap: 6px;
+}
+.datos-compania dt {
+  color: var(--etiqueta);
+}
+.datos-compania dd {
+  margin: 0;
+  font-weight: 500;
+}
 @media (max-width: 640px) {
   .panel-stats {
     grid-template-columns: 1fr;

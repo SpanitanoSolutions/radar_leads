@@ -79,6 +79,8 @@ export async function guardarImportacion(o: OpcionesImportacion): Promise<Resume
         telefono: primero(filas, "telefono"),
         email: primero(filas, "email"),
         domicilio: primero(filas, "domicilio"),
+        codigoPostal: primero(filas, "codigoPostal"),
+        fechaNacimiento: primero(filas, "fechaNacimiento"),
         contactoNombre: filas[0].tipo === "empresa" ? primero(filas, "contacto") : null,
       };
       const id = existentes.get(doc);
@@ -126,11 +128,16 @@ export async function guardarImportacion(o: OpcionesImportacion): Promise<Resume
         numero: f.numero,
         bien: f.bien,
         cobertura: f.cobertura,
+        producto: f.producto,
         vigenciaDesde: f.vigenciaDesde,
         vigenciaHasta: f.vigenciaHasta,
         prima: f.prima,
+        premio: f.premio,
+        sumaAsegurada: f.sumaAsegurada,
         cantidadCuotas: f.cuotas,
         formaPago: f.formaPago,
+        // Lo último que informa la compañía reemplaza lo anterior.
+        datosCompania: f.datosCompania.length ? f.datosCompania : null,
       };
       const id = porClave.get(clave(aseguradoId, f.numero, f.ramo, f.compania));
       if (id) {

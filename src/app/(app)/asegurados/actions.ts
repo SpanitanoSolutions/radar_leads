@@ -211,6 +211,7 @@ export async function guardarAsegurado(_previo: EstadoFormAsegurado, formData: F
     return { error: "El documento tiene que ser un DNI (7 u 8 números) o un CUIT/CUIL (11 números)." };
   }
   const anio = Number(formData.get("clienteDesde"));
+  const nacimiento = tipo === "persona" ? texto(formData, "fechaNacimiento", 10) : null;
   const datos = {
     tipo: tipo as "persona" | "empresa",
     nombre,
@@ -220,6 +221,9 @@ export async function guardarAsegurado(_previo: EstadoFormAsegurado, formData: F
     telefono: texto(formData, "telefono", 40),
     email: texto(formData, "email", 120),
     domicilio: texto(formData, "domicilio"),
+    codigoPostal: texto(formData, "codigoPostal", 10),
+    // El campo de fecha manda AAAA-MM-DD.
+    fechaNacimiento: nacimiento && /^\d{4}-\d{2}-\d{2}$/.test(nacimiento) && nacimiento >= "1900" ? nacimiento : null,
     contactoNombre: tipo === "empresa" ? texto(formData, "contactoNombre") : null,
     contactoTelefono: tipo === "empresa" ? texto(formData, "contactoTelefono", 40) : null,
     contactoEmail: tipo === "empresa" ? texto(formData, "contactoEmail", 120) : null,

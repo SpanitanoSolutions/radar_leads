@@ -218,13 +218,18 @@ export function PanelAsegurado({
                 <div key={p.id} className="poliza-item">
                   <div className="poliza-item-cabecera">
                     <span className="celda-fuerte">
-                      {p.ramo} {p.cobertura && <span className="texto-suave-normal">· {p.cobertura}</span>}
+                      {p.ramo}{" "}
+                      {(p.cobertura || p.producto) && <span className="texto-suave-normal">· {p.cobertura || p.producto}</span>}
                     </span>
                     <span className={`pastilla ${porVencer ? "pastilla-ambar-fuerte" : "pastilla-verde"}`}>
                       {porVencer ? "Por vencer" : "Vigente"}
                     </span>
                   </div>
-                  {p.bien && <div className="poliza-item-bien">{p.bien}</div>}
+                  {(p.bien || p.sumaAsegurada !== null) && (
+                    <div className="poliza-item-bien">
+                      {[p.bien, p.sumaAsegurada !== null && `Suma asegurada ${pesos(p.sumaAsegurada)}`].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
                   <div className="poliza-item-pie">
                     <span>
                       {p.compania ?? "Sin compañía"}
@@ -232,9 +237,16 @@ export function PanelAsegurado({
                     </span>
                     <span className="tabular">
                       {p.vigenciaHasta && `Vence ${fechaCorta(p.vigenciaHasta)}`}
-                      {p.prima !== null && ` · ${pesos(p.prima)}/año`}
+                      {p.premio !== null
+                        ? ` · Premio ${pesos(p.premio)}/año`
+                        : p.prima !== null && ` · Prima ${pesos(p.prima)}/año`}
                     </span>
                   </div>
+                  {p.datosCompania && p.datosCompania.length > 0 && (
+                    <div className="poliza-item-pie">
+                      {p.datosCompania.map((d) => `${d.etiqueta}: ${d.valor}`).join(" · ")}
+                    </div>
+                  )}
                 </div>
               );
             })}

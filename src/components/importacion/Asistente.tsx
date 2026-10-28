@@ -96,11 +96,14 @@ export function TablaMapeo<Id extends string>({
   tabla,
   campos,
   mapeo,
+  motivos = [],
   alCambiar,
 }: {
   tabla: Tabla;
   campos: CampoImportable<Id>[];
   mapeo: (Id | "")[];
+  /** Por qué no se importa cada columna, si se sabe. */
+  motivos?: (string | null)[];
   alCambiar: (columna: number, campo: Id | "") => void;
 }) {
   const ejemplo = (i: number) => tabla.filas.find((f) => (f[i] ?? "").trim())?.[i] ?? "";
@@ -118,7 +121,7 @@ export function TablaMapeo<Id extends string>({
         <tbody>
           {tabla.encabezados.map((encabezado, i) => {
             const campo = campos.find((c) => c.id === mapeo[i]);
-            const repetido = Boolean(mapeo[i]) && mapeo.indexOf(mapeo[i]) !== i;
+            const repetido = Boolean(mapeo[i]) && !campo?.repetible && mapeo.indexOf(mapeo[i]) !== i;
             return (
               <tr key={`${encabezado}-${i}`}>
                 <td className="columna-archivo">{encabezado || `Columna ${i + 1}`}</td>
@@ -142,11 +145,14 @@ export function TablaMapeo<Id extends string>({
                   {repetido ? (
                     <span className="pastilla pastilla-rojo">Repetida</span>
                   ) : !campo ? (
-                    <span className="pastilla pastilla-gris">Se omite</span>
+                    <>
+                      <span className="pastilla pastilla-gris">Se omite</span>
+                      {motivos[i] && <div className="nota-pie motivo-omitida">{motivos[i]}</div>}
+                    </>
                   ) : campo.obligatorio ? (
                     <span className="pastilla pastilla-azul">Obligatorio</span>
                   ) : (
-                    <span className="pastilla pastilla-verde">Relacionada</span>
+                    <span className="pastilla pastilla-verde">{campo.repetible ? "Otro dato" : "Relacionada"}</span>
                   )}
                 </td>
               </tr>

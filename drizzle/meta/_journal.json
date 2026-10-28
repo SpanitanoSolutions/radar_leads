@@ -92,6 +92,13 @@
       "when": 1793124593957,
       "tag": "0012_logo_empresa",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793176582185,
+      "tag": "0013_datos_de_cartera",
+      "breakpoints": true
     }
   ]
 }

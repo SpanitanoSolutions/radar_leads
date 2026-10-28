@@ -49,6 +49,8 @@ export function FormAsegurado({ asegurado, cancelarHref }: { asegurado?: Asegura
         {campo("telefono", "Teléfono", { type: "tel" })}
         {campo("email", "Email", { type: "email" })}
         {campo("domicilio", "Domicilio")}
+        {campo("codigoPostal", "Código postal", { maxLength: 10 })}
+        {tipo === "persona" && campo("fechaNacimiento", "Fecha de nacimiento", { type: "date" })}
       </div>
       {tipo === "empresa" && (
         <fieldset className="opciones">
