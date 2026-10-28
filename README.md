@@ -21,8 +21,8 @@ datos de personas solo se muestran detrás del login.
   leads, comparativas de precios, filtros, bitácora y desempeño.
 - **Validador de pagos** (`/agentes/validador`): revisión de cuotas y comprobantes.
 - **Cobranza** (`/agentes/cobranza`): borradores para aprobar y seguimiento de cuotas.
-- **Siniestros** (`/agentes/siniestros`): denuncia, documentación, etapas,
-  recordatorios, reclamos y cierre.
+- **Siniestros** (`/agentes/siniestros`): expedientes con o sin póliza, documentos,
+  checklist, gastos, informes en borrador, seguimiento y archivado.
 - **Conciliador** (`/agentes/conciliador`): comisiones esperadas, liquidaciones,
   depósitos, retenciones y reclamos por compañía.
 - **Leads del día** (`/leads`), **Ficha del lead** (`/leads/[id]`) y **Mis sectores**
@@ -387,3 +387,13 @@ La configuración está en `/agentes/cotizacion/configuracion`. Las credenciales
 El cron `/api/cron/cotizacion` protegido por `CRON_SECRET` solo crea borradores de seguimiento. La programación de Vercel lo ejecuta de lunes a viernes. Para respuestas de prueba, usá el simulador de una solicitud de ejemplo fuera de producción. Los adjuntos se guardan en PostgreSQL, con un límite de 25 MB por archivo.
 
 Las migraciones del módulo empiezan en `0014_cotizacion_v2.sql`; `0016` agrega propuestas PDF y `0017` los datos de riesgo para validación. Las columnas `org_id` y `producer_id` quedan nullable hasta que la aplicación incorpore identidad multi-organización persistida; las sesiones actuales no permiten asignarlas de forma segura. Los catálogos iniciales contienen aseguradoras argentinas y se pueden editar desde la configuración.
+
+## Agente de Siniestros v2
+
+La nueva alta de `/agentes/siniestros` permite vincular un asegurado o una póliza de forma opcional, buscar coincidencias por nombre/documento/patente/número de póliza, registrar afectados y adjuntar varios PDF/JPG/PNG (hasta 25 MB por solicitud). Los adjuntos se guardan en PostgreSQL y se descargan detrás de la sesión de la aplicación. Los requisitos existentes se copian a `siniestro_requisitos` durante la migración; los documentos físicos se guardan por separado.
+
+En `/agentes/siniestros/configuracion` se definen requisitos bloqueantes/opcionales, orden del dossier y plazos operativos por compañía, ramo y tipo. Los valores base de 3 y 14 días son recordatorios internos, no afirmaciones legales. `/agentes/siniestros/informes` muestra resúmenes, constancias y denuncias en borrador. El dossier se habilita al completar los requisitos bloqueantes y se puede imprimir o guardar como PDF desde el navegador. El agente no envía nada sin aprobación.
+
+Los proveedores/modelos y el scheduler de trabajos se conectarán más adelante. El registro de `src/lib/ia/registro.ts`, las tablas `ia_trabajos`, `ia_uso` e `ia_configuracion` y los estados de análisis dejan la integración desacoplada; los adjuntos nuevos quedan en “IA pendiente de configurar” y el flujo manual sigue disponible. Los informes médicos están fuera de alcance. El plan aprobado está en `docs/PLAN-siniestros-v2.md`; las migraciones nuevas van de `0018` a `0023` e incluyen el traspaso seguro del checklist anterior y campos multi-organización opcionales.
+
+Cuando estén disponibles diez casos anonimizados con resultados esperados, `npm run evaluar:siniestros -- <archivo-json>` calcula métricas agregadas de clasificación y extracción sin mostrar valores de expedientes. Cada caso usa `clasificacionEsperada`, `clasificacionObtenida`, `camposEsperados` y `camposObtenidos`; el archivo no debe incluir nombres, documentos ni contenido real.

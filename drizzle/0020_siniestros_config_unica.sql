@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "siniestro_configuracion_compania_ramo_tipo_idx" ON "siniestro_configuracion" USING btree ("compania","ramo","tipo");

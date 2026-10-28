@@ -213,25 +213,37 @@ export async function obtenerSiniestros() {
   const filas = await db
     .select({ siniestro: schema.siniestros, poliza: schema.polizas, asegurado: schema.asegurados })
     .from(schema.siniestros)
-    .innerJoin(schema.polizas, eq(schema.polizas.id, schema.siniestros.polizaId))
-    .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
-    .where(and(isNull(schema.asegurados.bajaEl), isNull(schema.polizas.bajaEl)))
+    .leftJoin(schema.polizas, eq(schema.polizas.id, schema.siniestros.polizaId))
+    .leftJoin(schema.asegurados, eq(schema.asegurados.id, schema.siniestros.aseguradoId))
     .orderBy(desc(schema.siniestros.fecha));
   if (!filas.length) return [];
 
   const ids = filas.map((f) => f.siniestro.id);
-  const [documentos, eventos] = await Promise.all([
-    db.select().from(schema.siniestroDocumentos).where(inArray(schema.siniestroDocumentos.siniestroId, ids)),
+  const [documentos, eventos, archivos, gastos, informes] = await Promise.all([
+    db.select().from(schema.siniestroRequisitos).where(inArray(schema.siniestroRequisitos.siniestroId, ids)),
     db
       .select()
       .from(schema.siniestroEventos)
       .where(inArray(schema.siniestroEventos.siniestroId, ids))
       .orderBy(desc(schema.siniestroEventos.fecha)),
+    db
+      .select()
+      .from(schema.siniestroArchivos)
+      .where(inArray(schema.siniestroArchivos.siniestroId, ids))
+      .orderBy(desc(schema.siniestroArchivos.subidoEl)),
+    db.select().from(schema.siniestroGastos).where(inArray(schema.siniestroGastos.siniestroId, ids)).orderBy(desc(schema.siniestroGastos.fecha)),
+    db.select().from(schema.siniestroInformes).where(inArray(schema.siniestroInformes.siniestroId, ids)).orderBy(desc(schema.siniestroInformes.creadoEl)),
   ]);
   const docsPorSiniestro = new Map<number, typeof documentos>();
   const eventosPorSiniestro = new Map<number, typeof eventos>();
+  const archivosPorSiniestro = new Map<number, typeof archivos>();
+  const gastosPorSiniestro = new Map<number, typeof gastos>();
+  const informesPorSiniestro = new Map<number, typeof informes>();
   for (const doc of documentos) docsPorSiniestro.set(doc.siniestroId, [...(docsPorSiniestro.get(doc.siniestroId) ?? []), doc]);
   for (const evento of eventos) eventosPorSiniestro.set(evento.siniestroId, [...(eventosPorSiniestro.get(evento.siniestroId) ?? []), evento]);
+  for (const archivo of archivos) archivosPorSiniestro.set(archivo.siniestroId, [...(archivosPorSiniestro.get(archivo.siniestroId) ?? []), archivo]);
+  for (const gasto of gastos) gastosPorSiniestro.set(gasto.siniestroId, [...(gastosPorSiniestro.get(gasto.siniestroId) ?? []), gasto]);
+  for (const informe of informes) informesPorSiniestro.set(informe.siniestroId, [...(informesPorSiniestro.get(informe.siniestroId) ?? []), informe]);
 
   return filas.map(({ siniestro, poliza, asegurado }) => ({
     siniestro,
@@ -239,6 +251,9 @@ export async function obtenerSiniestros() {
     asegurado,
     documentos: docsPorSiniestro.get(siniestro.id) ?? [],
     eventos: eventosPorSiniestro.get(siniestro.id) ?? [],
+    archivos: archivosPorSiniestro.get(siniestro.id) ?? [],
+    gastos: gastosPorSiniestro.get(siniestro.id) ?? [],
+    informes: informesPorSiniestro.get(siniestro.id) ?? [],
   }));
 }
 
@@ -248,6 +263,7 @@ export async function obtenerPolizasParaSiniestro() {
   return db
     .select({
       id: schema.polizas.id,
+      aseguradoId: schema.asegurados.id,
       ramo: schema.polizas.ramo,
       compania: schema.polizas.compania,
       numero: schema.polizas.numero,
@@ -258,6 +274,29 @@ export async function obtenerPolizasParaSiniestro() {
     .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
     .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl)))
     .orderBy(asegurados.nombre);
+}
+
+/** Asegurados activos disponibles para vincular siniestros sin póliza. */
+export async function obtenerAseguradosParaSiniestro() {
+  await connection();
+  return db
+    .select({
+      id: schema.asegurados.id,
+      nombre: schema.asegurados.nombre,
+      tipo: schema.asegurados.tipo,
+      documento: schema.asegurados.documento,
+      documentoDigitos: schema.asegurados.documentoDigitos,
+      domicilio: schema.asegurados.domicilio,
+    })
+    .from(schema.asegurados)
+    .where(isNull(schema.asegurados.bajaEl))
+    .orderBy(schema.asegurados.nombre);
+}
+
+/** Reglas operativas de checklist y seguimiento del agente de Siniestros. */
+export async function obtenerConfiguracionSiniestros() {
+  await connection();
+  return db.select().from(schema.siniestroConfiguracion).orderBy(schema.siniestroConfiguracion.compania, schema.siniestroConfiguracion.ramo, schema.siniestroConfiguracion.tipo);
 }
 
 /** Cuotas pagadas, acuerdos y liquidaciones para conciliar un mes. */

@@ -14,6 +14,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:limpiar-ejemplos": "tsx scripts/limpiar-ejemplos.ts",
     "db:reclasificar": "tsx scripts/reclasificar.ts",
+    "evaluar:siniestros": "tsx scripts/evaluar-siniestros.ts",
     "captura": "tsx scripts/capturar.ts",
     "telefonos": "tsx scripts/telefonos.ts",
     "test:e2e": "node e2e/flujos.mjs",
