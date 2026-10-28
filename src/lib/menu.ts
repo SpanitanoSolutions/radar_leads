@@ -11,7 +11,7 @@ export type ContadoresMenu = {
   /** Lo que requiere atención en cada agente; null si el agente no está configurado. */
   agentes: Record<AgenteId, number | null>;
   conexionesPendientes: number;
-  ultimaImportacion: { fecha: string; archivo: string | null } | null;
+  ultimaImportacion: { fecha: string; archivo: string | null; filas?: number } | null;
 };
 
 export type Tono = "neutro" | "ambar" | "rojo";

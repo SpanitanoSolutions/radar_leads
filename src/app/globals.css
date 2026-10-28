@@ -196,12 +196,269 @@ a:hover {
   align-items: center;
   gap: 10px;
 }
+.barra-desplegable {
+  position: relative;
+  flex: none;
+}
+.barra-desplegable > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.barra-desplegable > summary::-webkit-details-marker {
+  display: none;
+}
+.barra-equipo-resumen {
+  min-width: 0;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 7px;
+  border-radius: var(--radio);
+  color: var(--texto);
+}
+.barra-equipo-resumen:hover,
+.barra-perfil-resumen:hover {
+  background: var(--gris-suave);
+}
+.barra-equipo-resumen > svg,
+.barra-perfil-resumen > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--etiqueta);
+}
+.barra-equipo-nombre {
+  max-width: 230px;
+  overflow: hidden;
+  color: var(--acento-texto);
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.barra-equipo-iniciales,
+.barra-perfil-avatar {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--acento);
+  color: var(--acento-contraste);
+  font-size: 12px;
+  font-weight: 750;
+}
 .barra-logo-empresa {
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: 50%;
+  background: var(--tarjeta);
+}
+.barra-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: min(280px, calc(100vw - 20px));
+  padding: 7px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra-flotante);
+}
+.barra-equipo-panel {
+  right: auto;
+  left: 0;
+}
+.barra-menu-panel > a,
+.barra-menu-salir,
+.barra-menu-tema {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radio-chico);
+  background: transparent;
+  color: var(--gris-texto);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.barra-menu-panel > a:hover,
+.barra-menu-salir:hover,
+.barra-menu-tema:hover {
+  background: var(--gris-suave);
+  color: var(--texto);
+}
+.barra-menu-encabezado {
+  margin: 4px 10px 7px;
+  color: var(--etiqueta);
+  font-size: 12px;
+  font-weight: 650;
+}
+.barra-menu-panel > form {
+  margin: 4px 0 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--borde-suave);
+}
+.barra-menu-salir {
+  color: var(--rojo-texto);
+}
+.barra-busqueda {
+  width: min(360px, 28vw);
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--fondo-suave);
+  color: var(--etiqueta);
+}
+.barra-busqueda:focus-within {
+  border-color: var(--acento);
+  box-shadow: 0 0 0 2px var(--acento-suave);
+}
+.barra-busqueda > svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.barra-busqueda input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  font-size: 12px;
+}
+.barra-busqueda input::placeholder {
+  color: var(--etiqueta);
+  opacity: 1;
+}
+.barra-busqueda kbd {
+  flex: none;
+  padding: 2px 5px;
+  border: 1px solid var(--borde);
+  border-radius: 5px;
+  background: var(--tarjeta);
+  color: var(--etiqueta);
+  font: inherit;
+  font-size: 10px;
+}
+.barra-acciones > .barra-desplegable {
+  display: flex;
+}
+.barra-notificaciones > summary {
+  position: relative;
+}
+.barra-notificaciones-badge {
+  position: absolute;
+  top: -2px;
+  right: -1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--tarjeta);
+  border-radius: 999px;
+  background: var(--rojo-texto);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+.barra-notificaciones-panel {
+  width: min(330px, calc(100vw - 20px));
+}
+.barra-menu-titulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px 9px;
+  color: var(--texto);
+}
+.barra-menu-titulo span {
+  color: var(--etiqueta);
+  font-size: 11px;
+}
+.barra-notificaciones-panel > a {
+  justify-content: space-between;
+  gap: 12px;
+}
+.barra-notificaciones-panel > a strong {
+  min-width: 24px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--acento-suave);
+  color: var(--acento-texto);
+  text-align: center;
+}
+.barra-notificaciones-vacio {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--etiqueta);
+  font-size: 12px;
+}
+.barra-perfil-resumen {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 6px;
+  border-radius: var(--radio);
+  color: var(--texto);
+}
+.barra-perfil-avatar {
+  width: 34px;
+  height: 34px;
+  background: var(--acento);
+  font-size: 11px;
+}
+.barra-perfil-datos {
+  min-width: 0;
+  max-width: 156px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.barra-perfil-datos strong,
+.barra-perfil-datos small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.barra-perfil-datos strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+.barra-perfil-datos small {
+  margin-top: 2px;
+  color: var(--etiqueta);
+  font-size: 11px;
+}
+.barra-perfil-panel {
+  width: min(250px, calc(100vw - 20px));
+}
+.barra-menu-tema {
+  display: none;
 }
 .barra-acciones {
   margin-left: auto;
@@ -389,6 +646,9 @@ a:hover {
   gap: 8px;
 }
 .ultima-importacion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 9px 10px;
   border: 1px solid var(--borde-suave);
   border-radius: var(--radio-chico);
@@ -396,6 +656,29 @@ a:hover {
   font-size: 11.5px;
   color: var(--etiqueta);
   line-height: 1.45;
+  text-decoration: none;
+}
+.ultima-importacion:hover {
+  border-color: var(--acento);
+  color: var(--texto);
+}
+.ultima-importacion > svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--acento-texto);
+}
+.ultima-importacion-contenido {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+.ultima-importacion-flecha {
+  color: var(--texto-2);
+  font-size: 24px;
+  line-height: 1;
 }
 .ultima-importacion-titulo {
   font-weight: 600;
@@ -442,6 +725,15 @@ a:hover {
 }
 
 /* En celular y tablet chica el menú se abre como panel desde el botón de la barra. */
+@media (max-width: 1200px) {
+  .barra-producto,
+  .barra-perfil-datos {
+    display: none;
+  }
+  .barra-busqueda {
+    width: min(300px, 22vw);
+  }
+}
 @media (max-width: 900px) {
   .boton-menu {
     display: inline-flex;
@@ -450,6 +742,13 @@ a:hover {
   .barra {
     gap: 10px;
     padding: 0 12px;
+  }
+  .barra-producto,
+  .barra-perfil-datos {
+    display: none;
+  }
+  .barra-busqueda {
+    width: min(300px, 28vw);
   }
   .lateral {
     display: none;
@@ -467,13 +766,75 @@ a:hover {
   }
 }
 @media (max-width: 640px) {
-  .barra-producto,
   .barra-separador,
-  .barra-cuenta {
+  .barra-equipo-nombre {
+    display: none;
+  }
+  .barra-equipo-resumen {
+    min-height: 34px;
+    gap: 3px;
+    padding: 2px;
+  }
+  .barra-equipo-resumen > svg {
+    width: 14px;
+    height: 14px;
+  }
+  .barra-logo-empresa,
+  .barra-equipo-iniciales {
+    width: 30px;
+    height: 30px;
+  }
+  .barra-busqueda {
+    width: auto;
+    min-width: 56px;
+    flex: 1;
+    gap: 6px;
+    padding: 0 8px;
+  }
+  .barra-busqueda input {
+    font-size: 11px;
+  }
+  .barra-busqueda kbd {
+    display: none;
+  }
+  .barra-acciones {
+    gap: 0;
+  }
+  .barra-acciones .barra-icono {
+    width: 31px;
+  }
+  .barra-perfil-resumen {
+    padding: 2px;
+  }
+  .barra-perfil-resumen > svg {
     display: none;
   }
   .contenido {
     padding: 18px 16px 32px;
+  }
+}
+@media (max-width: 420px) {
+  .barra-acciones > .barra-icono:first-child {
+    display: none;
+  }
+  .barra-menu-tema {
+    display: flex;
+  }
+}
+@media (max-width: 380px) {
+  .barra {
+    gap: 6px;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+  .barra-nombre {
+    font-size: 20px;
+  }
+  .barra-busqueda {
+    min-width: 40px;
+  }
+  .barra-acciones .barra-icono {
+    width: 28px;
   }
 }
 

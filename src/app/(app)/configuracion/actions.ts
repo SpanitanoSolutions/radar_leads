@@ -128,5 +128,6 @@ export async function guardarCuenta(_previo: EstadoFormulario, formData: FormDat
     .values({ id: 1, ...AJUSTES_POR_DEFECTO, ...cambios })
     .onConflictDoUpdate({ target: schema.ajustes.id, set: cambios });
   refrescar();
-  redirect("/configuracion?tab=cuenta&aviso=guardado");
+  const tab = formData.get("tab") === "equipo" ? "equipo" : "cuenta";
+  redirect(`/configuracion?tab=${tab}&aviso=guardado`);
 }
