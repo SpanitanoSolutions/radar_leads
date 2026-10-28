@@ -33,17 +33,13 @@ export async function obtenerDatosDashboard() {
     db
       .select({ id: schema.siniestros.id })
       .from(schema.siniestros)
-      .innerJoin(schema.polizas, eq(schema.polizas.id, schema.siniestros.polizaId))
-      .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
-      .where(and(eq(schema.siniestros.cerrado, false), isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl))),
+      .where(eq(schema.siniestros.cerrado, false)),
     db.select({ id: schema.actividadAgentes.id, fecha: schema.actividadAgentes.fecha, texto: schema.actividadAgentes.texto, agente: schema.actividadAgentes.agente }).from(schema.actividadAgentes).orderBy(desc(schema.actividadAgentes.fecha)).limit(8),
     db
       .select({ id: schema.siniestroEventos.id, fecha: schema.siniestroEventos.fecha, texto: schema.siniestroEventos.texto, quien: schema.siniestroEventos.quien, cliente: schema.asegurados.nombre })
       .from(schema.siniestroEventos)
       .innerJoin(schema.siniestros, eq(schema.siniestros.id, schema.siniestroEventos.siniestroId))
-      .innerJoin(schema.polizas, eq(schema.polizas.id, schema.siniestros.polizaId))
-      .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
-      .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl)))
+      .leftJoin(schema.asegurados, eq(schema.asegurados.id, schema.siniestros.aseguradoId))
       .orderBy(desc(schema.siniestroEventos.fecha))
       .limit(8),
   ]);

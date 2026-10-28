@@ -476,9 +476,16 @@ export type CampoDenuncia = { campo: string; valor: string };
 
 export const siniestros = pgTable("siniestros", {
   id: serial("id").primaryKey(),
+  folio: text("folio"),
   polizaId: integer("poliza_id")
-    .notNull()
-    .references(() => polizas.id, { onDelete: "cascade" }),
+    .references(() => polizas.id, { onDelete: "set null" }),
+  aseguradoId: integer("asegurado_id").references(() => asegurados.id, { onDelete: "set null" }),
+  compania: text("compania"),
+  ramo: text("ramo"),
+  archivado: boolean("archivado").notNull().default(false),
+  afectado: text("afectado"),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
   /** Clase para las reglas de documentación: choque_tercero, agua, robo, cristales, granizo, carga, otro. */
   tipo: text("tipo").notNull(),
   /** Cómo se muestra: "Daños por agua (filtración del techo)". */
@@ -502,11 +509,13 @@ export const siniestros = pgTable("siniestros", {
   montoPagado: pesos("monto_pagado"),
   pagadoEl: timestamp("pagado_el", { withTimezone: true }),
   cerrado: boolean("cerrado").notNull().default(false),
+  esEjemplo: boolean("es_ejemplo").notNull().default(false),
   cerradoEl: timestamp("cerrado_el", { withTimezone: true }),
   /** Cómo terminó, para la lista de cerrados ("parabrisas reemplazado"). */
   resolucion: text("resolucion"),
   creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
-});
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("siniestros_folio_idx").on(t.folio), index("siniestros_estado_fecha_idx").on(t.cerrado, t.fecha)]);
 
 export const siniestroDocumentos = pgTable("siniestro_documentos", {
   id: serial("id").primaryKey(),
@@ -531,6 +540,160 @@ export const siniestroEventos = pgTable("siniestro_eventos", {
   quien: text("quien").notNull(),
   texto: text("texto").notNull(),
 });
+
+/** Checklist de requisitos; se distingue de los archivos que subió el usuario. */
+export const siniestroRequisitos = pgTable("siniestro_requisitos", {
+  id: serial("id").primaryKey(),
+  siniestroId: integer("siniestro_id")
+    .notNull()
+    .references(() => siniestros.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+  recibido: boolean("recibido").notNull().default(false),
+  cantidad: integer("cantidad"),
+  archivoId: integer("archivo_id").references(() => archivos.id, { onDelete: "set null" }),
+  recibidoEl: timestamp("recibido_el", { withTimezone: true }),
+  origen: text("origen").notNull().default("plantilla"),
+  modificacionManual: boolean("modificacion_manual").notNull().default(false),
+  bloqueante: boolean("bloqueante").notNull().default(true),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("siniestro_requisitos_siniestro_idx").on(t.siniestroId)]);
+
+/** Archivos físicos adjuntos al expediente; no contiene prompts ni salida del modelo. */
+export const siniestroArchivos = pgTable("siniestro_archivos", {
+  id: serial("id").primaryKey(),
+  siniestroId: integer("siniestro_id")
+    .notNull()
+    .references(() => siniestros.id, { onDelete: "cascade" }),
+  archivoId: integer("archivo_id")
+    .notNull()
+    .references(() => archivos.id, { onDelete: "cascade" }),
+  nombre: text("nombre").notNull(),
+  tipoMime: text("tipo_mime").notNull(),
+  tamano: integer("tamano").notNull(),
+  clasificacion: text("clasificacion"),
+  estadoAnalisis: text("estado_analisis").notNull().default("pendiente_configuracion"),
+  paginaCount: integer("pagina_count"),
+  campos: jsonb("campos").$type<Record<string, unknown>[]>(),
+  trabajoId: integer("trabajo_id").references(() => iaTrabajos.id, { onDelete: "set null" }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  subidoEl: timestamp("subido_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("siniestro_archivos_siniestro_idx").on(t.siniestroId)]);
+
+/** Conversaciones del agente vinculadas al expediente. Las respuestas siempre requieren revisión humana. */
+export const siniestroConversaciones = pgTable("siniestro_conversaciones", {
+  id: serial("id").primaryKey(),
+  siniestroId: integer("siniestro_id")
+    .notNull()
+    .references(() => siniestros.id, { onDelete: "cascade" }),
+  numero: integer("numero"),
+  rol: text("rol").notNull(),
+  texto: text("texto").notNull(),
+  citas: jsonb("citas").$type<{ archivo: string; pagina: number | null }[]>().notNull().default([]),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("siniestro_conversaciones_siniestro_idx").on(t.siniestroId, t.creadoEl)]);
+
+/** Trabajos genéricos de los agentes IA, aún sin scheduler/modelo vinculado. */
+export const iaTrabajos = pgTable("ia_trabajos", {
+  id: serial("id").primaryKey(),
+  agente: text("agente").notNull(),
+  operacion: text("operacion").notNull(),
+  entidad: text("entidad").notNull(),
+  entidadId: integer("entidad_id").notNull(),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  estado: text("estado").notNull().default("pendiente"),
+  intentos: integer("intentos").notNull().default(0),
+  progreso: integer("progreso").notNull().default(0),
+  datos: jsonb("datos").$type<Record<string, unknown>>().notNull().default({}),
+  errorSeguro: text("error_seguro"),
+  ejecutarDespuesDe: timestamp("ejecutar_despues_de", { withTimezone: true }).notNull().defaultNow(),
+  iniciadoEl: timestamp("iniciado_el", { withTimezone: true }),
+  terminadoEl: timestamp("terminado_el", { withTimezone: true }),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("ia_trabajos_pendientes_idx").on(t.estado, t.ejecutarDespuesDe), index("ia_trabajos_entidad_idx").on(t.agente, t.entidad, t.entidadId)]);
+
+/** Métricas de uso sin prompts ni contenido de expedientes. */
+export const iaUso = pgTable("ia_uso", {
+  id: serial("id").primaryKey(),
+  agente: text("agente").notNull(),
+  operacion: text("operacion").notNull(),
+  proveedor: text("proveedor"),
+  modelo: text("modelo"),
+  tokensEntrada: integer("tokens_entrada"),
+  tokensSalida: integer("tokens_salida"),
+  costoUsd: numeric("costo_usd", { precision: 12, scale: 6, mode: "number" }),
+  duracionMs: integer("duracion_ms"),
+  resultado: text("resultado").notNull(),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("ia_uso_agente_fecha_idx").on(t.agente, t.creadoEl), index("ia_uso_org_fecha_idx").on(t.orgId, t.creadoEl)]);
+
+/** Selección futura de proveedor/modelo y topes para cada operación del agente. */
+export const iaConfiguracion = pgTable("ia_configuracion", {
+  id: serial("id").primaryKey(),
+  agente: text("agente").notNull(),
+  operacion: text("operacion").notNull(),
+  proveedor: text("proveedor"),
+  modelo: text("modelo"),
+  activa: boolean("activa").notNull().default(false),
+  limiteCostoUsd: numeric("limite_costo_usd", { precision: 12, scale: 6, mode: "number" }),
+  limiteTokensMes: integer("limite_tokens_mes"),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("ia_configuracion_agente_idx").on(t.agente, t.operacion, t.orgId, t.producerId)]);
+
+/** Reglas operativas heredables por compañía, ramo y tipo de siniestro. */
+export const siniestroConfiguracion = pgTable("siniestro_configuracion", {
+  id: serial("id").primaryKey(),
+  compania: text("compania").notNull(),
+  ramo: text("ramo").notNull(),
+  tipo: text("tipo").notNull(),
+  requisitos: jsonb("requisitos").$type<{ nombre: string; bloqueante: boolean }[]>().notNull().default([]),
+  ordenDossier: jsonb("orden_dossier").$type<string[]>().notNull().default([]),
+  plazoAvisoDias: integer("plazo_aviso_dias"),
+  diasSinNovedades: integer("dias_sin_novedades"),
+  vozAgente: text("voz_agente"),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("siniestro_configuracion_compania_ramo_tipo_idx").on(t.compania, t.ramo, t.tipo), index("siniestro_configuracion_busqueda_idx").on(t.compania, t.ramo, t.tipo)]);
+
+export const siniestroGastos = pgTable("siniestro_gastos", {
+  id: serial("id").primaryKey(),
+  siniestroId: integer("siniestro_id").notNull().references(() => siniestros.id, { onDelete: "cascade" }),
+  tipo: text("tipo").notNull(),
+  descripcion: text("descripcion").notNull(),
+  monto: pesos("monto").notNull(),
+  moneda: text("moneda").notNull().default("ARS"),
+  fecha: date("fecha", { mode: "string" }).notNull(),
+  comprobanteArchivoId: integer("comprobante_archivo_id").references(() => archivos.id, { onDelete: "set null" }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("siniestro_gastos_siniestro_idx").on(t.siniestroId, t.fecha)]);
+
+/** Borradores de informes y certificados del expediente (excluye informes médicos). */
+export const siniestroInformes = pgTable("siniestro_informes", {
+  id: serial("id").primaryKey(),
+  siniestroId: integer("siniestro_id").notNull().references(() => siniestros.id, { onDelete: "cascade" }),
+  tipo: text("tipo").notNull(),
+  estado: text("estado").notNull().default("borrador"),
+  contenido: jsonb("contenido").$type<Record<string, unknown>>().notNull().default({}),
+  archivoId: integer("archivo_id").references(() => archivos.id, { onDelete: "set null" }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  aprobadoEl: timestamp("aprobado_el", { withTimezone: true }),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("siniestro_informes_siniestro_idx").on(t.siniestroId, t.creadoEl)]);
 
 // ---------- Cotización ----------
 

@@ -1,4 +1,5 @@
-export type SolicitudIA = { system: string; mensaje: string; maxTokens?: number };
+export type AdjuntoIA = { nombre: string; tipoMime: string; contenido: Buffer };
+export type SolicitudIA = { system: string; mensaje: string; adjuntos?: AdjuntoIA[]; maxTokens?: number };
 export type RespuestaIA = { texto: string; modelo: string; tokensEntrada: number; tokensSalida: number; costoUsd: number };
 
 export interface ProveedorIA {
