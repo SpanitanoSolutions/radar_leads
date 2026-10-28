@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { EncabezadoAgente, Bitacora } from "@/components/agentes/Agente";
 import { obtenerCuenta, obtenerConexiones } from "@/lib/datos";
-import { agenteConfigurado, obtenerActividad, obtenerAseguradorasCotizacion, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerOpcionesSolicitud, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
+import { agenteConfigurado, obtenerActividad, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
 import { mejorCotizacion, filtrarSolicitudes, resumenCotizacion, ESTADOS_COTIZACION } from "@/lib/cotizacion";
 import { diaEnArgentina } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { metricasPorAseguradora, rankingProductores, solicitudesDetenidas } from "@/lib/cotizacion/metricas";
-import { actualizarSolicitud, aprobarEnvioCotizacion, cargarResultadoCotizacion, nuevaSolicitud, omitirBorradorCotizacion } from "./actions";
+import { actualizarSolicitud, aprobarEnvioCotizacion, cargarResultadoCotizacion, omitirBorradorCotizacion } from "./actions";
 import "../agentes.css";
 
 export const instant = false;
@@ -84,14 +84,12 @@ export default async function Cotizacion({
   const ejecutivo = typeof sp.ejecutivo === "string" ? sp.ejecutivo : "";
   const desde = typeof sp.desde === "string" ? sp.desde : "";
   const hasta = typeof sp.hasta === "string" ? sp.hasta : "";
-  const [registros, opciones, actividad, activo, conexiones, cuenta, aseguradoras, enviosCotizacion, datosMetricas] = await Promise.all([
+  const [registros, actividad, activo, conexiones, cuenta, enviosCotizacion, datosMetricas] = await Promise.all([
     obtenerSolicitudesCotizacion(),
-    obtenerOpcionesSolicitud(),
     tab === "bitacora" ? obtenerActividad("cotizacion") : Promise.resolve([]),
     agenteConfigurado("cotizacion"),
     obtenerConexiones(),
     obtenerCuenta(),
-    obtenerAseguradorasCotizacion(),
     obtenerEnviosCotizacion(),
     tab === "desempeno" ? obtenerMetricasCotizacion() : Promise.resolve({ envios: [], solicitudes: [] }),
   ]);
@@ -127,7 +125,6 @@ export default async function Cotizacion({
     : null;
   const estados = ESTADOS_COTIZACION;
   const portales = conexiones.filter((conexion) => conexion.tipo === "portal");
-  const companiasCotizacion = aseguradoras.filter((aseguradora) => aseguradora.activa).map((aseguradora) => aseguradora.nombre);
   const checklist = [
     { listo: activo, texto: "Activá el agente", href: "/agentes/cotizacion" },
     {
@@ -150,42 +147,7 @@ export default async function Cotizacion({
         extra={<span className="cotizacion-correo">El agente deja cada correo como borrador. Nada sale sin tu aprobación.</span>}
       >
         <Link href="/agentes/cotizacion/configuracion" className="boton">Configuración</Link>
-        <details className="cotizacion-nueva">
-          <summary className="boton boton-primario">Nueva solicitud</summary>
-          <form action={nuevaSolicitud} className="cotizacion-form-nueva">
-            <label>
-              <span>Asegurado o lead</span>
-              <select name="vinculo" defaultValue="" required>
-                <option value="" disabled>Elegí un contacto</option>
-                <optgroup label="Asegurados">{opciones.asegurados.map((a) => <option key={`a-${a.id}`} value={`asegurado:${a.id}`}>{a.nombre}</option>)}</optgroup>
-                <optgroup label="Leads">{opciones.leads.map((lead) => <option key={`l-${lead.id}`} value={`lead:${lead.id}`}>{lead.nombre}</option>)}</optgroup>
-              </select>
-            </label>
-            <div className="cotizacion-campos-dos">
-              <label><span>Tipo</span><select name="tipo" defaultValue="negocio_nuevo"><option value="negocio_nuevo">Negocio nuevo</option><option value="renovacion">Renovación</option></select></label>
-              <label><span>Ramo</span><select name="ramo" defaultValue="Automotor" required>{["Automotor", "Flotas", "Hogar", "Integral de comercio", "Incendio", "RC", "Caución", "ART", "AP", "Vida", "Salud"].map((item) => <option key={item}>{item}</option>)}</select></label>
-            </div>
-            <details><summary>Datos del riesgo (Automotor y Flotas)</summary>
-              <div className="cotizacion-campos-dos">
-                <label><span>Marca</span><input name="marca" maxLength={80} /></label><label><span>Modelo</span><input name="modelo" maxLength={80} /></label>
-                <label><span>Año</span><input name="anio" type="number" min="1900" max={new Date().getFullYear() + 1} /></label><label><span>Versión</span><input name="version" maxLength={100} /></label>
-                <label><span>Uso</span><input name="uso" maxLength={100} /></label><label><span>Código postal</span><input name="codigoPostal" maxLength={12} /></label>
-                <label><span>CUIT/CUIL</span><input name="cuitCuil" maxLength={13} /></label><label><span>Forma de pago</span><input name="formaDePago" maxLength={80} /></label>
-                <label><span>Unidades en la flota</span><input name="cantidadUnidades" type="number" min="1" /></label><label><span>Actividad de la flota</span><input name="actividad" maxLength={120} /></label>
-                <label><span>Suma asegurada solicitada</span><input name="sumaAsegurada" type="number" min="0" step="0.01" /></label>
-                <label><span>Coberturas solicitadas</span><input name="coberturasSolicitadas" maxLength={500} placeholder="RC, cristales…" /></label>
-              </div>
-            </details>
-            <label><span>Bien a asegurar</span><input name="bien" type="text" maxLength={250} /></label>
-            <label><span>Motivo</span><input name="motivo" type="text" maxLength={500} placeholder="Vence en 12 días, mejorar cobertura…" /></label>
-            <label><span>Adjuntar ficha o cotización (opcional, hasta 25 MB)</span><input name="archivoInicial" type="file" accept=".pdf,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp" /></label>
-            <p className="texto-suave">
-              Compañías activas: {companiasCotizacion.length ? companiasCotizacion.join(", ") : "ninguna; agregá una en Configuración."} (seleccioná las que quieras incluir)
-            </p>
-            <fieldset className="cotizacion-companias"><legend>Aseguradoras</legend>{aseguradoras.filter((aseguradora) => aseguradora.activa).map((aseguradora) => <label key={aseguradora.id}><input type="checkbox" name="companias" value={aseguradora.nombre} defaultChecked /> {aseguradora.nombre}{!aseguradora.ramos.includes("Automotor") && <small> · revisá sus ramos disponibles</small>}</label>)}</fieldset>
-            <button type="submit" className="boton boton-primario" disabled={!companiasCotizacion.length}>Crear solicitud</button>
-          </form>
-        </details>
+        <Link href="/agentes/cotizacion/nueva" className="boton boton-primario">Nueva solicitud</Link>
       </EncabezadoAgente>
 
       {aviso && <p role={aviso.error ? "alert" : "status"} className={`cotizacion-aviso${aviso.error ? " error" : ""}`}>{aviso.texto}</p>}
