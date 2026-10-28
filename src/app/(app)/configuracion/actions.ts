@@ -38,21 +38,15 @@ export type EstadoFormulario = { error?: string };
 
 // ---------- WhatsApp ----------
 
-export async function whatsappContinuar(_previo: EstadoFormulario, formData: FormData): Promise<EstadoFormulario> {
+export async function whatsappContinuar(_previo: EstadoFormulario, _formData: FormData): Promise<EstadoFormulario> {
   await requerirSesion();
-  const numero = texto(formData, "numero", 30);
-  if (numero.replace(/\D/g, "").length < 10) return { error: "Escribí el número completo, con característica (por ejemplo 223 555-1234)." };
-  await whatsapp.pedirCodigo(numero);
-  refrescar();
-  return {};
-}
-
-export async function whatsappVerificar(_previo: EstadoFormulario, formData: FormData): Promise<EstadoFormulario> {
-  await requerirSesion();
-  const r = await whatsapp.verificar(texto(formData, "codigo", 10));
-  if (!r.ok) return { error: r.error };
-  refrescar();
-  return {};
+  try {
+    await whatsapp.conectar();
+    refrescar();
+    return {};
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "No se pudo validar WhatsApp con Meta." };
+  }
 }
 
 export async function whatsappDesconectar() {
@@ -62,61 +56,31 @@ export async function whatsappDesconectar() {
   redirect("/configuracion?aviso=desconectada");
 }
 
-// ---------- Las demás conexiones (simuladas) ----------
+// ---------- Acciones de conexiones autorizadas ----------
 
 export async function conectar(_previo: EstadoFormulario, formData: FormData): Promise<EstadoFormulario> {
   await requerirSesion();
   const c = CONEXIONES.find((x) => x.clave === formData.get("clave"));
-  if (!c || c.tipo === "whatsapp") return { error: "Conexión desconocida." };
-  const falta = (dato: string) => ({ error: `Completá ${dato}.` });
-  switch (c.tipo) {
-    case "email": {
-      const direccion = texto(formData, "direccion");
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(direccion)) return falta("una dirección de email válida");
-      await email.conectar(direccion, texto(formData, "proveedor", 40) || "Gmail");
-      break;
-    }
-    case "portal": {
-      if (c.grupo === "companias" && formData.has("emailCompania")) {
-        const contacto = texto(formData, "emailCompania");
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contacto)) return falta("el email de la compañía");
-        await portal.porEmail(c.compania!, contacto);
-      } else {
-        const usuario = texto(formData, "usuario", 60);
-        if (!usuario) return falta("tu usuario o código de productor");
-        await portal.conectar(c.compania!, usuario);
-      }
-      break;
-    }
-    case "mercadopago":
-      await mercadoPago.conectar(texto(formData, "cuenta") || "Cuenta del productor");
-      break;
-    case "banco": {
-      const nombre = texto(formData, "banco", 60);
-      const alias = texto(formData, "alias", 60);
-      if (!nombre || !alias) return falta("el banco y el alias de tu cuenta");
-      await banco.configurar({ banco: nombre, alias });
-      break;
-    }
-    case "google_calendar":
-      await calendario.conectar(texto(formData, "calendario", 60) || "principal");
-      break;
-  }
-  refrescar();
-  redirect("/configuracion?aviso=conectada");
+  if (!c || c.tipo === "whatsapp") return { error: "Conexion desconocida." };
+  if (c.tipo === "portal") return { error: "No se conecto la aseguradora: falta su API oficial y autorizacion de productor." };
+  if (c.tipo === "banco") return { error: "Falta configurar un proveedor bancario real; escribir el banco y su alias no conecta la cuenta." };
+  return { error: "Usa el boton de autorizacion del proveedor; guardar un email, usuario o alias no conecta la cuenta." };
 }
 
 export async function desconectar(formData: FormData) {
   await requerirSesion();
   const c = CONEXIONES.find((x) => x.clave === formData.get("clave"));
-  if (!c) throw new Error("Conexión desconocida");
-  // Las compañías sin portal vuelven a "por email" sin contacto.
-  await guardarConexion(c.clave, c.compania && c.tipo === "portal" && formData.get("porEmail") === "1" ? "por_email" : "sin_conectar");
+  if (!c) throw new Error("Conexion desconocida");
+  if (c.tipo === "email") await email.desconectar();
+  else if (c.tipo === "mercadopago") await mercadoPago.desconectar();
+  else if (c.tipo === "google_calendar") await calendario.desconectar();
+  else if (c.tipo === "whatsapp") await whatsapp.desconectar();
+  else if (c.tipo === "banco") await banco.desconectar();
+  else if (c.tipo === "portal") await portal.desconectar(c.compania ?? "");
+  else await guardarConexion(c.clave, "sin_conectar");
   refrescar();
   redirect("/configuracion?aviso=desconectada");
 }
-
-// ---------- Mi cuenta ----------
 
 export async function guardarCuenta(_previo: EstadoFormulario, formData: FormData): Promise<EstadoFormulario> {
   await requerirSesion();

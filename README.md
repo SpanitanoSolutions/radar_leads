@@ -27,12 +27,13 @@ datos de personas solo se muestran detrás del login.
   depósitos, retenciones y reclamos por compañía.
 - **Leads del día** (`/leads`), **Ficha del lead** (`/leads/[id]`) y **Mis sectores**
   (`/sectores`): captación, seguimiento y preferencias de fuentes.
-- **Configuración** (`/configuracion`): conexiones simuladas y datos del productor.
+- **Configuracion** (`/configuracion`): conexiones OAuth/API con autorizacion real y datos del productor.
 
-Todo está protegido con una contraseña única (`APP_PASSWORD`). Los agentes usan
-reglas y plantillas; no llaman a modelos de IA. Los conectores de WhatsApp,
-correo, compañías, bancos y calendario son de prueba: no se comunican con
-servicios externos ni envían nada sin una acción explícita del productor.
+Todo esta protegido con una contrasena unica (APP_PASSWORD). Los agentes usan reglas y plantillas; no llaman a modelos de IA.
+
+Las conexiones ya no aceptan datos escritos como prueba de una conexion. Gmail, Google Calendar y Mercado Pago usan OAuth; WhatsApp valida y envia con Meta Cloud API. Sus credenciales de aplicacion deben estar configuradas en el entorno del servidor. Los tokens OAuth se cifran con SESSION_SECRET.
+
+Bancos y portales de aseguradoras siguen pendientes: cada uno necesita un proveedor/API autorizado y sus credenciales. La app los muestra como pendientes y no los usa para enviar cotizaciones ni consultar movimientos.
 
 ## Fuentes de leads
 
@@ -342,7 +343,7 @@ npm run test:e2e                                             # en otra terminal
 Revisa login → cartera, búsqueda y panel del asegurado, importación CSV en modo
 combinar (con una fila inválida), leads y sectores, solicitud de cotización,
 confirmación de pago, aprobación de cobranza, envío de denuncia y reclamo,
-conexión simulada de WhatsApp, las pantallas principales a 390 px y cierre de
+conexión configurada de WhatsApp, las pantallas principales a 390 px y cierre de
 sesión. El archivo de importación está en `e2e/fixtures/`.
 
 ## Estructura

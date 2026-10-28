@@ -1,15 +1,7 @@
 import "server-only";
-import { guardarConexion, leerConexion } from "./estado";
+import { borrarCredenciales, leerCredenciales, tokenVigente } from "./secretos";
+import { leerConexion } from "./estado";
 
-/**
- * Google Calendar: vencimientos, recordatorios de leads y reuniones en el
- * calendario del productor.
- *
- * Hoy es SIMULADO: guarda qué calendario eligió y no crea eventos. Lo va a
- * reemplazar la API de Google Calendar (events.insert con OAuth; credenciales
- * en GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET y
- * GOOGLE_CALENDAR_REFRESH_TOKEN).
- */
 export interface ConexionCalendario {
   conectado(): Promise<boolean>;
   conectar(calendario: string): Promise<void>;
@@ -17,19 +9,35 @@ export interface ConexionCalendario {
   crearEvento(evento: { titulo: string; dia: string; detalle?: string }): Promise<{ id: string } | null>;
 }
 
-export const calendarioSimulado: ConexionCalendario = {
+export const calendario: ConexionCalendario = {
   async conectado() {
-    return (await leerConexion("google_calendar"))?.estado === "conectado";
+    const fila = await leerConexion("google_calendar");
+    return fila?.estado === "conectado" && Boolean(await leerCredenciales("google_calendar"));
   },
-  async conectar(calendario) {
-    await guardarConexion("google_calendar", "conectado", { calendario });
+  async conectar() {
+    throw new Error("Conectá Google Calendar desde el botón Autorizar con Google.");
   },
   async desconectar() {
-    await guardarConexion("google_calendar", "sin_conectar");
+    await borrarCredenciales("google_calendar");
   },
-  async crearEvento() {
-    return null;
+  async crearEvento(evento) {
+    if (!(await this.conectado())) throw new Error("Google Calendar no está conectado.");
+    const accessToken = await tokenVigente("google_calendar", "google");
+    const fin = new Date(`${evento.dia}T00:00:00Z`);
+    fin.setUTCDate(fin.getUTCDate() + 1);
+    const respuesta = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        summary: evento.titulo,
+        description: evento.detalle,
+        start: { date: evento.dia },
+        end: { date: fin.toISOString().slice(0, 10) },
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!respuesta.ok) throw new Error(`Google Calendar respondió ${respuesta.status}.`);
+    const resultado = (await respuesta.json()) as { id?: string };
+    return resultado.id ? { id: resultado.id } : null;
   },
 };
-
-export const calendario: ConexionCalendario = calendarioSimulado;

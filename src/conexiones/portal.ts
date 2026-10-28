@@ -1,23 +1,10 @@
 import "server-only";
-import { guardarConexion, leerConexion } from "./estado";
 
-/**
- * Portal de productores de cada compañía: cotizar, bajar pólizas y seguir
- * siniestros en las compañías con acceso de productor.
- *
- * Hoy es SIMULADO: guarda el usuario (no la clave) y no entra a ningún portal.
- * Lo van a reemplazar las integraciones con cada portal de productores
- * (Mapfre, Sancor, Federación Patronal, La Segunda y Fianzas y Crédito),
- * automatizando el portal. Las claves irán en variables de
- * entorno por compañía (PORTAL_MAPFRE_CLAVE, …), nunca en la base.
- */
 export interface ConexionPortal {
   estado(compania: string): Promise<"conectado" | "sin_conectar" | "por_email">;
   conectar(compania: string, usuario: string): Promise<void>;
-  /** Compañías sin portal: el agente les escribe a esta dirección. */
   porEmail(compania: string, email: string): Promise<void>;
   desconectar(compania: string): Promise<void>;
-  /** Envía la solicitud al portal. El resultado llegará por el proceso receptor. */
   pedirCotizacion(compania: string, pedido: {
     solicitudId: number;
     solicitudNumero: number;
@@ -29,23 +16,19 @@ export interface ConexionPortal {
   }): Promise<{ referencia: string }>;
 }
 
-export const portalSimulado: ConexionPortal = {
-  async estado(compania) {
-    const estado = (await leerConexion(`portal:${compania}`))?.estado;
-    return estado === "conectado" || estado === "por_email" ? estado : "sin_conectar";
+/** No se simula login: cada aseguradora requiere su API y autorización propias. */
+export const portal: ConexionPortal = {
+  async estado() {
+    return "sin_conectar";
   },
-  async conectar(compania, usuario) {
-    await guardarConexion(`portal:${compania}`, "conectado", { usuario });
+  async conectar(compania) {
+    throw new Error(`No se marcó ${compania} como conectada: falta su integración oficial y autorización de productor.`);
   },
-  async porEmail(compania, email) {
-    await guardarConexion(`portal:${compania}`, "por_email", { email });
+  async porEmail(compania) {
+    throw new Error(`No se guardó ${compania}: todavía no hay una dirección de cotizaciones verificada.`);
   },
-  async desconectar(compania) {
-    await guardarConexion(`portal:${compania}`, "sin_conectar");
-  },
+  async desconectar() {},
   async pedirCotizacion(compania) {
-    throw new Error(`El portal de ${compania} no tiene un conector real configurado; no se solicitó ninguna cotización.`);
+    throw new Error(`No se envió la solicitud a ${compania}: todavía no hay un conector oficial configurado.`);
   },
 };
-
-export const portal: ConexionPortal = portalSimulado;

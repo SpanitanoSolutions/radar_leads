@@ -30,10 +30,22 @@ export async function obtenerConfigAgente<T>(agente: string): Promise<T | null> 
 export async function conexionesConectadas(): Promise<Set<string>> {
   await connection();
   const filas = await db
-    .select({ clave: schema.conexiones.clave })
+    .select({ clave: schema.conexiones.clave, tipo: schema.conexiones.tipo, datos: schema.conexiones.datos })
     .from(schema.conexiones)
     .where(eq(schema.conexiones.estado, "conectado"));
-  return new Set(filas.map((f) => f.clave));
+  return new Set(
+    filas
+      .filter(({ clave, tipo, datos }) => {
+        if (tipo === "whatsapp") {
+          return datos.validadoReal === true && Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
+        }
+        if (["email", "google_calendar", "mercadopago"].includes(clave)) return typeof datos.credencialesCifradas === "string";
+        if (tipo === "portal") return datos.integracionReal === true;
+        if (tipo === "banco") return datos.proveedorReal === true;
+        return true;
+      })
+      .map((fila) => fila.clave),
+  );
 }
 
 const columnasCuota = {

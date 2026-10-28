@@ -21,7 +21,40 @@ export type ConexionCatalogo = {
   detalle: string;
 };
 
-export const COMPANIAS_CON_PORTAL = ["Mapfre", "Sancor", "Federación Patronal", "La Segunda", "Fianzas y Crédito"];
+/**
+ * Aseguradoras líderes por participación de mercado total (SSN, 1T 2026).
+ * La SSN contabiliza por separado las entidades ART; se conservan esas marcas
+ * porque pueden tener un acceso de productor distinto al de seguros generales.
+ */
+export const ASEGURADORAS_LIDERES = [
+  { compania: "Federación Patronal", puesto: 1, participacion: "9,7%" },
+  { compania: "Sancor", puesto: 2, participacion: "7,3%" },
+  { compania: "Prevención ART", puesto: 3, participacion: "5,6%" },
+  { compania: "La Caja", puesto: 4, participacion: "5,1%" },
+  { compania: "Provincia ART", puesto: 5, participacion: "4,4%" },
+  { compania: "San Cristóbal", puesto: 6, participacion: "4,2%" },
+  { compania: "La Segunda", puesto: 7, participacion: "3,7%" },
+  { compania: "Mercantil Andina", puesto: 8, participacion: "3,6%" },
+  { compania: "Zurich", puesto: 9, participacion: "3,4%" },
+  { compania: "Seguros Rivadavia", puesto: 10, participacion: "3,2%" },
+  { compania: "Nación Seguros", puesto: 11, participacion: "3,1%" },
+  { compania: "Experta ART", puesto: 12, participacion: "2,7%" },
+  { compania: "Provincia Seguros", puesto: 13, participacion: "2,7%" },
+  { compania: "Allianz", puesto: 14, participacion: "2,5%" },
+  { compania: "Asociart ART", puesto: 15, participacion: "2,4%" },
+  { compania: "La Segunda ART", puesto: 16, participacion: "2,1%" },
+  { compania: "La Meridional", puesto: 17, participacion: "1,8%" },
+  { compania: "Life Seguros", puesto: 18, participacion: "1,8%" },
+  { compania: "Swiss Medical ART", puesto: 19, participacion: "1,7%" },
+  { compania: "Sudamericana Seguros Galicia", puesto: 20, participacion: "1,6%" },
+] as const;
+
+// Se suman las líderes a las opciones que ya ofrecía el sistema.
+export const COMPANIAS_CON_PORTAL = [
+  ...ASEGURADORAS_LIDERES.map(({ compania }) => compania),
+  "Mapfre",
+  "Fianzas y Crédito",
+];
 export const COMPANIAS_POR_EMAIL: string[] = [];
 
 export const CONEXIONES: ConexionCatalogo[] = [
@@ -55,7 +88,12 @@ export const CONEXIONES: ConexionCatalogo[] = [
       compania,
       requerida: false,
       usan: compania === "Mapfre" || compania === "Sancor" ? ["Cotización", "Siniestros"] : ["Cotización"],
-      detalle: "Portal de productores: para cotizar y descargar pólizas.",
+      detalle: (() => {
+        const ranking = ASEGURADORAS_LIDERES.find((item) => item.compania === compania);
+        return ranking
+          ? `Ranking de mercado SSN 1T 2026: #${ranking.puesto} · ${ranking.participacion}. Portal de productores para cotizar y descargar pólizas.`
+          : "Portal de productores: para cotizar y descargar pólizas.";
+      })(),
     }),
   ),
   ...COMPANIAS_POR_EMAIL.map(
@@ -110,7 +148,9 @@ export function companiasCotizables(conexiones: Pick<Conexion, "compania" | "est
     .filter((conexion) => {
       const fila = filas.get(conexion.compania!);
       if (!fila) return false;
-      if (fila.estado === "conectado") return typeof fila.datos.usuario === "string" && Boolean(fila.datos.usuario.trim());
+      if (fila.estado === "conectado") {
+        return fila.datos.integracionReal === true && typeof fila.datos.usuario === "string" && Boolean(fila.datos.usuario.trim());
+      }
       if (fila.estado === "por_email" && COMPANIAS_POR_EMAIL.includes(fila.compania!)) {
         const email = fila.datos.email;
         return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -146,6 +186,24 @@ type Fila = { estado: string; datos: Record<string, unknown> } | null | undefine
 /** Cómo se muestra cada conexión en Configuración según lo guardado. */
 export function vistaConexion(c: ConexionCatalogo, fila: Fila): VistaConexion {
   const d = (k: string) => (fila?.datos[k] ? String(fila.datos[k]) : "");
+  if (c.tipo === "portal") {
+    return {
+      estado: "sin_conectar",
+      estadoTexto: "Integración pendiente",
+      detalle: `${c.detalle} La conexión real requiere una API oficial y autorización de ${c.nombre}.`,
+      boton: "Integración pendiente",
+      primario: false,
+    };
+  }
+  if (c.tipo === "banco") {
+    return {
+      estado: "sin_conectar",
+      estadoTexto: "Proveedor pendiente",
+      detalle: "La conexión automática requiere contratar y configurar un proveedor bancario compatible.",
+      boton: "Proveedor pendiente",
+      primario: false,
+    };
+  }
   if (fila?.estado === "conectado") {
     const detalle =
       c.tipo === "whatsapp"
