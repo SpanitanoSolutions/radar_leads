@@ -14,7 +14,7 @@
 }
 .estadisticas-filtro-anio select {
   min-width: 100px;
-  height: 40px;
+  height: var(--alto-control);
   padding: 0 10px;
   border: 1px solid var(--borde-campo);
   border-radius: 6px;
@@ -31,7 +31,7 @@
 }
 .estadisticas-kpis .kpi-valor {
   overflow-wrap: anywhere;
-  font-size: 25px;
+  font-size: 20px;
 }
 .estadisticas-aclaracion {
   margin: -8px 0 0;
@@ -177,7 +177,7 @@
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 12px;
   align-items: center;
-  min-height: 46px;
+  min-height: 38px;
   border-bottom: 1px solid var(--borde-suave);
   font-size: 13px;
 }
@@ -221,7 +221,7 @@
   padding: 14px 18px 0;
 }
 .estadisticas-cotizaciones-resumen strong {
-  font-size: 22px;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
 }
 .estadisticas-cotizacion-fila {

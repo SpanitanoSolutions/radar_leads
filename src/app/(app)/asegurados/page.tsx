@@ -1,12 +1,16 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { Aviso } from "@/components/Aviso";
-import { IconoChevron, IconoMas, IconoPuntos, IconoSubir } from "@/components/iconos";
+import { IconoAtras, IconoChevron, IconoMas, IconoPuntos, IconoSiguiente, IconoSubir } from "@/components/iconos";
 import {
   alertasDe,
+  COOKIE_POR_PAGINA,
   filtrarAsegurados,
   hayFiltros,
   leerFiltrosAsegurados,
+  numerosDePagina,
   paginar,
+  porPaginaValido,
   resumirAsegurado,
   tonoDias,
   urlAsegurados,
@@ -16,6 +20,7 @@ import { obtenerAsegurados, obtenerFichaAsegurado } from "@/lib/datos-cartera";
 import { diaEnArgentina, fechaCorta } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { borrarCarteraDeEjemplo } from "./actions";
+import { FilasPorPagina } from "./FilasPorPagina";
 import { FiltrosLista } from "./FiltrosLista";
 import { LimpiarFiltros } from "./LimpiarFiltros";
 import { ListaAsegurados, type FilaVista } from "./ListaAsegurados";
@@ -31,14 +36,15 @@ export default async function Asegurados({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const filtros = leerFiltrosAsegurados(params);
+  const porGuardado = porPaginaValido((await cookies()).get(COOKIE_POR_PAGINA)?.value) ?? undefined;
+  const filtros = leerFiltrosAsegurados(params, porGuardado);
   const ver = Number(params.ver) || null;
   const hoy = diaEnArgentina(new Date());
   const [todos, ficha] = await Promise.all([obtenerAsegurados(), ver ? obtenerFichaAsegurado(ver) : null]);
 
   const filas = todos.map((a) => resumirAsegurado(a, hoy));
   const visibles = filtrarAsegurados(filas, filtros);
-  const pagina = paginar(visibles, filtros.pagina);
+  const pagina = paginar(visibles, filtros.pagina, filtros.por);
   const vista = VISTAS.find((v) => v.id === filtros.vista);
   const conFiltros = hayFiltros(filtros);
   const hayEjemplos = filas.some((f) => f.esEjemplo);
@@ -159,27 +165,60 @@ export default async function Asegurados({
         <ListaAsegurados filas={vistaFilas} abierto={ver} />
 
         <div className="lista-pie">
-          <span>
-            Mostrando {pagina.filas.length} de {visibles.length} asegurados
+          <span className="tabular">
+            {visibles.length ? `${pagina.desde}–${pagina.hasta} de ${visibles.length}` : "0"} asegurados
           </span>
           {pagina.paginas > 1 && (
             <nav aria-label="Páginas" className="paginas">
-              {pagina.pagina > 1 && (
-                <Link href={urlAsegurados(filtros, { pagina: pagina.pagina - 1 })} scroll={false}>
-                  Anterior
+              {pagina.pagina > 1 ? (
+                <Link
+                  href={urlAsegurados(filtros, { pagina: pagina.pagina - 1 })}
+                  scroll={false}
+                  className="pagina-flecha"
+                  aria-label="Página anterior"
+                >
+                  <IconoAtras />
                 </Link>
+              ) : (
+                <span className="pagina-flecha" aria-hidden="true">
+                  <IconoAtras />
+                </span>
               )}
-              <span>
-                Página {pagina.pagina} de {pagina.paginas}
-              </span>
-              {pagina.pagina < pagina.paginas && (
-                <Link href={urlAsegurados(filtros, { pagina: pagina.pagina + 1 })} scroll={false}>
-                  Siguiente
+              {numerosDePagina(pagina.pagina, pagina.paginas).map((n, i) =>
+                n === "…" ? (
+                  <span key={`salto-${i}`} className="pagina-salto" aria-hidden="true">
+                    …
+                  </span>
+                ) : (
+                  <Link
+                    key={n}
+                    href={urlAsegurados(filtros, { pagina: n })}
+                    scroll={false}
+                    className="pagina-numero"
+                    aria-label={`Página ${n}`}
+                    aria-current={n === pagina.pagina ? "page" : undefined}
+                  >
+                    {n}
+                  </Link>
+                ),
+              )}
+              {pagina.pagina < pagina.paginas ? (
+                <Link
+                  href={urlAsegurados(filtros, { pagina: pagina.pagina + 1 })}
+                  scroll={false}
+                  className="pagina-flecha"
+                  aria-label="Página siguiente"
+                >
+                  <IconoSiguiente />
                 </Link>
+              ) : (
+                <span className="pagina-flecha" aria-hidden="true">
+                  <IconoSiguiente />
+                </span>
               )}
             </nav>
           )}
-          <span>Filas por página: 25</span>
+          <FilasPorPagina filtros={filtros} primeraFila={pagina.desde} />
         </div>
       </section>
 

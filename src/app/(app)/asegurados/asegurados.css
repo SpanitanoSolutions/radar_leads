@@ -1,39 +1,62 @@
 /* ---------- Asegurados, ficha y vencimientos ---------- */
 
+/* Vistas rápidas: el número al lado del título, en una franja baja. */
 .vistas {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .vistas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .vista {
+    padding: 9px 11px;
+    column-gap: 9px;
+  }
+  .vista-detalle {
+    white-space: normal;
+  }
 }
 .vista {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 10px 14px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
   background: #fff;
+  box-shadow: var(--sombra-tarjeta);
   color: var(--texto);
   text-decoration: none;
+  transition: border-color 0.12s, background-color 0.12s;
 }
 .vista:hover {
-  border-color: #aeb5c2;
+  border-color: #c3c9d2;
   color: var(--texto);
 }
 .vista-activa {
-  border: 2px solid var(--acento);
-  padding: 13px 15px;
+  border-color: var(--acento);
+  background: #f7f9ff;
+  box-shadow: 0 0 0 1px var(--acento);
 }
 .vista-titulo {
-  font-size: 13px;
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--gris-texto);
 }
 .vista-numero {
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.1;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  min-width: 34px;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .vista-ambar {
@@ -46,8 +69,13 @@
   color: var(--gris-texto);
 }
 .vista-detalle {
-  font-size: 12px;
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 11.5px;
   color: var(--etiqueta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lista {
@@ -57,60 +85,75 @@
 }
 
 .filtros-lista {
-  padding: 16px 20px 8px;
+  padding: 10px 18px 6px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
+/* Búsqueda ancha y los filtros a su medida, en una sola fila mientras entren. */
 .filtros-grilla {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
-.filtros-grilla .campo {
-  width: 100%;
+.filtros-grilla > .campo-con-icono {
+  flex: 1 1 260px;
+  max-width: 380px;
 }
-.filtros-lista > .boton-texto {
-  align-self: flex-start;
+.filtros-grilla > .campo {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .filtros-grilla > .campo-con-icono,
+  .filtros-grilla > .campo {
+    flex: 1 1 100%;
+    max-width: none;
+  }
 }
 
 .barra-seleccion {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
-  margin: 0 20px 12px;
-  padding: 8px 14px;
-  border-radius: 6px;
+  gap: 8px 10px;
+  margin: 0 18px 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
   background: var(--acento-suave);
 }
 .barra-seleccion-texto {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--acento-texto);
 }
 .aviso-en-lista {
-  margin: 0 20px 12px;
+  margin: 0 18px 10px;
 }
 
 .tabla-asegurados {
-  min-width: 1120px;
-}
-.tabla-asegurados th {
-  background: var(--gris-suave);
-  color: var(--gris-texto);
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 13px;
+  min-width: 900px;
 }
 .tabla-asegurados td {
-  padding: 8px 10px;
+  padding: 7px 12px;
   font-size: 13px;
 }
 .tabla-asegurados th:first-child,
 .tabla-asegurados td:first-child {
   padding-left: 12px;
-  width: 52px;
+  width: 40px;
+}
+.tabla-asegurados th:last-child,
+.tabla-asegurados td:last-child {
+  width: 44px;
+  padding-right: 10px;
+}
+/* Cada asegurado ocupa dos renglones (nombre y datos): las etiquetas pueden
+   apilarse de a dos sin agrandar la fila, y la tabla entra en una notebook. */
+.tabla-asegurados .celda-secundaria,
+.tabla-asegurados td:nth-child(6) {
+  white-space: nowrap;
 }
 .tabla-asegurados .celda-check {
   padding-right: 0;
@@ -123,41 +166,86 @@
 }
 .nombre-asegurado {
   color: var(--texto);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  text-decoration: underline;
-  text-decoration-color: var(--borde-campo);
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 .nombre-asegurado:hover {
   color: var(--acento-texto);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .mas-items {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--acento-texto);
+  color: var(--etiqueta);
 }
 
+/* Paginación: flechas, números y filas por página */
 .paginas {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 2px;
 }
-.paginas a {
+.pagina-numero,
+.pagina-flecha,
+.pagina-salto {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: var(--radio-chico);
+  color: var(--gris-texto);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+.pagina-flecha svg {
+  width: 14px;
+  height: 14px;
+}
+a.pagina-numero:hover,
+a.pagina-flecha:hover {
+  background: var(--gris-suave);
+  color: var(--texto);
+}
+.pagina-numero[aria-current="page"] {
+  background: var(--texto);
+  color: #fff;
   font-weight: 600;
+}
+span.pagina-flecha {
+  color: #c3c9d2;
+}
+.pagina-salto {
+  min-width: 18px;
+  padding: 0;
+  color: var(--etiqueta);
+}
+.por-pagina {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (pointer: coarse) {
+  .pagina-numero,
+  .pagina-flecha {
+    min-width: 40px;
+    height: 40px;
+  }
 }
 
 /* Panel del asegurado */
 .panel-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 .asistente-whatsapp {
-  padding: 16px;
+  padding: 12px 14px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
   background: var(--fondo-suave);
@@ -169,8 +257,9 @@
   gap: 10px;
 }
 .asistente-whatsapp-avatar {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
   flex: none;
   display: grid;
   place-items: center;
@@ -187,7 +276,7 @@
 .asistente-whatsapp-burbuja {
   max-width: 90%;
   margin: 2px 0 0;
-  padding: 11px 13px;
+  padding: 8px 11px;
   border: 1px solid var(--borde);
   border-radius: 4px 14px 14px;
   background: #fff;
@@ -198,11 +287,11 @@
 .asistente-whatsapp-opciones {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .asistente-whatsapp-opcion {
-  min-height: 34px;
-  padding: 5px 10px;
+  min-height: 28px;
+  padding: 3px 10px;
   border: 1px solid var(--borde-campo);
   border-radius: 18px;
   background: #fff;
@@ -225,15 +314,15 @@
 }
 .asistente-whatsapp-editor {
   width: 100%;
-  min-height: 112px;
+  min-height: 88px;
   resize: vertical;
-  padding: 10px 12px;
+  padding: 8px 11px;
   border: 1px solid var(--borde-campo);
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
   color: var(--texto);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .asistente-whatsapp-editor:focus {
@@ -259,8 +348,7 @@
   color: var(--ambar-texto);
 }
 .asistente-whatsapp-enviar {
-  min-height: 40px;
-  padding: 0 14px;
+  padding: 0 12px;
   white-space: nowrap;
 }
 .panel-cabecera .fila-acciones {
@@ -271,7 +359,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 40px;
+  min-height: 30px;
   padding: 0 6px;
   font-size: 13px;
   font-weight: 600;
@@ -280,8 +368,8 @@
 .vencimiento {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
+  gap: 6px;
+  padding: 11px 13px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
 }
@@ -300,8 +388,8 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 650;
 }
 .dias-fuerte {
   font-size: 13px;
@@ -310,8 +398,8 @@
 .oportunidad {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px;
+  gap: 4px;
+  padding: 11px 13px;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
 }
@@ -322,12 +410,12 @@
   gap: 8px;
 }
 .oportunidad-titulo {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
 }
 .oportunidad-detalle {
   margin: 0;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--texto-2);
 }
@@ -338,8 +426,8 @@
 .poliza-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
+  gap: 3px;
+  padding: 10px 12px;
 }
 .poliza-item + .poliza-item {
   border-top: 1px solid var(--borde-suave);
@@ -349,10 +437,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 14px;
+  font-size: 13px;
 }
 .poliza-item-bien {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--gris-texto);
 }
 .poliza-item-pie {
@@ -406,64 +494,66 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 20px 24px;
+  gap: 14px;
+  padding: 14px 18px;
 }
 .ficha-identidad {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
 }
 .ficha-identidad-texto {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
 }
 h1.titulo-ficha {
-  font-size: 24px;
+  font-size: 19px;
 }
 .ficha-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  font-size: 14px;
-  color: var(--texto-2);
+  gap: 2px 12px;
+  font-size: 12.5px;
+  color: var(--etiqueta);
 }
 .ficha-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-top: 2px;
 }
 .ficha-tarjetas {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-  align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: start;
 }
 .proximo-fecha {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
-  font-size: 28px;
-  font-weight: 700;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
 }
 .proximo-fecha .alerta {
-  font-size: 13px;
+  font-size: 11.5px;
+  letter-spacing: 0;
 }
 .lista-oportunidades {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 .oportunidad-chica {
-  padding: 12px;
+  padding: 8px 10px;
   border: 1px solid var(--borde-suave);
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 .oportunidad-chica .texto-suave {
   margin-top: 2px;
@@ -477,14 +567,14 @@ h1.titulo-ficha {
 }
 .lista-notas li {
   display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 12px;
-  padding: 12px 0;
+  grid-template-columns: 88px 1fr;
+  gap: 10px;
+  padding: 9px 0;
   border-top: 1px solid var(--borde-suave);
-  font-size: 14px;
+  font-size: 13px;
 }
 .nota-fecha {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--etiqueta);
 }
 .lista-documentos {
@@ -498,16 +588,16 @@ h1.titulo-ficha {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: 38px;
   border-bottom: 1px solid var(--borde-suave);
-  font-size: 14px;
+  font-size: 13px;
 }
 .form-asegurado {
   max-width: 920px;
 }
 @media (max-width: 640px) {
   .ficha-cabecera {
-    padding: 16px;
+    padding: 14px;
   }
   .lista-notas li {
     grid-template-columns: 1fr;
