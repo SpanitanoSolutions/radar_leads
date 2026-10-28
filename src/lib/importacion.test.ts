@@ -4,6 +4,7 @@ import {
   companiaCanonica,
   cuitValido,
   detectarSeparador,
+  facturasPorAnio,
   filasParaCorregir,
   leerDocumento,
   leerFecha,
@@ -205,6 +206,14 @@ describe("valores", () => {
     expect(leerMontoSinComa("80308.76", 1000)).toEqual({ monto: 80308.76, corregido: false });
     expect(leerMontoSinComa("0.00", 1000)).toBeNull();
     expect(leerMontoSinComa("", 1000)).toBeNull();
+  });
+
+  it("cuántas facturas hace la compañía al año", () => {
+    expect(facturasPorAnio("MENSUAL")).toBe(12);
+    expect(facturasPorAnio("Semestral")).toBe(2);
+    expect(facturasPorAnio(" ANUAL ")).toBe(1);
+    expect(facturasPorAnio("")).toBeNull();
+    expect(facturasPorAnio("CADA TANTO")).toBeNull();
   });
 
   it("fechas dd/mm/aaaa, ISO y número de Excel; avisa las que no existen", () => {

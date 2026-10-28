@@ -41,6 +41,19 @@ export type FormatoCartera = {
   ramos?: Record<string, string>;
   /** Ramos en los que la columna de suma asegurada no es la suma total. */
   sumaNoEsTotalEn?: string[];
+  /**
+   * Si la compañía no informa la prima anual: el premio de la última factura
+   * (o, si todavía no hay, el de la anterior) por las facturas que hace al año
+   * según `facturacion` ("MENSUAL" → ×12). Si la facturación viene vacía, se
+   * supone la de `siNoInforma` según el grupo de la póliza (la sección) y la
+   * prima queda "a confirmar"; sin eso, no se calcula.
+   */
+  primaAnual?: {
+    premio: string;
+    premioAnterior?: string;
+    facturacion: string;
+    siNoInforma?: { agrupar: string; facturas: Record<string, number> };
+  };
 };
 
 export const FORMATOS_CARTERA: FormatoCartera[] = [
@@ -87,6 +100,18 @@ export const FORMATOS_CARTERA: FormatoCartera[] = [
       "end fact ant": "Es el endoso de la factura anterior: se toma el de la última.",
     },
     sumaNoEsTotalEn: ["Auto", "Moto", "Flota"],
+    // Mapfre informa el premio de cada factura, no la prima anual.
+    primaAnual: {
+      premio: "premio ult fact",
+      premioAnterior: "premio fact ant",
+      facturacion: "tipo fact",
+      // Cuando no la informa: en la cartera, los vencimientos de combinado e integral caen
+      // dentro de tres meses (trimestral) y los de autos dentro del mes, como los mensuales.
+      siNoInforma: {
+        agrupar: "seccion",
+        facturas: { "combinado familiar": 4, "integral de comercio": 4, automotores: 12, motos: 12 },
+      },
+    },
   },
   {
     // Reporte "Detalle" de cartera: una fila por certificado.

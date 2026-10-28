@@ -508,6 +508,75 @@ function sumarCertificado(poliza: FilaCartera, certificado: FilaCartera): FilaCa
   };
 }
 
+const FACTURAS_POR_ANIO: Record<string, number> = { mensual: 12, bimestral: 6, trimestral: 4, cuatrimestral: 3, semestral: 2, anual: 1 };
+
+/** Cuántas facturas hace la compañía al año según cómo factura ("MENSUAL" → 12). Si no se sabe, null. */
+export function facturasPorAnio(texto: string): number | null {
+  return FACTURAS_POR_ANIO[normalizarEncabezado(texto)] ?? null;
+}
+
+/** 4 → "trimestral". */
+function nombreFacturacion(facturas: number): string {
+  return Object.entries(FACTURAS_POR_ANIO).find(([, n]) => n === facturas)?.[0] ?? `${facturas} por año`;
+}
+
+/** `premioSinVerificar`: el premio llegó sin la coma y no hubo con qué compararlo. */
+type PrimaCalculada = { prima: number; detalle: DatoCompania; premioSinVerificar: boolean };
+
+/**
+ * La prima anual de las compañías que solo informan el premio de cada
+ * factura: ese premio por las facturas que hacen al año. Se toma el de la
+ * última factura o, si la póliza todavía no tiene, el de la anterior. Si la
+ * compañía no dice cómo factura, se supone según la sección y queda "a
+ * confirmar".
+ */
+function calculadoraDePrima(
+  tabla: Tabla,
+  formato: FormatoCartera | null,
+  referenciaDe: (celdas: string[], col: number) => ReferenciaMonto | null,
+): (celdas: string[]) => PrimaCalculada | null {
+  const regla = formato?.primaAnual;
+  if (!formato || !regla) return () => null;
+  const columna = (encabezado: string | undefined) =>
+    encabezado ? tabla.encabezados.findIndex((e) => normalizarEncabezado(e) === encabezado) : -1;
+  const colPremio = columna(regla.premio);
+  const colAnterior = columna(regla.premioAnterior);
+  const colFacturacion = columna(regla.facturacion);
+  const colGrupo = columna(regla.siNoInforma?.agrupar);
+  const anteriorSinComa = Boolean(regla.premioAnterior && formato.otros[regla.premioAnterior]?.sinComaDecimal);
+
+  return (celdas) => {
+    const facturacion = colFacturacion >= 0 ? (celdas[colFacturacion] ?? "").trim() : "";
+    let facturas = facturasPorAnio(facturacion);
+    // Solo se supone cuando la columna viene vacía, no cuando dice algo que no se entiende.
+    const supuesta = !facturacion && colGrupo >= 0 && Boolean(regla.siNoInforma);
+    if (supuesta) facturas = regla.siNoInforma!.facturas[normalizarEncabezado(celdas[colGrupo] ?? "")] ?? null;
+    if (!facturas) return null;
+    let base: { monto: number; factura: string; aConfirmar: boolean } | null = null;
+    const ultimo = colPremio >= 0 ? leerMonto(celdas[colPremio] ?? "") : null;
+    if (ultimo && ultimo > 0) {
+      base = { monto: ultimo, factura: "la última factura", aConfirmar: false };
+    } else if (colAnterior >= 0 && anteriorSinComa) {
+      const referencia = referenciaDe(celdas, colAnterior);
+      const leido = leerMontoSinComa(celdas[colAnterior] ?? "", referencia?.monto ?? null);
+      if (leido) base = { monto: leido.monto, factura: "la factura anterior", aConfirmar: leido.corregido && !referencia?.propia };
+    } else if (colAnterior >= 0) {
+      const anterior = leerMonto(celdas[colAnterior] ?? "");
+      if (anterior && anterior > 0) base = { monto: anterior, factura: "la factura anterior", aConfirmar: false };
+    }
+    if (!base) return null;
+    const como = [`premio de ${base.factura}, con impuestos`, ...(supuesta ? [`facturación ${nombreFacturacion(facturas)} supuesta`] : [])];
+    return {
+      prima: Math.round(base.monto * facturas * 100) / 100,
+      detalle: {
+        etiqueta: "Cómo se calculó la prima anual",
+        valor: `${pesosConCentavos(base.monto)} × ${facturas} (${como.join("; ")})${base.aConfirmar || supuesta ? " (a confirmar)" : ""}`,
+      },
+      premioSinVerificar: base.aConfirmar,
+    };
+  };
+}
+
 export type OpcionesCartera = {
   /** Ramo que eligió el productor para los que no se reconocen. */
   ramos?: Record<string, string>;
@@ -532,6 +601,7 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
   let totalFilas = 0;
   if (faltanObligatorios.length) return { filas: [], problemas, ramosDesconocidos: [], faltanObligatorios, totalFilas: tabla.filas.length };
   const referenciaDe = referenciasSinComa(tabla, formato);
+  const calcularPrima = calculadoraDePrima(tabla, formato, referenciaDe);
 
   tabla.filas.forEach((celdas, i) => {
     const valor = (campo: CampoCartera) => {
@@ -602,6 +672,13 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
     const cuotasNumero = Number(valor("cuotas"));
 
     if (problemas.length > errores && problemas.slice(errores).some((p) => p.tipo === "error")) return;
+    // Si la compañía no informa la prima anual, se calcula con el premio de cada factura.
+    const calculada = prima === null ? calcularPrima(celdas) : null;
+    if (calculada?.premioSinVerificar) {
+      advertencia(
+        `La prima anual se calculó con un premio que ${formato?.compania ?? "la compañía"} manda sin la coma decimal y no se pudo comparar con otra factura: revisala.`,
+      );
+    }
     const d = doc as Documento;
     const numero = valor("numero") || null;
     const compania = companiaCanonica(companiaTexto);
@@ -619,16 +696,19 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
       bien: valor("bien") || null,
       cobertura: valor("cobertura") || null,
       producto: valor("producto") || null,
-      prima,
+      prima: prima ?? calculada?.prima ?? null,
       premio,
       sumaAsegurada: suma,
       cuotas: Number.isInteger(cuotasNumero) && cuotasNumero >= 1 && cuotasNumero <= 24 ? cuotasNumero : null,
       formaPago: valor("formaPago") || null,
-      datosCompania: mapeo.flatMap((campo, col) => {
-        if (campo !== "otro") return [];
-        const dato = datoCompania(tabla.encabezados[col] ?? "", celdas[col] ?? "", formato, referenciaDe(celdas, col));
-        return dato ? [dato] : [];
-      }),
+      datosCompania: [
+        ...mapeo.flatMap((campo, col) => {
+          if (campo !== "otro") return [];
+          const dato = datoCompania(tabla.encabezados[col] ?? "", celdas[col] ?? "", formato, referenciaDe(celdas, col));
+          return dato ? [dato] : [];
+        }),
+        ...(calculada ? [calculada.detalle] : []),
+      ],
       telefono,
       email,
       localidad: valor("localidad") || null,

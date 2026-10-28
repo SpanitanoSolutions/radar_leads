@@ -162,7 +162,16 @@ importa todo lo que el productor necesita ver de sus pólizas y asegurados: lo
 que tiene un dato propio en UNIQO (producto, prima, premio, suma asegurada,
 fecha de nacimiento, código postal…) va ahí, y lo demás se guarda como "otro
 dato" de la póliza y se muestra en la ficha. Solo quedan afuera las columnas
-vacías, repetidas o que vienen rotas, y nunca se estima un valor.
+vacías, repetidas o que vienen rotas. Lo que se calcula queda explicado en la
+póliza, y lo que no se puede verificar se marca "(a confirmar)".
+
+Mapfre no informa la prima anual sino el premio de cada factura: la prima anual
+es ese premio por las facturas del año según la columna de facturación (×12
+mensual, ×2 semestral, ×1 anual). Si la facturación viene vacía se supone según
+la sección (combinado e integral trimestrales, autos y motos mensuales) y la
+prima queda "(a confirmar)". El
+premio de la factura anterior llega sin la coma decimal ("18061979.00" es
+$ 180.619,79) y se ubica comparándolo con la última factura de la póliza.
 
 Los listados que exporta cada compañía con sus propios encabezados (hoy, la
 cartera vigente de Mapfre y el detalle de cartera de Sancor) se reconocen solos:

@@ -27,6 +27,14 @@ const SANCOR = [
   ",,,,692807266,,,,,,,,,,,,,,",
 ].join("\r\n");
 
+/** Una fila de MAPFRE con algunas columnas cambiadas ("PREMIO ÚLT.FACT." → "100000.50"). */
+function cambiarMapfre(fila: string, cambios: Record<string, string>): string {
+  const columnas = MAPFRE.split("\r\n")[0].split(",");
+  const celdas = fila.split(",");
+  for (const [columna, valor] of Object.entries(cambios)) celdas[columnas.indexOf(columna)] = valor;
+  return celdas.join(",");
+}
+
 describe("Mapfre: cartera vigente", () => {
   it("reconoce el formato y relaciona las columnas", async () => {
     const t = await leerTablaCsv(MAPFRE, "Cartera vigente Mapfre 2026 - HOJA 1.csv");
@@ -67,8 +75,11 @@ describe("Mapfre: cartera vigente", () => {
     const v = validarCartera(t, mapeoDeFormato(t.encabezados, formato), { ramos: formato.ramos, compania: formato.compania, formato });
     expect(v.filas.map((f) => [f.ramo, f.compania, f.vigenciaHasta, f.telefono, f.producto, f.sumaAsegurada, f.prima])).toEqual([
       // En autos, la suma de la última factura es el ajuste del endoso: no se toma.
-      ["Auto", "Mapfre", "2026-10-23", "02235550001", "AUTOMOVILES INDIVIDUAL SCORING", null, null],
-      ["Hogar", "Mapfre", "2027-01-23", "2235550002", "POLIZA MAS", 760763800, null],
+      // Prima anual: el premio mensual por 12.
+      ["Auto", "Mapfre", "2026-10-23", "02235550001", "AUTOMOVILES INDIVIDUAL SCORING", null, 963705.12],
+      // Sin facturación informada, combinado se supone trimestral (a confirmar).
+      ["Hogar", "Mapfre", "2027-01-23", "2235550002", "POLIZA MAS", 760763800, 765769.6],
+      // Anual, pero todavía sin premio facturado.
       ["Vida", "Mapfre", "2026-11-01", null, "OBLIGATORIO DECRETO 1567/74", null, null],
     ]);
     expect(v.filas[0]).toMatchObject({ fechaNacimiento: "1977-02-16", codigoPostal: "7600", formaPago: "TC" });
@@ -81,6 +92,7 @@ describe("Mapfre: cartera vigente", () => {
       { etiqueta: "Premio de la última factura", valor: pesosConCentavos(80308.76) },
       // "8019272.00": Mapfre la manda sin la coma decimal.
       { etiqueta: "Premio de la factura anterior", valor: pesosConCentavos(80192.72) },
+      { etiqueta: "Cómo se calculó la prima anual", valor: `${pesosConCentavos(80308.76)} × 12 (premio de la última factura, con impuestos)` },
     ]);
     // Sin facturas todavía: ni endoso ni premio en cero.
     expect(v.filas[2].datosCompania.map((d) => d.etiqueta)).toEqual(["Código de productor", "Facturación", "Anualidad", "Siniestros informados por Mapfre"]);
@@ -91,14 +103,8 @@ describe("Mapfre: cartera vigente", () => {
 
   it("lee el premio de la factura anterior aunque venga sin la coma decimal", async () => {
     const [encabezado, auto, hogar] = MAPFRE.split("\r\n");
-    const columnas = encabezado.split(",");
-    // Cambia solo los premios de la fila de ejemplo y deja el resto como está.
-    const conPremios = (fila: string, ultimo: string, anterior: string) => {
-      const celdas = fila.split(",");
-      celdas[columnas.indexOf("PREMIO ÚLT.FACT.")] = ultimo;
-      celdas[columnas.indexOf("PREMIO FACT.ANT.")] = anterior;
-      return celdas.join(",");
-    };
+    const conPremios = (fila: string, ultimo: string, anterior: string) =>
+      cambiarMapfre(fila, { "PREMIO ÚLT.FACT.": ultimo, "PREMIO FACT.ANT.": anterior });
     const t = await leerTablaCsv(
       [
         encabezado,
@@ -117,6 +123,42 @@ describe("Mapfre: cartera vigente", () => {
       `${pesosConCentavos(107270.2)} (a confirmar)`,
       pesosConCentavos(15740438.5),
     ]);
+    // Los autos son mensuales: el segundo, sin última factura, toma la anterior y avisa que hay que revisarla.
+    // Los de hogar no informan la facturación: se suponen trimestrales.
+    expect(v.filas.map((f) => f.prima)).toEqual([765769.6, 910175.16, 1287242.4, 62961754]);
+    expect(v.problemas.filter((p) => p.mensaje.startsWith("La prima anual")).map((p) => p.fila)).toEqual([4]);
+    expect(v.problemas).toContainEqual({
+      fila: 4,
+      mensaje: "La prima anual se calculó con un premio que Mapfre manda sin la coma decimal y no se pudo comparar con otra factura: revisala.",
+      tipo: "advertencia",
+    });
+  });
+
+  it("calcula la prima anual con la facturación: ×12 mensual, ×2 semestral, ×1 anual", async () => {
+    const [encabezado, auto] = MAPFRE.split("\r\n");
+    const poliza = (numero: string, facturacion: string, seccion = "AUTOMOTORES") =>
+      cambiarMapfre(auto.replace("11000001", numero), { "TIPO FACT.": facturacion, "PREMIO ÚLT.FACT.": "100000.50", SECCIÓN: seccion });
+    const t = await leerTablaCsv(
+      [
+        encabezado,
+        poliza("1", "MENSUAL"),
+        poliza("2", "SEMESTRAL"),
+        poliza("3", "ANUAL"),
+        poliza("4", "Trimestral"),
+        poliza("5", ""), // sin facturación: un auto se supone mensual
+        poliza("6", "", "INTEGRAL DE COMERCIO"), // y un integral, trimestral
+        poliza("7", "CADA TANTO"), // dice algo que no se entiende: no se supone nada
+      ].join("\r\n"),
+    );
+    const formato = detectarFormato(t.encabezados)!;
+    const v = validarCartera(t, mapeoDeFormato(t.encabezados, formato), { compania: formato.compania, formato });
+    expect(v.filas.map((f) => f.prima)).toEqual([1200006, 200001, 100000.5, 400002, 1200006, 400002, null]);
+    const como = (i: number) => v.filas[i].datosCompania.find((d) => d.etiqueta === "Cómo se calculó la prima anual")?.valor;
+    expect(como(1)).toBe(`${pesosConCentavos(100000.5)} × 2 (premio de la última factura, con impuestos)`);
+    expect(como(4)).toBe(`${pesosConCentavos(100000.5)} × 12 (premio de la última factura, con impuestos; facturación mensual supuesta) (a confirmar)`);
+    expect(como(5)).toBe(`${pesosConCentavos(100000.5)} × 4 (premio de la última factura, con impuestos; facturación trimestral supuesta) (a confirmar)`);
+    // Suponer la facturación se marca en la póliza, sin llenar de avisos la importación.
+    expect(v.problemas.filter((p) => p.mensaje.startsWith("La prima anual"))).toEqual([]);
   });
 
   it("sin el formato, los sinónimos no confunden PRODUCTOR con el ramo", async () => {
