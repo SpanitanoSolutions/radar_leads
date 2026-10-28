@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!fila) return new Response("Archivo inexistente", { status: 404 });
 
   const nombre = encodeURIComponent(fila.archivo.nombre.replace(/[\r\n"\\]/g, "_"));
-  return new Response(fila.archivo.contenido, {
+  return new Response(new Uint8Array(fila.archivo.contenido), {
     headers: {
       "Content-Type": fila.archivo.tipo,
       "Content-Length": String(fila.archivo.tamano),
