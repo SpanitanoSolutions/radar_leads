@@ -1,5 +1,5 @@
 import { obtenerClavesDeAsegurados, obtenerClavesDePolizas, obtenerHayEjemplos, obtenerImportaciones } from "@/lib/datos-cartera";
-import { diaEnArgentina, fechaCorta } from "@/lib/fechas";
+import { diaEnArgentina, diaYHora, fechaCorta } from "@/lib/fechas";
 import { AsistenteImportar } from "./AsistenteImportar";
 import "./importar.css";
 
@@ -28,31 +28,30 @@ export default async function Importar() {
 
       <AsistenteImportar hoy={hoy} cargados={cargados} polizasCargadas={polizasCargadas} hayEjemplos={hayEjemplos} />
 
-      {importaciones.length > 0 && (
-        <section className="tarjeta" aria-labelledby="t-importaciones">
-          <div className="lista-cabecera">
-            <h2 id="t-importaciones" className="lista-titulo">
-              Últimas importaciones
-            </h2>
-          </div>
+      <section className="tarjeta" id="historial" aria-labelledby="t-importaciones">
+        <div className="lista-cabecera">
+          <h2 id="t-importaciones" className="lista-titulo">Historial de importaciones</h2>
+        </div>
+        {importaciones.length ? (
           <ul className="lista-importaciones">
             {importaciones.map((i) => (
               <li key={i.id}>
-                <span className="tabular texto-gris">{fechaCorta(diaEnArgentina(i.fecha))}</span>
-                <span className="celda-fuerte">{i.archivo}</span>
+                <time dateTime={i.fecha.toISOString()} className="tabular texto-gris">{fechaCorta(diaEnArgentina(i.fecha))} · {diaYHora(i.fecha).slice(6)}</time>
+                <strong className="celda-fuerte">{i.archivo}</strong>
+                <span className="importacion-modo">{i.modo === "reemplazar" ? "Reemplazó la cartera" : "Combinó con la cartera"}</span>
                 <span className="texto-suave">
+                  {`${i.filas} filas procesadas`}
                   {i.resumen
-                    ? `${i.resumen.aseguradosNuevos} asegurados nuevos, ${i.resumen.aseguradosActualizados} actualizados · ${
-                        i.resumen.polizasNuevas + i.resumen.polizasActualizadas
-                      } pólizas` + (i.resumen.dadosDeBaja ? ` · ${i.resumen.dadosDeBaja} dadas de baja` : "")
-                    : `${i.filas} filas`}
-                  {i.errores ? ` · ${i.errores} filas con problemas` : ""}
+                    ? ` · ${i.resumen.aseguradosNuevos} asegurados nuevos, ${i.resumen.aseguradosActualizados} actualizados · ${i.resumen.polizasNuevas} pólizas nuevas, ${i.resumen.polizasActualizadas} actualizadas` + (i.resumen.dadosDeBaja ? ` · ${i.resumen.dadosDeBaja} dadas de baja` : "")
+                    : ""}
+                  {i.errores ? ` · ${i.errores} filas con errores` : ""}
+                  {i.advertencias ? ` · ${i.advertencias} advertencias` : ""}
                 </span>
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        ) : <p className="texto-con-margen">Todavía no hay importaciones registradas.</p>}
+      </section>
     </>
   );
 }

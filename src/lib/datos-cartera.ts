@@ -111,9 +111,9 @@ export async function obtenerClavesDePolizas(): Promise<string[]> {
   return filas.map((f) => claveDePoliza(f.compania!, f.numero!));
 }
 
-export async function obtenerImportaciones(cuantas = 5) {
+export async function obtenerImportaciones() {
   await connection();
-  return db.select().from(schema.importaciones).orderBy(desc(schema.importaciones.fecha)).limit(cuantas);
+  return db.select().from(schema.importaciones).orderBy(desc(schema.importaciones.fecha));
 }
 
 /** Si hay asegurados de ejemplo (para ofrecer quitarlos al importar). */

@@ -246,3 +246,24 @@
 .lista-importaciones li:last-child {
   border-bottom: none;
 }
+.lista-importaciones time {
+  min-width: 126px;
+}
+.importacion-modo {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--gris-suave);
+  color: var(--texto-2);
+  font-size: 11px;
+}
+@media (max-width: 640px) {
+  .lista-importaciones {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+  .lista-importaciones li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}

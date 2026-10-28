@@ -14,7 +14,7 @@ export const instant = false;
 const PESTANAS = [
   { id: "conexiones", texto: "Conexiones" },
   { id: "cuenta", texto: "Mi cuenta" },
-  { id: "equipo", texto: "Equipo" },
+  { id: "equipo", texto: "Mi equipo" },
   { id: "notificaciones", texto: "Notificaciones" },
   { id: "facturacion", texto: "Facturación" },
 ] as const;
@@ -48,10 +48,13 @@ export default async function Configuracion({
     <>
       <header className="encabezado">
         <div className="encabezado-texto">
-          <h1 className="titulo">Configuración</h1>
+          <h1 className="titulo">{pestana === "equipo" ? "Mi equipo" : pestana === "cuenta" ? "Mi cuenta" : "Configuración"}</h1>
           <p className="subtitulo">
-            Conectá las herramientas que usan tus agentes. UNIQO no guarda contraseñas y podés desconectar cualquier cuenta
-            cuando quieras.
+            {pestana === "equipo"
+              ? "Administrá el nombre, el logo y las personas que forman parte de tu agrupación aseguradora."
+              : pestana === "cuenta"
+                ? "Actualizá los datos del productor que aparecen en tu perfil y firman los mensajes."
+                : "Conectá las herramientas que usan tus agentes. UNIQO no guarda contraseñas y podés desconectar cualquier cuenta cuando quieras."}
           </p>
         </div>
       </header>
@@ -158,9 +161,9 @@ export default async function Configuracion({
         </>
       )}
 
-      {pestana === "cuenta" && <FormCuenta cuenta={cuenta} />}
+      {(pestana === "cuenta" || pestana === "equipo") && <FormCuenta cuenta={cuenta} tab={pestana} />}
 
-      {pestana !== "conexiones" && pestana !== "cuenta" && (
+      {pestana !== "conexiones" && pestana !== "cuenta" && pestana !== "equipo" && (
         <section className="tarjeta">
           <p className="vacio">{PESTANAS.find((p) => p.id === pestana)?.texto}: próximamente.</p>
         </section>

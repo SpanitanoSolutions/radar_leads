@@ -7,9 +7,9 @@ export const instant = false;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requerirSesion();
-  const { cuenta, contadores } = await obtenerMarco();
+  const { cuenta, contadores, notificaciones } = await obtenerMarco();
   return (
-    <Marco cuenta={cuenta} contadores={contadores}>
+    <Marco cuenta={cuenta} contadores={contadores} notificaciones={notificaciones}>
       {children}
     </Marco>
   );

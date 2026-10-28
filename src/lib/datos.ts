@@ -108,6 +108,7 @@ type FilaMarco = {
   leads: number;
   importacion_fecha: string | null;
   importacion_archivo: string | null;
+  importacion_filas: number | null;
   conectadas: string[];
   configurados: string[];
   cotizacion: number;
@@ -120,13 +121,22 @@ type FilaMarco = {
   logo_empresa: boolean | null;
   telefono: string | null;
   email: string | null;
+  avisos_comprobantes: number;
+  avisos_cobranza: number;
+  avisos_cotizaciones: number;
+  avisos_siniestros: number;
+  avisos_cuotas_vencidas: number;
 };
 
 /**
  * Lo que necesita el marco de todas las pantallas (barra superior y menú):
  * datos del productor y contadores, en una sola consulta.
  */
-export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: ContadoresMenu }> {
+export async function obtenerMarco(): Promise<{
+  cuenta: Cuenta;
+  contadores: ContadoresMenu;
+  notificaciones: { comprobantes: number; cobranza: number; cotizaciones: number; siniestros: number; cuotasVencidas: number };
+}> {
   await connection();
   const hoy = diaEnArgentina(new Date());
   const en30 = sumarDias(hoy, 30);
@@ -143,8 +153,19 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
           and coalesce((a.zonas ->> l.zona::text)::boolean, true)
           and (l.alcance_licitacion is null
             or coalesce((a.licitaciones ->> l.alcance_licitacion::text)::boolean, true))) as leads,
+      (select count(*)::int from comprobantes where estado = 'por_revisar') as avisos_comprobantes,
+      (select count(*)::int from mensajes
+        where agente = 'cobranza' and estado = 'borrador'
+          and (mostrar_desde is null or mostrar_desde <= ${hoy})) as avisos_cobranza,
+      (select count(*)::int from solicitudes_cotizacion where estado = 'atencion') as avisos_cotizaciones,
+      (select count(*)::int from siniestros where cerrado = false) as avisos_siniestros,
+      (select count(distinct c.poliza_id)::int from cuotas c
+        join polizas p on p.id = c.poliza_id and p.baja_el is null
+        join asegurados x on x.id = p.asegurado_id and x.baja_el is null
+        where c.vencimiento < ${hoy} and c.estado in ('pendiente', 'vencida')) as avisos_cuotas_vencidas,
       i.fecha as importacion_fecha,
       i.archivo as importacion_archivo,
+      i.filas as importacion_filas,
       (select coalesce(array_agg(clave), '{}') from conexiones where estado = 'conectado') as conectadas,
       (select coalesce(array_agg(agente), '{}') from configuracion_agentes where configurado) as configurados,
       (select count(*)::int from solicitudes_cotizacion where estado = 'atencion') as cotizacion,
@@ -164,7 +185,7 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
     from (select 1) uno
     left join ajustes a on a.id = 1
     left join lateral (
-      select to_char(fecha at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM-DD') as fecha, archivo
+      select to_char(fecha at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM-DD') as fecha, archivo, filas
       from importaciones order by fecha desc limit 1
     ) i on true
   `)) as unknown as FilaMarco[];
@@ -176,7 +197,7 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
       nombre: f.nombre ?? process.env.NOMBRE_PRODUCTOR ?? null,
       matricula: f.matricula,
       productores: productoresDe(f.productores, f.nombre, f.matricula),
-      organizacion: f.organizacion,
+      organizacion: f.organizacion ?? "HR Productores",
       logoEmpresa: Boolean(f.logo_empresa),
       telefono: f.telefono,
       email: f.email,
@@ -195,8 +216,15 @@ export async function obtenerMarco(): Promise<{ cuenta: Cuenta; contadores: Cont
       },
       conexionesPendientes: conexionesPendientes(f.conectadas).length,
       ultimaImportacion: f.importacion_fecha
-        ? { fecha: f.importacion_fecha, archivo: f.importacion_archivo }
+        ? { fecha: f.importacion_fecha, archivo: f.importacion_archivo, filas: f.importacion_filas ?? undefined }
         : null,
+    },
+    notificaciones: {
+      comprobantes: f.avisos_comprobantes,
+      cobranza: f.avisos_cobranza,
+      cotizaciones: f.avisos_cotizaciones,
+      siniestros: f.avisos_siniestros,
+      cuotasVencidas: f.avisos_cuotas_vencidas,
     },
   };
 }

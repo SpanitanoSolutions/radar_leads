@@ -125,7 +125,7 @@ export function ContenidoConexion({ conexion, conectada, porEmail, datos }: {
 }
 
 /** Mi cuenta: los datos que firman los mensajes y aparecen arriba. */
-export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
+export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "cuenta" | "equipo" }) {
   const [estado, guardar, guardando] = useActionState<EstadoFormulario, FormData>(guardarCuenta, {});
   const [nombrePrincipal, setNombrePrincipal] = useState(cuenta.productores[0]?.nombre ?? cuenta.nombre ?? "");
   const [matriculaPrincipal, setMatriculaPrincipal] = useState(cuenta.productores[0]?.matricula ?? cuenta.matricula ?? "");
@@ -153,6 +153,7 @@ export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
   );
   return (
     <form action={guardar} encType="multipart/form-data" className="tarjeta tarjeta-padding form-cuenta">
+      <input type="hidden" name="tab" value={tab} />
       <p className="texto-suave">
         Agregá todas las personas físicas que trabajan con esta cuenta y sus matrículas. La primera persona aparece arriba
         y firma los mensajes que preparan los agentes.
@@ -203,7 +204,7 @@ export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
           </div>
         </div>
       </section>
-      <section className="cuenta-productores" aria-labelledby="cuenta-productores-titulo">
+      <section className="cuenta-productores" id="mi-equipo" aria-labelledby="cuenta-productores-titulo">
         <div className="cuenta-productores-cabecera">
           <div>
             <h2 id="cuenta-productores-titulo">Otras personas físicas</h2>

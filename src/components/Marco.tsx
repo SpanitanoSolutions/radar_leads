@@ -10,15 +10,17 @@ import {
   armarMenu,
   estaActivo,
   fechaCorta,
-  itemConfiguracion,
   type ContadoresMenu,
   type Icono,
   type ItemMenu,
 } from "@/lib/menu";
 import {
   IconoAyuda,
+  IconoBuscar,
+  IconoCampana,
   IconoCalculadora,
   IconoCalendario,
+  IconoChevron,
   IconoCerrar,
   IconoEngranaje,
   IconoEscudo,
@@ -57,10 +59,12 @@ const ICONOS: Record<Icono, (props: { size?: number }) => React.ReactNode> = {
 export function Marco({
   cuenta,
   contadores,
+  notificaciones,
   children,
 }: {
   cuenta: Cuenta;
   contadores: ContadoresMenu;
+  notificaciones: { comprobantes: number; cobranza: number; cotizaciones: number; siniestros: number; cuotasVencidas: number };
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -68,9 +72,21 @@ export function Marco({
   const [temaOscuro, setTemaOscuro] = useState(false);
   const boton = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLElement>(null);
+  const campoBusqueda = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTemaOscuro(document.documentElement.dataset.theme === "dark");
+  }, []);
+
+  useEffect(() => {
+    const buscarConAtajo = (evento: KeyboardEvent) => {
+      if ((evento.metaKey || evento.ctrlKey) && evento.key.toLowerCase() === "k") {
+        evento.preventDefault();
+        campoBusqueda.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", buscarConAtajo);
+    return () => document.removeEventListener("keydown", buscarConAtajo);
   }, []);
 
   function alternarTema() {
@@ -129,8 +145,18 @@ export function Marco({
     };
   }, []);
 
-  const productor = [cuenta.nombre, cuenta.organizacion].filter(Boolean).join(" · ");
+  const nombrePerfil = cuenta.nombre?.trim() || "Mi cuenta";
+  const nombreEquipo = cuenta.organizacion?.trim() || "Mi equipo";
+  const iniciales = (nombre: string) => nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((parte) => parte[0]).join("").toLocaleUpperCase("es-AR") || "U";
   const importacion = contadores.ultimaImportacion;
+  const avisos = [
+    { href: "/agentes/validador?tab=revisar", texto: "Comprobantes por revisar", cantidad: notificaciones.comprobantes },
+    { href: "/agentes/cobranza", texto: "Mensajes para aprobar", cantidad: notificaciones.cobranza },
+    { href: "/agentes/cotizacion?estado=atencion", texto: "Cotizaciones con atención", cantidad: notificaciones.cotizaciones },
+    { href: "/agentes/siniestros", texto: "Siniestros abiertos", cantidad: notificaciones.siniestros },
+    { href: "/agentes/validador?tab=vencidos", texto: "Cuotas vencidas", cantidad: notificaciones.cuotasVencidas },
+  ].filter((aviso) => aviso.cantidad > 0);
+  const totalAvisos = avisos.reduce((suma, aviso) => suma + aviso.cantidad, 0);
 
   return (
     <div className="app">
@@ -155,29 +181,50 @@ export function Marco({
           </span>
           <span className="barra-producto">Administración de seguros</span>
         </Link>
-        {(productor || cuenta.logoEmpresa) && (
-          <>
-            <span className="barra-separador" aria-hidden="true" />
-            <span className="barra-cuenta">
-              {cuenta.logoEmpresa && (
-                <Image
-                  src="/api/logo-empresa"
-                  alt={cuenta.organizacion ? `Logo de ${cuenta.organizacion}` : "Logo de la empresa"}
-                  width={32}
-                  height={32}
-                  unoptimized
-                  className="barra-logo-empresa"
-                />
-              )}
-              {productor && <span className="barra-productor">{productor}</span>}
-            </span>
-          </>
-        )}
+        <span className="barra-separador" aria-hidden="true" />
+        <details className="barra-desplegable barra-equipo">
+          <summary className="barra-equipo-resumen" aria-label={`Abrir opciones de ${nombreEquipo}`}>
+            {cuenta.logoEmpresa ? (
+              <Image
+                src="/api/logo-empresa"
+                alt=""
+                width={36}
+                height={36}
+                unoptimized
+                className="barra-logo-empresa"
+              />
+            ) : (
+              <span className="barra-equipo-iniciales" aria-hidden="true">{iniciales(nombreEquipo)}</span>
+            )}
+            <span className="barra-equipo-nombre">{nombreEquipo}</span>
+            <IconoChevron />
+          </summary>
+          <div className="barra-menu-panel barra-equipo-panel">
+            <p className="barra-menu-encabezado">{nombreEquipo}</p>
+            <Link href="/configuracion?tab=equipo#mi-equipo" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Mi equipo</Link>
+            <Link href="/configuracion?tab=equipo#cuenta-logo-titulo" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Logo y datos de la agrupación</Link>
+            <Link href="/configuracion" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Configuración general</Link>
+          </div>
+        </details>
+        <form action="/buscar" method="get" className="barra-busqueda" role="search">
+          <IconoBuscar />
+          <label htmlFor="buscar-global" className="visualmente-oculto">Buscar cliente, póliza o siniestro</label>
+          <input
+            ref={campoBusqueda}
+            id="buscar-global"
+            type="search"
+            name="q"
+            placeholder="Buscar cliente, póliza o siniestro..."
+            aria-keyshortcuts="Control+K Meta+K"
+            autoComplete="off"
+          />
+          <kbd aria-hidden="true">⌘ K</kbd>
+        </form>
         <div className="barra-acciones">
           <button
             type="button"
             className="barra-icono"
-            aria-label="Modo oscuro"
+            aria-label={temaOscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
             aria-pressed={temaOscuro}
             title={temaOscuro ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
             onClick={alternarTema}
@@ -187,11 +234,45 @@ export function Marco({
           <Link href="/ayuda" className="barra-icono" aria-label="Ayuda">
             <IconoAyuda />
           </Link>
-          <form action={cerrarSesion}>
-            <button type="submit" className="barra-salir">
-              Salir
-            </button>
-          </form>
+          <details className="barra-desplegable barra-notificaciones">
+            <summary className="barra-icono" aria-label={`Notificaciones${totalAvisos ? `: ${totalAvisos} pendientes` : ""}`}>
+              <IconoCampana />
+              {totalAvisos > 0 && <span className="barra-notificaciones-badge">{totalAvisos > 99 ? "99+" : totalAvisos}</span>}
+            </summary>
+            <div className="barra-menu-panel barra-notificaciones-panel">
+              <div className="barra-menu-titulo">
+                <strong>Notificaciones</strong>
+                <span>{totalAvisos ? `${totalAvisos} pendientes` : "Al día"}</span>
+              </div>
+              {avisos.length ? avisos.map((aviso) => (
+                <Link key={aviso.href} href={aviso.href} onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>
+                  <span>{aviso.texto}</span><strong>{aviso.cantidad}</strong>
+                </Link>
+              )) : <p className="barra-notificaciones-vacio">No tenés asuntos pendientes.</p>}
+            </div>
+          </details>
+          <details className="barra-desplegable barra-perfil">
+            <summary className="barra-perfil-resumen" aria-label={`Opciones de ${nombrePerfil}`}>
+              <span className="barra-perfil-avatar" aria-hidden="true">{iniciales(nombrePerfil)}</span>
+              <span className="barra-perfil-datos">
+                <strong>{nombrePerfil}</strong>
+                <small>{nombreEquipo}</small>
+              </span>
+              <IconoChevron />
+            </summary>
+            <div className="barra-menu-panel barra-perfil-panel">
+              <p className="barra-menu-encabezado">{nombrePerfil}</p>
+              <Link href="/configuracion?tab=cuenta" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Mi cuenta</Link>
+              <Link href="/configuracion" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Configuración general</Link>
+              <Link href="/ayuda" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Ayuda</Link>
+              <button type="button" className="barra-menu-tema" onClick={alternarTema}>
+                {temaOscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              </button>
+              <form action={cerrarSesion} onSubmit={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>
+                <button type="submit" className="barra-menu-salir">Cerrar sesión</button>
+              </form>
+            </div>
+          </details>
         </div>
       </header>
 
@@ -215,19 +296,18 @@ export function Marco({
             </div>
           ))}
           <div className="menu-pie">
-            <div className="ultima-importacion">
-              <div className="ultima-importacion-titulo">Última importación</div>
-              <div>
-                {importacion
-                  ? [fechaCorta(importacion.fecha), importacion.archivo].filter(Boolean).join(" · ")
-                  : "Todavía no importaste tu cartera"}
-              </div>
-            </div>
-            <ItemDelMenu
-              item={itemConfiguracion(contadores)}
-              pathname={pathname}
-              alElegir={() => setAbierto(false)}
-            />
+            <Link href="/importar#historial" className="ultima-importacion" aria-label="Abrir historial de importaciones" onClick={() => setAbierto(false)}>
+              <IconoSubir />
+              <span className="ultima-importacion-contenido">
+                <span className="ultima-importacion-titulo">Última importación</span>
+                <span>
+                  {importacion
+                    ? [fechaCorta(importacion.fecha), importacion.archivo, importacion.filas ? `${importacion.filas.toLocaleString("es-AR")} registros` : null].filter(Boolean).join(" · ")
+                    : "Todavía no importaste tu cartera"}
+                </span>
+              </span>
+              <span className="ultima-importacion-flecha" aria-hidden="true">›</span>
+            </Link>
           </div>
         </nav>
         <main id="contenido" className="contenido" tabIndex={-1}>
