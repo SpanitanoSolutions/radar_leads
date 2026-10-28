@@ -6,22 +6,14 @@ import { useActionState, useState } from "react";
 import type { ConexionCatalogo } from "@/conexiones/catalogo";
 import type { Cuenta } from "@/lib/datos";
 import {
-  conectar,
   desconectar,
   guardarCuenta,
   whatsappContinuar,
   whatsappDesconectar,
-  whatsappVerificar,
   type EstadoFormulario,
 } from "./actions";
 
-type PasoWhatsApp = "sin_conectar" | "codigo" | "conectado";
-
-const PASOS_WA = [
-  { titulo: "Elegí el número", texto: "Usá el número de tu oficina o uno nuevo. Recomendamos uno dedicado a la atención de clientes." },
-  { titulo: "Conectá tu cuenta de Meta", texto: "Iniciá sesión con Facebook y elegí (o creá) la cuenta comercial de tu negocio." },
-  { titulo: "Verificá el número", texto: "Meta te manda un código por SMS o llamada para confirmar que el número es tuyo." },
-];
+type PasoWhatsApp = "sin_conectar" | "conectado";
 
 function Error({ estado }: { estado: EstadoFormulario }) {
   return estado.error ? (
@@ -31,130 +23,46 @@ function Error({ estado }: { estado: EstadoFormulario }) {
   ) : null;
 }
 
-/** Conectar WhatsApp: número → código → conectado, con el estado de las plantillas. */
-export function ContenidoWhatsApp({
-  paso,
-  numero,
-  numeroSugerido,
-  plantillas,
-}: {
+/** Checks WhatsApp Business Cloud API credentials with Meta before saving status. */
+export function ContenidoWhatsApp({ paso, numero, plantillas }: {
   paso: PasoWhatsApp;
   numero: string;
   numeroSugerido: string;
   plantillas: { nombre: string; estado: string }[];
 }) {
-  const [estadoNumero, continuar, continuando] = useActionState<EstadoFormulario, FormData>(whatsappContinuar, {});
-  const [estadoCodigo, verificar, verificando] = useActionState<EstadoFormulario, FormData>(whatsappVerificar, {});
-  const actual = paso === "sin_conectar" ? 0 : paso === "codigo" ? 2 : 3;
-
+  const [estado, continuar, continuando] = useActionState<EstadoFormulario, FormData>(whatsappContinuar, {});
   return (
     <>
       <div className="panel-cabecera">
-        <h2 id="panel-titulo" className="panel-titulo">
-          Conectar WhatsApp
-        </h2>
-        <p className="texto-suave">
-          Se conecta por la API oficial de WhatsApp Business de Meta. Tus asegurados te ven con tu nombre y tu número.
-        </p>
+        <h2 id="panel-titulo" className="panel-titulo">Conectar WhatsApp</h2>
+        <p className="texto-suave">Se valida contra WhatsApp Business Cloud API de Meta. La aplicacion nunca pide ni guarda la contrasena de Meta.</p>
       </div>
       <div className="panel-cuerpo">
-        <ol className="pasos-conexion">
-          {PASOS_WA.map((p, i) => {
-            const hecho = actual > i || (i === 2 && paso === "conectado");
-            const esActual = !hecho && (actual === i || (i <= 1 && actual === 0));
-            return (
-              <li key={p.titulo} className={esActual ? "paso-conexion paso-conexion-actual" : "paso-conexion"}>
-                <div className="paso-conexion-titulo">
-                  <span className={`paso-numero ${hecho ? "paso-numero-hecho" : esActual ? "paso-numero-actual" : ""}`}>
-                    {hecho ? "✓" : i + 1}
-                  </span>
-                  <span>{p.titulo}</span>
-                  {hecho && <span className="visualmente-oculto">(listo)</span>}
-                </div>
-                <p className="texto-suave">{p.texto}</p>
-              </li>
-            );
-          })}
-        </ol>
-
-        {paso === "sin_conectar" && (
+        {paso === "sin_conectar" ? (
           <form action={continuar} className="form-columna">
-            <label htmlFor="wa-numero-nuevo" className="etiqueta">
-              Número de WhatsApp
-            </label>
-            <input
-              id="wa-numero-nuevo"
-              name="numero"
-              type="tel"
-              className="campo"
-              defaultValue={numeroSugerido}
-              placeholder="+54 9 223 555-1234"
-              required
-            />
-            <Error estado={estadoNumero} />
+            <p className="texto-suave">Configura en el servidor el token de Meta, el ID del numero y la version de Graph API. Despues verifica la conexion aca.</p>
+            <Error estado={estado} />
             <button type="submit" className="boton boton-primario alinear-inicio" disabled={continuando}>
-              {continuando ? "Conectando…" : "Continuar con Meta"}
+              {continuando ? "Verificando con Meta..." : "Verificar conexion"}
             </button>
           </form>
-        )}
-
-        {paso === "codigo" && (
-          <form action={verificar} className="form-columna">
-            <label htmlFor="wa-numero" className="etiqueta">
-              Número de WhatsApp
-            </label>
-            <input id="wa-numero" type="tel" value={numero} readOnly className="campo campo-solo-lectura" />
-            <label htmlFor="wa-codigo" className="etiqueta">
-              Código que te llegó por SMS
-            </label>
-            <div className="form-fila">
-              <input
-                id="wa-codigo"
-                name="codigo"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="6 dígitos"
-                className="campo campo-codigo"
-                required
-              />
-              <button type="submit" className="boton boton-primario" disabled={verificando}>
-                {verificando ? "Verificando…" : "Verificar"}
-              </button>
-            </div>
-            <Error estado={estadoCodigo} />
-            <p className="nota-pie">Modo de prueba: cualquier código de 6 números sirve.</p>
-          </form>
-        )}
-
-        {paso === "conectado" && (
+        ) : (
           <div className="form-columna">
-            <p role="status" className="aviso aviso-ok">
-              WhatsApp conectado: {numero}.
-            </p>
+            <p role="status" className="aviso aviso-ok">WhatsApp conectado: {numero}.</p>
             <div className="lista-polizas">
-              <div className="poliza-item">
-                <div className="celda-fuerte">Plantillas de mensajes</div>
-                <div className="nota-pie">Para escribirle primero a un asegurado, Meta tiene que aprobar el texto.</div>
-              </div>
-              {plantillas.map((p) => (
-                <div key={p.nombre} className="poliza-item poliza-item-cabecera">
-                  <span>{p.nombre}</span>
-                  <span className={`pastilla ${p.estado === "Aprobada" ? "pastilla-verde" : "pastilla-ambar"}`}>{p.estado}</span>
+              <div className="poliza-item"><div className="celda-fuerte">Plantillas aprobadas en Meta</div></div>
+              {plantillas.map((plantilla) => (
+                <div key={plantilla.nombre} className="poliza-item poliza-item-cabecera">
+                  <span>{plantilla.nombre}</span>
+                  <span className={"pastilla " + (plantilla.estado === "Aprobada" ? "pastilla-verde" : "pastilla-ambar")}>{plantilla.estado}</span>
                 </div>
               ))}
+              {!plantillas.length && <div className="nota-pie">No se encontraron plantillas o falta el ID de la cuenta comercial de Meta.</div>}
             </div>
-            <p className="nota-pie">
-              Meta cobra los mensajes de plantilla que envía tu negocio. UNIQO te va a mostrar el consumo en Facturación.
-            </p>
+            <p className="nota-pie">Meta puede exigir plantillas aprobadas para iniciar conversaciones fuera de la ventana de atencion.</p>
             <div className="fila-acciones">
-              <Link href="/configuracion" className="boton">
-                Listo
-              </Link>
-              <form action={whatsappDesconectar}>
-                <button type="submit" className="boton-terciario">
-                  Desconectar
-                </button>
-              </form>
+              <Link href="/configuracion" className="boton">Listo</Link>
+              <form action={whatsappDesconectar}><button type="submit" className="boton-terciario">Desconectar</button></form>
             </div>
           </div>
         )}
@@ -163,80 +71,54 @@ export function ContenidoWhatsApp({
   );
 }
 
-/** Las demás conexiones: un formulario corto con los datos que no son secretos. */
-export function ContenidoConexion({
-  conexion,
-  conectada,
-  porEmail,
-  datos,
-}: {
+/** OAuth connections and providers that still require an integration agreement. */
+export function ContenidoConexion({ conexion, conectada, porEmail, datos }: {
   conexion: ConexionCatalogo;
   conectada: boolean;
   porEmail: boolean;
   datos: Record<string, string>;
 }) {
-  const [estado, enviar, enviando] = useActionState<EstadoFormulario, FormData>(conectar, {});
-  const campo = (nombre: string, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
-    <div className="form-columna">
-      <label htmlFor={`c-${nombre}`} className="etiqueta">
-        {etiqueta}
-      </label>
-      <input id={`c-${nombre}`} name={nombre} className="campo" defaultValue={datos[nombre] ?? ""} {...extra} />
-    </div>
-  );
-
+  const href = conexion.tipo === "email"
+    ? "/api/conexiones/oauth/gmail"
+    : conexion.tipo === "google_calendar"
+      ? "/api/conexiones/oauth/google-calendar"
+      : conexion.tipo === "mercadopago"
+        ? "/api/conexiones/oauth/mercadopago"
+        : null;
+  const necesitaConvenio = conexion.tipo === "portal" || conexion.tipo === "banco";
+  const cuenta = datos.direccion || datos.cuenta || "";
   return (
     <>
       <div className="panel-cabecera">
-        <h2 id="panel-titulo" className="panel-titulo">
-          {conexion.nombre}
-        </h2>
+        <h2 id="panel-titulo" className="panel-titulo">{conexion.nombre}</h2>
         <p className="texto-suave">{conexion.detalle}</p>
       </div>
-      <div className="panel-cuerpo">
-        <form action={enviar} className="form-columna">
-          <input type="hidden" name="clave" value={conexion.clave} />
-          {conexion.tipo === "email" && (
-            <>
-              {campo("direccion", "Dirección de email", { type: "email", required: true, placeholder: "cotizaciones@tu-dominio.com.ar" })}
-              {campo("proveedor", "Proveedor", { placeholder: "Gmail" })}
-            </>
-          )}
-          {conexion.tipo === "portal" &&
-            porEmail &&
-            campo("email", "Email de la compañía para pedir cotizaciones", { type: "email", required: true, name: "emailCompania" })}
-          {conexion.tipo === "portal" && !porEmail && campo("usuario", "Usuario o código de productor", { required: true })}
-          {conexion.tipo === "mercadopago" && campo("cuenta", "Cuenta de Mercado Pago (email o alias)")}
-          {conexion.tipo === "banco" && (
-            <>
-              {campo("banco", "Banco", { required: true, placeholder: "Banco Provincia" })}
-              {campo("alias", "Alias o CBU de tu cuenta", { required: true })}
-            </>
-          )}
-          {conexion.tipo === "google_calendar" && campo("calendario", "Calendario", { placeholder: "principal" })}
-          <p className="nota-pie">
-            No pedimos claves: UNIQO nunca guarda contraseñas. Por ahora esta conexión es simulada y no se comunica con
-            ningún servicio.
-          </p>
-          <Error estado={estado} />
-          <div className="fila-acciones">
-            <button type="submit" className="boton boton-primario" disabled={enviando}>
-              {enviando ? "Guardando…" : conectada ? "Guardar cambios" : porEmail ? "Guardar contacto" : "Conectar"}
-            </button>
-            <Link href="/configuracion" className="boton">
-              Cancelar
-            </Link>
-          </div>
-        </form>
+      <div className="panel-cuerpo form-columna">
+        {conectada ? (
+          <p role="status" className="aviso aviso-ok">{conexion.nombre} autorizado {cuenta ? " - " + cuenta : ""}.</p>
+        ) : necesitaConvenio ? (
+          <p className="aviso aviso-info">No se guarda un usuario como si fuera una conexion. Este proveedor requiere credenciales/API oficiales y autorizacion comercial.</p>
+        ) : (
+          <>
+            <p className="texto-suave">
+              {conexion.tipo === "email"
+                ? "Google solicitara permiso para enviar correo y consultar adjuntos de liquidaciones."
+                : conexion.tipo === "google_calendar"
+                  ? "Google solicitara permiso para crear eventos en tu calendario."
+                  : "Mercado Pago solicitara autorizacion para crear links de pago y consultar cobros."}
+            </p>
+            {href && <a href={href} className="boton boton-primario alinear-inicio">Autorizar con {conexion.tipo === "mercadopago" ? "Mercado Pago" : "Google"}</a>}
+          </>
+        )}
+        {conectada && href && <a href={href} className="boton alinear-inicio">Volver a autorizar</a>}
         {conectada && (
           <form action={desconectar}>
             <input type="hidden" name="clave" value={conexion.clave} />
             {porEmail && <input type="hidden" name="porEmail" value="1" />}
-            <button type="submit" className="boton-terciario">
-              Desconectar
-            </button>
+            <button type="submit" className="boton-terciario">Desconectar</button>
           </form>
         )}
+        <p className="nota-pie">Los tokens OAuth se cifran en la base. El estado solo cambia a conectado tras completar la autorizacion.</p>
       </div>
     </>
   );

@@ -3,7 +3,7 @@ import { Aviso } from "@/components/Aviso";
 import { IconoConexion } from "@/components/IconoConexion";
 import { PanelLateral } from "@/components/PanelLateral";
 import { CONEXIONES, GRUPOS_CONEXIONES, vistaConexion } from "@/conexiones/catalogo";
-import { PLANTILLAS_WHATSAPP } from "@/conexiones/whatsapp";
+import { whatsapp } from "@/conexiones/whatsapp";
 import { obtenerConexiones, obtenerCuenta } from "@/lib/datos";
 import { ContenidoConexion, ContenidoWhatsApp, FormCuenta } from "./Paneles";
 import "./configuracion.css";
@@ -26,10 +26,22 @@ export default async function Configuracion({
 }) {
   const sp = await searchParams;
   const pestana = PESTANAS.find((p) => p.id === sp.tab)?.id ?? "conexiones";
-  const [filas, cuenta] = await Promise.all([obtenerConexiones(), obtenerCuenta()]);
-  const fila = (clave: string) => filas.find((f) => f.clave === clave);
-  const wa = fila("whatsapp");
-  const waConectado = wa?.estado === "conectado";
+  const [filas, cuenta, estadoWa] = await Promise.all([obtenerConexiones(), obtenerCuenta(), whatsapp.estado()]);
+  const fila = (clave: string) => {
+    const original = filas.find((f) => f.clave === clave);
+    if (!original) return undefined;
+    const datos = Object.fromEntries(Object.entries(original.datos).filter(([nombre]) => nombre !== "credencialesCifradas"));
+    const esOAuth = ["email", "google_calendar", "mercadopago"].includes(clave);
+    const conectorPendiente = original.tipo === "portal" || original.tipo === "banco";
+    const oauthSinToken = esOAuth && typeof original.datos.credencialesCifradas !== "string";
+    const whatsappSinValidar = clave === "whatsapp" && original.datos.validadoReal !== true;
+    const estado =
+      conectorPendiente || oauthSinToken || whatsappSinValidar || (clave === "whatsapp" && estadoWa.paso !== "conectado")
+        ? "sin_conectar"
+        : original.estado;
+    return { ...original, estado, datos };
+  };
+  const waConectado = estadoWa.paso === "conectado";
   const panel = typeof sp.panel === "string" ? CONEXIONES.find((c) => c.clave === sp.panel) : undefined;
 
   return (
@@ -62,8 +74,7 @@ export default async function Configuracion({
       {pestana === "conexiones" && (
         <>
           <p className="nota-info">
-            Modo de prueba: todas las conexiones son simuladas. Los agentes preparan y registran los mensajes, pero
-            todavía no sale nada hacia WhatsApp, el correo, las compañías ni los bancos.
+            Las conexiones OAuth de Google y Mercado Pago y WhatsApp Cloud API requieren credenciales oficiales en el servidor. Los portales de aseguradoras y los bancos necesitan sus APIs y autorizaciones comerciales.
           </p>
 
           {!waConectado && (
@@ -126,15 +137,19 @@ export default async function Configuracion({
                         ))}
                       </div>
                     </div>
-                    <Link
-                      href={`/configuracion?panel=${encodeURIComponent(c.clave)}`}
-                      scroll={false}
-                      className={v.primario ? "boton boton-primario boton-mediano" : "boton boton-mediano"}
-                      id={`conexion-${c.clave}`}
-                    >
-                      {v.boton}
-                      <span className="visualmente-oculto"> {c.nombre}</span>
-                    </Link>
+                    {c.tipo === "portal" || c.tipo === "banco" ? (
+                      <span className="boton boton-mediano" aria-disabled="true">{v.boton}</span>
+                    ) : (
+                      <Link
+                        href={`/configuracion?panel=${encodeURIComponent(c.clave)}`}
+                        scroll={false}
+                        className={v.primario ? "boton boton-primario boton-mediano" : "boton boton-mediano"}
+                        id={`conexion-${c.clave}`}
+                      >
+                        {v.boton}
+                        <span className="visualmente-oculto"> {c.nombre}</span>
+                      </Link>
+                    )}
                   </div>
                 );
               })}
@@ -160,15 +175,15 @@ export default async function Configuracion({
         >
           {panel.tipo === "whatsapp" ? (
             <ContenidoWhatsApp
-              paso={wa?.estado === "conectado" ? "conectado" : wa?.estado === "en_proceso" ? "codigo" : "sin_conectar"}
-              numero={String(wa?.datos.numero ?? "")}
+              paso={estadoWa.paso}
+              numero={estadoWa.paso === "conectado" ? estadoWa.numero : ""}
               numeroSugerido={cuenta.telefono ?? ""}
-              plantillas={PLANTILLAS_WHATSAPP}
+              plantillas={estadoWa.paso === "conectado" ? estadoWa.plantillas : []}
             />
           ) : (
             <ContenidoConexion
               conexion={panel}
-              conectada={fila(panel.clave)?.estado === "conectado" || Boolean(fila(panel.clave)?.datos.email)}
+              conectada={fila(panel.clave)?.estado === "conectado"}
               porEmail={vistaConexion(panel, fila(panel.clave)).estado === "por_email"}
               datos={Object.fromEntries(Object.entries(fila(panel.clave)?.datos ?? {}).map(([k, v]) => [k, String(v ?? "")]))}
             />

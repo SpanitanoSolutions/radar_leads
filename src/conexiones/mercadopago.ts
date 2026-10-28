@@ -1,40 +1,67 @@
 import "server-only";
-import { guardarConexion, leerConexion } from "./estado";
+import { borrarCredenciales, leerCredenciales, tokenVigente } from "./secretos";
+import { leerConexion } from "./estado";
 
-/**
- * Mercado Pago: links de pago para las cuotas y confirmación automática de
- * cobros (el validador puede confirmar un pago sin comprobante).
- *
- * Hoy es SIMULADO: guarda el estado en la tabla conexiones y no consulta nada.
- * Lo va a reemplazar la API de Mercado Pago con OAuth del productor
- * (POST /checkout/preferences para los links y GET /v1/payments/search para
- * los cobros), con el token en MERCADOPAGO_ACCESS_TOKEN.
- */
 export interface ConexionMercadoPago {
   conectado(): Promise<boolean>;
   conectar(cuenta: string): Promise<void>;
   desconectar(): Promise<void>;
   linkDePago(concepto: { descripcion: string; monto: number }): Promise<string | null>;
-  /** Cobros acreditados desde una fecha: monto, fecha y número de operación. */
   cobrosDesde(desde: Date): Promise<{ monto: number; fecha: Date; operacion: string }[]>;
 }
 
-export const mercadoPagoSimulado: ConexionMercadoPago = {
+async function pedirMP(ruta: string, init: RequestInit = {}) {
+  const accessToken = await tokenVigente("mercadopago", "mercadopago");
+  const respuesta = await fetch(`https://api.mercadopago.com${ruta}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${accessToken}`, ...(init.headers ?? {}) },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!respuesta.ok) throw new Error(`Mercado Pago respondió ${respuesta.status}.`);
+  return respuesta;
+}
+
+export const mercadoPago: ConexionMercadoPago = {
   async conectado() {
-    return (await leerConexion("mercadopago"))?.estado === "conectado";
+    const fila = await leerConexion("mercadopago");
+    return fila?.estado === "conectado" && Boolean(await leerCredenciales("mercadopago"));
   },
-  async conectar(cuenta) {
-    await guardarConexion("mercadopago", "conectado", { cuenta });
+  async conectar() {
+    throw new Error("Conectá Mercado Pago con OAuth desde el botón Autorizar.");
   },
   async desconectar() {
-    await guardarConexion("mercadopago", "sin_conectar");
+    await borrarCredenciales("mercadopago");
   },
-  async linkDePago() {
-    return null;
+  async linkDePago(concepto) {
+    if (!Number.isFinite(concepto.monto) || concepto.monto <= 0) throw new Error("El importe del link debe ser mayor a cero.");
+    const respuesta = await pedirMP("/checkout/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [{ title: concepto.descripcion.slice(0, 250), quantity: 1, currency_id: "ARS", unit_price: concepto.monto }],
+        ...(process.env.APP_URL ? { back_urls: { success: process.env.APP_URL, pending: process.env.APP_URL, failure: process.env.APP_URL } } : {}),
+        auto_return: process.env.APP_URL ? "approved" : undefined,
+      }),
+    });
+    const resultado = (await respuesta.json()) as { init_point?: string };
+    return resultado.init_point ?? null;
   },
-  async cobrosDesde() {
-    return [];
+  async cobrosDesde(desde) {
+    const inicio = desde.toISOString();
+    const fin = new Date().toISOString();
+    const consulta = new URLSearchParams({
+      range: "date_created",
+      begin_date: inicio,
+      end_date: fin,
+      sort: "date_created",
+      criteria: "desc",
+      limit: "100",
+    });
+    const resultado = (await pedirMP(`/v1/payments/search?${consulta}`).then((r) => r.json())) as {
+      results?: { id: number; status: string; transaction_amount: number; date_approved?: string; date_created: string }[];
+    };
+    return (resultado.results ?? [])
+      .filter((p) => p.status === "approved")
+      .map((p) => ({ monto: p.transaction_amount, fecha: new Date(p.date_approved ?? p.date_created), operacion: String(p.id) }));
   },
 };
-
-export const mercadoPago: ConexionMercadoPago = mercadoPagoSimulado;

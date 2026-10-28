@@ -173,7 +173,7 @@ export default async function Cotizacion({
 
       <nav aria-label="Secciones del agente" className="pestanas">
         <Link href="/agentes/cotizacion?tab=solicitudes" aria-current={tab === "solicitudes" ? "page" : undefined} className="pestana">Solicitudes</Link>
-        <Link href="/agentes/cotizacion?tab=bitacora" aria-current={tab === "bitacora" ? "page" : undefined} className="pestana">Bitácora</Link>
+        <Link href="/agentes/cotizacion?tab=bitacora" aria-current={tab === "bitacora" ? "page" : undefined} className="pestana">Historial</Link>
         <Link href="/agentes/cotizacion?tab=desempeno" aria-current={tab === "desempeno" ? "page" : undefined} className="pestana">Desempeño</Link>
       </nav>
 
