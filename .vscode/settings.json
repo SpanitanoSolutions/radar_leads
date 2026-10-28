@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^git switch -c feature/agente-cotizacion-historial$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "git switch": true
+    }
+}
