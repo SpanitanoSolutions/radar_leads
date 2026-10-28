@@ -53,11 +53,12 @@ describe("Mapfre: cartera vigente", () => {
       "END.ÚLT.FACT.": "otro",
       "PREMIO ÚLT.FACT.": "otro",
       "SUMA ASEG.ÚLT.FACT.": "sumaAsegurada",
+      "PREMIO FACT.ANT.": "otro",
       "NRO. DOCUMENTO": "documento",
     });
     // Lo que no se importa dice por qué.
     const motivos = motivosDeFormato(t.encabezados, formato!);
-    expect(t.encabezados.filter((_, i) => motivos[i])).toEqual(["NRO.TW", "SOLICITUD", "END.FACT.ANT.", "PREMIO FACT.ANT.", "SUMA ASEG.FACT.ANT."]);
+    expect(t.encabezados.filter((_, i) => motivos[i])).toEqual(["NRO.TW", "SOLICITUD", "END.FACT.ANT.", "SUMA ASEG.FACT.ANT."]);
   });
 
   it("valida las filas con la compañía del formato", async () => {
@@ -78,12 +79,44 @@ describe("Mapfre: cartera vigente", () => {
       { etiqueta: "Siniestros informados por Mapfre", valor: "0" },
       { etiqueta: "Endoso de la última factura", valor: "9" },
       { etiqueta: "Premio de la última factura", valor: pesosConCentavos(80308.76) },
+      // "8019272.00": Mapfre la manda sin la coma decimal.
+      { etiqueta: "Premio de la factura anterior", valor: pesosConCentavos(80192.72) },
     ]);
     // Sin facturas todavía: ni endoso ni premio en cero.
     expect(v.filas[2].datosCompania.map((d) => d.etiqueta)).toEqual(["Código de productor", "Facturación", "Anualidad", "Siniestros informados por Mapfre"]);
     expect(v.filas[2]).toMatchObject({ tipo: "empresa", nombre: "LIMPIEZA EJEMPLO S.A.", documento: "30-71000000-6" });
     expect(v.problemas).toContainEqual({ fila: 4, mensaje: 'El teléfono "000000000" no parece válido: queda sin cargar.', tipo: "advertencia" });
     expect(v.ramosDesconocidos).toEqual(["SEGURO TECNICO"]);
+  });
+
+  it("lee el premio de la factura anterior aunque venga sin la coma decimal", async () => {
+    const [encabezado, auto, hogar] = MAPFRE.split("\r\n");
+    const columnas = encabezado.split(",");
+    // Cambia solo los premios de la fila de ejemplo y deja el resto como está.
+    const conPremios = (fila: string, ultimo: string, anterior: string) => {
+      const celdas = fila.split(",");
+      celdas[columnas.indexOf("PREMIO ÚLT.FACT.")] = ultimo;
+      celdas[columnas.indexOf("PREMIO FACT.ANT.")] = anterior;
+      return celdas.join(",");
+    };
+    const t = await leerTablaCsv(
+      [
+        encabezado,
+        conPremios(hogar, "191442.40", "18061979.00"), // $ 180.619,79
+        conPremios(auto, "75847.93", "734524.00"), // $ 73.452,40: se perdió también el cero final
+        conPremios(auto.replace("11000001", "11000009"), "0.00", "1072702.00"), // sin última factura: se compara con los otros autos
+        conPremios(hogar.replace("4000002", "4000009"), "0.00", "15740438.50"), // ya trae centavos: se toma como viene
+      ].join("\r\n"),
+    );
+    const formato = detectarFormato(t.encabezados)!;
+    const v = validarCartera(t, mapeoDeFormato(t.encabezados, formato), { compania: formato.compania, formato });
+    const anterior = v.filas.map((f) => f.datosCompania.find((d) => d.etiqueta === "Premio de la factura anterior")?.valor);
+    expect(anterior).toEqual([
+      pesosConCentavos(180619.79),
+      pesosConCentavos(73452.4),
+      `${pesosConCentavos(107270.2)} (a confirmar)`,
+      pesosConCentavos(15740438.5),
+    ]);
   });
 
   it("sin el formato, los sinónimos no confunden PRODUCTOR con el ramo", async () => {

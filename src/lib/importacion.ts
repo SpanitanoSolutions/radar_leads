@@ -131,6 +131,25 @@ export function leerMonto(texto: string): number | null {
   return negativo ? -n : n;
 }
 
+/**
+ * Un monto en pesos que llegó sin la coma decimal: "18061979.00" era
+ * $ 180.619,79, y "734524.00" era $ 73.452,40 (con la coma también se perdió
+ * el cero final de los centavos). Por eso no alcanza con dividir por 100: se
+ * elige la escala que más se parece a `referencia`, otro monto del mismo tipo
+ * (la factura siguiente de la póliza). Sin referencia, los dos últimos números
+ * son los centavos, que es lo más común. Si el monto ya trae centavos, se toma
+ * como viene. `corregido`: hubo que adivinar dónde iba la coma.
+ */
+export function leerMontoSinComa(texto: string, referencia: number | null = null): { monto: number; corregido: boolean } | null {
+  const crudo = leerMonto(texto);
+  if (crudo === null || crudo <= 0) return null;
+  if (!Number.isInteger(crudo)) return { monto: crudo, corregido: false };
+  const escalas = [crudo / 100, crudo / 10, crudo];
+  const distancia = (monto: number) => Math.abs(Math.log(monto / referencia!));
+  const monto = referencia && referencia > 0 ? escalas.reduce((a, b) => (distancia(b) < distancia(a) ? b : a)) : escalas[0];
+  return { monto: Math.round(monto * 100) / 100, corregido: true };
+}
+
 function diasDelMes(anio: number, mes: number): number {
   return new Date(Date.UTC(anio, mes, 0)).getUTCDate();
 }
@@ -401,17 +420,71 @@ function etiquetaDe(encabezado: string): string {
   return t === t.toUpperCase() ? t[0] + t.slice(1).toLowerCase() : t;
 }
 
+/** Con qué monto comparar uno que llegó sin la coma: el de la misma póliza o, si no tiene, el típico de su grupo. */
+type ReferenciaMonto = { monto: number; propia: boolean };
+
 /** Un "otro dato" de la póliza, con el nombre y el formato que le da el formato de la compañía. Vacío: null. */
-function datoCompania(encabezado: string, celda: string, formato: FormatoCartera | null): DatoCompania | null {
+function datoCompania(
+  encabezado: string,
+  celda: string,
+  formato: FormatoCartera | null,
+  referencia: ReferenciaMonto | null = null,
+): DatoCompania | null {
   const valor = celda.trim();
   if (!valor) return null;
   const conocido = formato?.otros[normalizarEncabezado(encabezado)];
   const etiqueta = conocido?.etiqueta ?? etiquetaDe(encabezado);
   if (conocido?.sinCero && /^0+([.,]0+)?$/.test(valor)) return null;
   if (conocido?.tipo !== "monto") return { etiqueta, valor };
+  if (conocido.sinComaDecimal) {
+    const leido = leerMontoSinComa(valor, referencia?.monto ?? null);
+    if (!leido) return null;
+    // Sin otra factura de la misma póliza para comparar, el lugar de la coma es una suposición.
+    const aConfirmar = leido.corregido && !referencia?.propia;
+    return { etiqueta, valor: pesosConCentavos(leido.monto) + (aConfirmar ? " (a confirmar)" : "") };
+  }
   // Un monto en cero es que la compañía no lo informa.
   const monto = leerMonto(valor);
   return monto ? { etiqueta, valor: pesosConCentavos(monto) } : null;
+}
+
+function mediana(valores: number[]): number {
+  const orden = [...valores].sort((a, b) => a - b);
+  const medio = Math.floor(orden.length / 2);
+  return orden.length % 2 ? orden[medio] : (orden[medio - 1] + orden[medio]) / 2;
+}
+
+/**
+ * Para las columnas que llegan sin la coma decimal, de dónde sale la
+ * referencia de cada fila: el monto que el formato dice comparar o, si la
+ * póliza no lo tiene, la mediana de ese monto entre las de su grupo (la misma
+ * sección) en el archivo.
+ */
+function referenciasSinComa(tabla: Tabla, formato: FormatoCartera | null): (celdas: string[], col: number) => ReferenciaMonto | null {
+  const columna = (encabezado: string) => tabla.encabezados.findIndex((e) => normalizarEncabezado(e) === encabezado);
+  const porColumna = new Map<number, { comparar: number; agrupar: number; medianas: Map<string, number> }>();
+  tabla.encabezados.forEach((encabezado, col) => {
+    const sinComa = formato?.otros[normalizarEncabezado(encabezado)]?.sinComaDecimal;
+    if (!sinComa) return;
+    const comparar = columna(sinComa.comparar);
+    const agrupar = sinComa.agrupar ? columna(sinComa.agrupar) : -1;
+    const grupos = new Map<string, number[]>();
+    for (const celdas of tabla.filas) {
+      const monto = comparar >= 0 ? leerMonto(celdas[comparar] ?? "") : null;
+      if (!monto || monto <= 0) continue;
+      const grupo = agrupar >= 0 ? (celdas[agrupar] ?? "").trim() : "";
+      grupos.set(grupo, [...(grupos.get(grupo) ?? []), monto]);
+    }
+    porColumna.set(col, { comparar, agrupar, medianas: new Map([...grupos].map(([g, v]) => [g, mediana(v)])) });
+  });
+  return (celdas, col) => {
+    const config = porColumna.get(col);
+    if (!config) return null;
+    const propio = config.comparar >= 0 ? leerMonto(celdas[config.comparar] ?? "") : null;
+    if (propio && propio > 0) return { monto: propio, propia: true };
+    const tipico = config.medianas.get(config.agrupar >= 0 ? (celdas[config.agrupar] ?? "").trim() : "");
+    return tipico ? { monto: tipico, propia: false } : null;
+  };
 }
 
 function sumar(a: number | null, b: number | null): number | null {
@@ -458,6 +531,7 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
   const polizas = new Map<string, Map<string, FilaCartera>>();
   let totalFilas = 0;
   if (faltanObligatorios.length) return { filas: [], problemas, ramosDesconocidos: [], faltanObligatorios, totalFilas: tabla.filas.length };
+  const referenciaDe = referenciasSinComa(tabla, formato);
 
   tabla.filas.forEach((celdas, i) => {
     const valor = (campo: CampoCartera) => {
@@ -551,7 +625,8 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
       cuotas: Number.isInteger(cuotasNumero) && cuotasNumero >= 1 && cuotasNumero <= 24 ? cuotasNumero : null,
       formaPago: valor("formaPago") || null,
       datosCompania: mapeo.flatMap((campo, col) => {
-        const dato = campo === "otro" ? datoCompania(tabla.encabezados[col] ?? "", celdas[col] ?? "", formato) : null;
+        if (campo !== "otro") return [];
+        const dato = datoCompania(tabla.encabezados[col] ?? "", celdas[col] ?? "", formato, referenciaDe(celdas, col));
         return dato ? [dato] : [];
       }),
       telefono,

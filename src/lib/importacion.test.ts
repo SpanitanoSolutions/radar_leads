@@ -8,6 +8,7 @@ import {
   leerDocumento,
   leerFecha,
   leerMonto,
+  leerMontoSinComa,
   leerTablaCsv,
   resumirCartera,
   sugerirMapeo,
@@ -191,6 +192,19 @@ describe("valores", () => {
     expect(leerMonto("960000")).toBe(960000);
     expect(leerMonto("12,5")).toBe(12.5);
     expect(leerMonto("mucho")).toBeNull();
+  });
+
+  it("montos que llegaron sin la coma decimal, comparados con otro de la misma póliza", () => {
+    expect(leerMontoSinComa("18061979.00", 191442.4)).toEqual({ monto: 180619.79, corregido: true });
+    // Con la coma se perdió el cero final de los centavos: no alcanza con dividir por 100.
+    expect(leerMontoSinComa("734524.00", 75847.93)).toEqual({ monto: 73452.4, corregido: true });
+    expect(leerMontoSinComa("80000.00", 82000)).toEqual({ monto: 80000, corregido: true });
+    // Sin referencia, los dos últimos números son los centavos (lo más común).
+    expect(leerMontoSinComa("18061979.00")).toEqual({ monto: 180619.79, corregido: true });
+    // Si ya trae centavos, viene bien.
+    expect(leerMontoSinComa("80308.76", 1000)).toEqual({ monto: 80308.76, corregido: false });
+    expect(leerMontoSinComa("0.00", 1000)).toBeNull();
+    expect(leerMontoSinComa("", 1000)).toBeNull();
   });
 
   it("fechas dd/mm/aaaa, ISO y número de Excel; avisa las que no existen", () => {

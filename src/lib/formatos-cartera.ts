@@ -17,6 +17,12 @@ export type OtroDato = {
   tipo?: "monto";
   /** Un 0 es que la compañía no lo informa (en los montos, siempre). */
   sinCero?: boolean;
+  /**
+   * El monto llega sin la coma decimal ("18061979.00" era $ 180.619,79): el
+   * lugar de la coma se elige comparándolo con el monto de `comparar` de la
+   * misma póliza o, si no lo tiene, con el típico de su `agrupar` en el archivo.
+   */
+  sinComaDecimal?: { comparar: string; agrupar?: string };
 };
 
 export type FormatoCartera = {
@@ -63,6 +69,12 @@ export const FORMATOS_CARTERA: FormatoCartera[] = [
     otros: {
       "tipo fact": { etiqueta: "Facturación" }, // MENSUAL, SEMESTRAL, ANUAL
       "premio ult fact": { etiqueta: "Premio de la última factura", tipo: "monto" },
+      // Mapfre lo exporta sin la coma decimal: "18061979.00" es $ 180.619,79 y "734524.00", $ 73.452,40.
+      "premio fact ant": {
+        etiqueta: "Premio de la factura anterior",
+        tipo: "monto",
+        sinComaDecimal: { comparar: "premio ult fact", agrupar: "seccion" },
+      },
       anualidad: { etiqueta: "Anualidad" },
       "cant siniestros": { etiqueta: "Siniestros informados por Mapfre" },
       "end ult fact": { etiqueta: "Endoso de la última factura", sinCero: true },
@@ -71,7 +83,6 @@ export const FORMATOS_CARTERA: FormatoCartera[] = [
     omitidas: {
       "nro tw": "Repite el número de póliza con el código de sección.",
       solicitud: "Viene siempre vacía.",
-      "premio fact ant": "Viene con los decimales corridos (8019272.00 en vez de 80.192,72).",
       "suma aseg fact ant": "Es la de la factura anterior: se toma la de la última.",
       "end fact ant": "Es el endoso de la factura anterior: se toma el de la última.",
     },
