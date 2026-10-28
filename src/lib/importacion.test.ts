@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   CAMPOS_CARTERA,
+  claveDePoliza,
+  combinarDatosCompania,
   companiaCanonica,
   cuitValido,
   detectarSeparador,
@@ -15,6 +17,7 @@ import {
   sugerirMapeo,
   validarCartera,
 } from "./importacion";
+import { pesosConCentavos } from "./formato";
 
 const CSV = [
   "Asegurado;CUIT_DNI;Ramo;Cia;Poliza;Patente;Fin Vigencia;Prima;Tel;Mail;Cod Productor",
@@ -82,19 +85,87 @@ describe("sugerirMapeo", () => {
 });
 
 describe("validarCartera", () => {
-  it("explica cada problema en castellano y no importa las filas con errores", async () => {
+  it("importa todas las pólizas y anota en castellano lo que hay que corregir", async () => {
     const t = await tabla();
     const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA));
     expect(v.totalFilas).toBe(6);
-    expect(v.filas.map((f) => f.fila)).toEqual([2, 4]);
+    // Ninguna se deja afuera, aunque le falte un dato o venga mal.
+    expect(v.filas.map((f) => f.fila)).toEqual([2, 4, 5, 6, 7, 8]);
     expect(v.problemas.filter((p) => p.tipo === "error")).toEqual([
-      { fila: 5, mensaje: 'La fecha "31/02/2026" no existe.', tipo: "error" },
-      { fila: 6, mensaje: 'El CUIT "30-1234" está incompleto.', tipo: "error" },
-      { fila: 7, mensaje: 'Ramo "COMB FLIAR 2" sin reconocer.', tipo: "error" },
-      { fila: 8, mensaje: "Falta el fin de vigencia.", tipo: "error" },
+      { fila: 5, mensaje: 'La fecha "31/02/2026" no existe: se importa sin fecha de fin.', tipo: "error" },
+      { fila: 6, mensaje: 'El CUIT "30-1234" está incompleto: se importa tal como vino; corregilo en la ficha.', tipo: "error" },
+      { fila: 7, mensaje: 'Ramo "COMB FLIAR 2" sin reconocer: se importa así. Elegí abajo a cuál corresponde.', tipo: "error" },
+      { fila: 8, mensaje: "Falta el fin de vigencia: se importa sin fecha.", tipo: "error" },
     ]);
-    expect(v.problemas).toContainEqual({ fila: 7, mensaje: 'El email "cibanez@" no parece válido: queda sin cargar.', tipo: "advertencia" });
+    expect(v.problemas).toContainEqual({
+      fila: 7,
+      mensaje: 'El email "cibanez@" no parece válido: se guarda como vino, en los datos de la póliza.',
+      tipo: "advertencia",
+    });
     expect(v.ramosDesconocidos).toEqual(["COMB FLIAR 2"]);
+    // Lo que vino mal se guarda tal cual.
+    const [, , pereyra, sinCuit, ibanez, sosa] = v.filas;
+    expect(pereyra).toMatchObject({ vigenciaHasta: null });
+    expect(pereyra.datosCompania).toContainEqual({ etiqueta: "Fin de vigencia (como vino)", valor: "31/02/2026" });
+    expect(sinCuit).toMatchObject({ documento: "30-1234", documentoDigitos: "301234", ramo: "Integral de comercio" });
+    expect(ibanez).toMatchObject({ ramo: "COMB FLIAR 2", email: null });
+    expect(ibanez.datosCompania).toContainEqual({ etiqueta: "Email (como vino)", valor: "cibanez@" });
+    expect(sosa).toMatchObject({ vigenciaHasta: null, prima: 310000 });
+  });
+
+  it("marca los datos de relleno o que vinieron mal, para que al reimportar no pisen lo corregido", async () => {
+    const t = await tabla();
+    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA));
+    const provisorios = Object.fromEntries(v.filas.map((f) => [f.nombre, f.provisorios]));
+    expect(provisorios["TRANSPORTES DEL ATLANTICO SRL"]).toEqual([]);
+    expect(provisorios["Sin Cuit SA"]).toEqual(["documento", "tipo"]); // CUIT incompleto: ni el documento ni persona/empresa son seguros
+    expect(provisorios["Ibáñez, Carolina"]).toEqual(["ramo"]); // ramo sin reconocer
+  });
+
+  it("al reimportar, los otros datos se actualizan por nombre y no se pierde ninguno", () => {
+    const anteriores = [
+      { etiqueta: "Anualidad", valor: "13" },
+      { etiqueta: "Dato de un reporte anterior", valor: "sigue" },
+    ];
+    expect(combinarDatosCompania(anteriores, [{ etiqueta: "Anualidad", valor: "14" }, { etiqueta: "Siniestros", valor: "0" }])).toEqual([
+      { etiqueta: "Anualidad", valor: "14" },
+      { etiqueta: "Dato de un reporte anterior", valor: "sigue" },
+      { etiqueta: "Siniestros", valor: "0" },
+    ]);
+    expect(combinarDatosCompania(anteriores, [])).toEqual(anteriores);
+    expect(combinarDatosCompania(null, [])).toBeNull();
+  });
+
+  it("cuadran las cuentas: cada fila es una póliza, un certificado de otra o se dice por qué no", async () => {
+    const t = await leerTablaCsv(
+      [
+        "Asegurado;DNI;Ramo;Poliza;Certificado;Vence;Prima;Compañía",
+        "Gómez Lucía;31455872;Auto;A-1;;08/11/2026;100;Mapfre",
+        ";;;;;;;", // vacía: no cuenta
+        "Transportes SA;30715882146;Flota;F-1;1;05/11/2026;100;Mapfre",
+        "Transportes SA;30715882146;Flota;F-1;2;05/11/2026;50;Mapfre",
+        ";;;;;;250;", // totales
+        ";31455872;;;;;;", // solo un documento: es una póliza a completar, no se descarta
+      ].join("\n"),
+    );
+    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA));
+    expect([v.totalFilas, v.filas.length, v.unidas, v.noSonPolizas]).toEqual([5, 3, 1, 1]);
+    expect(v.filas.length).toBe(v.totalFilas - v.unidas - v.noSonPolizas);
+    expect(v.problemas.filter((p) => p.tipo === "omitida").map((p) => p.fila)).toEqual([6]);
+    expect(v.filas[2]).toMatchObject({ nombre: "Sin nombre (31.455.872)", ramo: "Sin ramo", vigenciaHasta: null });
+  });
+
+  it("un asegurado sin documento se reconoce por el nombre", async () => {
+    const t = await leerTablaCsv(["Asegurado;DNI;Ramo;Vence;Compañía", "Gómez,  Lucía;;Auto;08/11/2026;Mapfre", "Gómez, Lucía;;Hogar;08/11/2026;Mapfre"].join("\n"));
+    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA));
+    expect(v.filas.map((f) => [f.documento, f.clave])).toEqual([
+      [null, "nombre:gomez, lucia"],
+      [null, "nombre:gomez, lucia"],
+    ]);
+    expect(v.problemas.filter((p) => p.tipo === "error").map((p) => p.mensaje)).toEqual([
+      "Falta el DNI o CUIT: se importa sin documento.",
+      "Falta el DNI o CUIT: se importa sin documento.",
+    ]);
   });
 
   it("normaliza documento, ramo, compañía, fecha y monto", async () => {
@@ -126,7 +197,7 @@ describe("validarCartera", () => {
     expect(validarCartera(t, mapeo).faltanObligatorios).toEqual(["Compañía"]);
   });
 
-  it("no importa una fila sin compañía, ni teléfonos que no son teléfonos", async () => {
+  it("importa la fila sin compañía y guarda tal cual el teléfono que no es un teléfono", async () => {
     const t = await leerTablaCsv(
       [
         "Asegurado;DNI;Ramo;Vence;Compañía;Teléfono;Suma asegurada",
@@ -135,28 +206,40 @@ describe("validarCartera", () => {
       ].join("\n"),
     );
     const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA));
-    expect(v.filas).toHaveLength(1);
+    expect(v.filas).toHaveLength(2);
     expect(v.filas[0]).toMatchObject({ telefono: null, sumaAsegurada: 14500000 });
+    expect(v.filas[0].datosCompania).toContainEqual({ etiqueta: "Teléfono (como vino)", valor: "000000000" });
+    expect(v.filas[1]).toMatchObject({ compania: null, telefono: "223 512-4471" });
     expect(v.problemas).toEqual([
-      { fila: 2, mensaje: 'El teléfono "000000000" no parece válido: queda sin cargar.', tipo: "advertencia" },
-      { fila: 3, mensaje: "Falta la compañía.", tipo: "error" },
+      { fila: 2, mensaje: 'El teléfono "000000000" no parece válido: se guarda como vino, en los datos de la póliza.', tipo: "advertencia" },
+      { fila: 3, mensaje: "Falta la compañía: se importa sin compañía.", tipo: "error" },
     ]);
   });
 
-  it("une los certificados de una póliza y avisa las filas repetidas", async () => {
+  it("une los certificados de una póliza sin perder el detalle de cada uno", async () => {
     const t = await leerTablaCsv(
       [
         "Asegurado;CUIT;Ramo;Poliza;Certificado;Vence;Prima",
         "Transportes SA;30-71588214-6;Flota;F-1;1;05/11/2026;100.000",
         "Transportes SA;30-71588214-6;Flota;F-1;2;05/11/2026;50.000",
-        "Transportes SA;30-71588214-6;Flota;F-1;2;05/11/2026;50.000",
+        "Transportes SA;30-71588214-6;Flota;F-1;2;05/11/2026;50.000", // idéntica a la anterior: una sola vez
+        "Transportes SA;30-71588214-6;Flota;F-1;2;05/11/2026;70.000", // mismo certificado con otros datos: se suma
       ].join("\n"),
     );
     const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA), { compania: "Federación Patronal" });
     expect(v.filas).toHaveLength(1);
-    expect(v.filas[0].prima).toBe(150000);
-    expect(v.problemas.filter((p) => p.tipo === "advertencia" && p.mensaje.startsWith("Repite"))).toEqual([
-      { fila: 4, mensaje: "Repite la póliza de la fila 3: se toma esta.", tipo: "advertencia" },
+    expect(v.unidas).toBe(3);
+    expect(v.filas[0].prima).toBe(220000);
+    expect(v.problemas.filter((p) => p.tipo === "advertencia" && !p.mensaje.startsWith("Revisá el CUIT"))).toEqual([
+      { fila: 4, mensaje: "Repite exactamente la fila 3: se toma una sola vez.", tipo: "advertencia" },
+      { fila: 5, mensaje: "La póliza F-1 ya está en la fila 3 con otros datos: se unieron en una sola; revisá los importes.", tipo: "advertencia" },
+    ]);
+    expect(v.filas[0].datosCompania.slice(-2)).toEqual([
+      { etiqueta: "Filas unidas", valor: "3" },
+      {
+        etiqueta: "Detalle por fila",
+        valor: `N° 1: prima ${pesosConCentavos(100000)} · N° 2: prima ${pesosConCentavos(50000)} · fila 5: prima ${pesosConCentavos(70000)}`,
+      },
     ]);
   });
 
@@ -171,12 +254,17 @@ describe("validarCartera", () => {
     const t = await tabla();
     const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA));
     expect(resumirCartera(v, new Set(["30715882146"]), "2026-10-27")).toEqual({
-      asegurados: 2,
-      nuevos: 1,
+      asegurados: 6,
+      nuevos: 5,
       actualizados: 1,
-      polizas: 2,
+      polizas: 6,
       vencen30: 2,
       filasConErrores: 4,
+    });
+    // A Gómez se le corrigió el documento en la ficha: se la reconoce por su póliza, como al guardar.
+    expect(resumirCartera(v, new Set(["30715882146"]), "2026-10-27", new Set([claveDePoliza("Mapfre", "4410-3321908")]))).toMatchObject({
+      nuevos: 4,
+      actualizados: 2,
     });
     const corregir = filasParaCorregir(t, v.problemas);
     expect(corregir[0].at(-1)).toBe("Problema");

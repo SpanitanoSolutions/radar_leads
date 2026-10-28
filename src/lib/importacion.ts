@@ -1,7 +1,7 @@
 import type { DatoCompania } from "@/db/schema";
 import { celdasCsv } from "@/fuentes/csv";
 import { normalizar } from "@/fuentes/clasificacion";
-import { diasEntre } from "./fechas";
+import { diasEntre, fechaCorta } from "./fechas";
 import type { FormatoCartera } from "./formatos-cartera";
 import { pesosConCentavos } from "./formato";
 import { RAMOS_CARTERA, ramoCanonico } from "./ramos";
@@ -333,12 +333,17 @@ export const CAMPOS_CARTERA: CampoImportable<CampoCartera>[] = [
 
 export type FilaCartera = {
   fila: number;
+  /** Cómo se reconoce al asegurado: los números del documento o, si no tiene, el nombre. */
+  clave: string;
   tipo: "persona" | "empresa";
   nombre: string;
-  documento: string;
-  documentoDigitos: string;
+  /** Si viene mal, tal como vino. */
+  documento: string | null;
+  documentoDigitos: string | null;
   ramo: string;
-  vigenciaHasta: string;
+  vigenciaHasta: string | null;
+  /** Si la fecha de fin es la del período facturado y no el vencimiento (ver `finDelPeriodo` del formato). */
+  finDelPeriodo: string | null;
   vigenciaDesde: string | null;
   compania: string | null;
   numero: string | null;
@@ -359,9 +364,30 @@ export type FilaCartera = {
   codigoPostal: string | null;
   fechaNacimiento: string | null;
   contacto: string | null;
+  /** Datos que se completaron con un relleno o vinieron mal: al reimportar no pisan lo que ya está cargado. */
+  provisorios: DatoProvisorio[];
 };
 
-export type Problema = { fila: number; mensaje: string; tipo: "error" | "advertencia" };
+export type DatoProvisorio = "nombre" | "documento" | "tipo" | "ramo";
+
+/**
+ * Los "otros datos" de una póliza al reimportar: lo nuevo actualiza el dato
+ * con el mismo nombre y lo que el archivo no trae queda como estaba. Nunca se
+ * pierde un dato de una importación anterior.
+ */
+export function combinarDatosCompania(anteriores: DatoCompania[] | null, nuevos: DatoCompania[]): DatoCompania[] | null {
+  const combinados = (anteriores ?? []).map((d) => nuevos.find((n) => n.etiqueta === d.etiqueta) ?? d);
+  for (const n of nuevos) if (!combinados.some((d) => d.etiqueta === n.etiqueta)) combinados.push(n);
+  return combinados.length ? combinados : null;
+}
+
+/**
+ * Ninguna póliza del archivo se deja afuera. "error": falta un dato
+ * obligatorio o viene mal; la póliza se importa igual y queda para corregir.
+ * "advertencia": un dato opcional no se pudo leer y se guarda tal como vino.
+ * "omitida": la fila no es una póliza (totales, notas al pie).
+ */
+export type Problema = { fila: number; mensaje: string; tipo: "error" | "advertencia" | "omitida" };
 
 export type ValidacionCartera = {
   filas: FilaCartera[];
@@ -369,17 +395,35 @@ export type ValidacionCartera = {
   /** Ramos que no se reconocieron, para elegir a cuál corresponden. */
   ramosDesconocidos: string[];
   faltanObligatorios: string[];
-  /** Filas con datos (sin contar las vacías). */
+  /** Filas con datos (sin contar las vacías). Cuadra: filas.length = totalFilas - unidas - noSonPolizas. */
   totalFilas: number;
+  /** Filas que se sumaron a otra póliza: sus certificados, o la misma póliza repetida. */
+  unidas: number;
+  /** Filas que no son pólizas (totales, notas al pie). */
+  noSonPolizas: number;
 };
 
 const RAMOS_VALIDOS = new Set<string>(RAMOS_CARTERA.map((r) => r.id));
 
-function tipoDe(texto: string, documento: Documento): "persona" | "empresa" {
+/** Cómo se reconoce a un asegurado entre importaciones: por su documento o, si no tiene, por su nombre. */
+export function claveDeAsegurado(documentoDigitos: string | null, nombre: string): string {
+  return documentoDigitos || `nombre:${normalizar(nombre).replace(/\s+/g, " ").trim()}`;
+}
+
+/** Cómo se reconoce una póliza entre importaciones: por compañía y número, sin espacios ni mayúsculas. */
+export function claveDePoliza(compania: string, numero: string): string {
+  return `${compania}#${numero.replace(/\s/g, "").toLowerCase()}`;
+}
+
+function tipoDe(texto: string, documento: Documento | null): "persona" | "empresa" {
   const n = normalizar(texto);
   if (/^(empresa|juridica|j|pj|sociedad)/.test(n)) return "empresa";
   if (/^(persona|fisica|f|pf|particular)/.test(n)) return "persona";
-  return documento.tipo === "cuit" && /^3[034]/.test(documento.digitos) ? "empresa" : "persona";
+  return documento?.tipo === "cuit" && /^3[034]/.test(documento.digitos) ? "empresa" : "persona";
+}
+
+function conMayuscula(texto: string): string {
+  return texto[0].toUpperCase() + texto.slice(1);
 }
 
 /** Sin ninguno de estos datos, la fila no es una póliza: totales o notas al pie. */
@@ -500,7 +544,8 @@ function sumarCertificado(poliza: FilaCartera, certificado: FilaCartera): FilaCa
     premio: sumar(poliza.premio, certificado.premio),
     sumaAsegurada: sumar(poliza.sumaAsegurada, certificado.sumaAsegurada),
     vigenciaDesde: [poliza.vigenciaDesde, certificado.vigenciaDesde].filter((d) => d !== null).sort()[0] ?? null,
-    vigenciaHasta: [poliza.vigenciaHasta, certificado.vigenciaHasta].sort()[1],
+    vigenciaHasta: [poliza.vigenciaHasta, certificado.vigenciaHasta].filter((d) => d !== null).sort().at(-1) ?? null,
+    finDelPeriodo: [poliza.finDelPeriodo, certificado.finDelPeriodo].filter((d) => d !== null).sort().at(-1) ?? null,
     datosCompania: [
       ...poliza.datosCompania,
       ...certificado.datosCompania.filter((d) => !poliza.datosCompania.some((p) => p.etiqueta === d.etiqueta)),
@@ -586,9 +631,23 @@ export type OpcionesCartera = {
   formato?: FormatoCartera | null;
 };
 
+/** Los importes de cada certificado (o fila) que se unió en una póliza, para que no se pierdan. */
+function detalleDeEntrada(id: string, p: FilaCartera): string {
+  const importes = [
+    p.prima !== null && `prima ${pesosConCentavos(p.prima)}`,
+    p.premio !== null && `premio ${pesosConCentavos(p.premio)}`,
+    p.sumaAsegurada !== null && `suma ${pesosConCentavos(p.sumaAsegurada)}`,
+  ].filter(Boolean);
+  return `${id.startsWith("fila ") ? id : `N° ${id}`}${importes.length ? `: ${importes.join(", ")}` : ""}`;
+}
+
+const ORDEN_PROBLEMAS: Record<Problema["tipo"], number> = { error: 0, advertencia: 1, omitida: 2 };
+
 /**
- * Valida cada fila según las columnas elegidas. Las filas con errores no se
- * importan; las advertencias se importan igual.
+ * Valida cada fila según las columnas elegidas. Ninguna póliza se deja
+ * afuera: si un dato falta o viene mal, la póliza se importa igual y el
+ * problema queda anotado para corregirlo; lo que no se pudo leer se guarda
+ * tal como vino.
  */
 export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opciones: OpcionesCartera = {}): ValidacionCartera {
   const { ramos: ramosElegidos = {}, compania: companiaArchivo = null, formato = null } = opciones;
@@ -596,82 +655,150 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
   const faltanObligatorios = faltanEnCartera(mapeo, companiaArchivo);
   const problemas: Problema[] = [];
   const desconocidos = new Set<string>();
-  /** Por póliza, sus certificados ("" si el archivo no los trae). */
-  const polizas = new Map<string, Map<string, FilaCartera>>();
+  /** Por póliza, sus entradas: los certificados ("" si el archivo no los trae) o las filas repetidas. */
+  const polizas = new Map<string, Map<string, { poliza: FilaCartera; celdas: string[] }>>();
   let totalFilas = 0;
-  if (faltanObligatorios.length) return { filas: [], problemas, ramosDesconocidos: [], faltanObligatorios, totalFilas: tabla.filas.length };
+  let unidas = 0;
+  let noSonPolizas = 0;
+  if (faltanObligatorios.length) {
+    return { filas: [], problemas, ramosDesconocidos: [], faltanObligatorios, totalFilas: tabla.filas.length, unidas, noSonPolizas };
+  }
   const referenciaDe = referenciasSinComa(tabla, formato);
   const calcularPrima = calculadoraDePrima(tabla, formato, referenciaDe);
+  const colFacturacion = formato?.finDelPeriodo
+    ? tabla.encabezados.findIndex((e) => normalizarEncabezado(e) === formato.finDelPeriodo!.facturacion)
+    : -1;
 
   tabla.filas.forEach((celdas, i) => {
+    if (!celdas.some((c) => c.trim())) return;
+    totalFilas++;
+    const fila = i + tabla.filaInicial;
     const valor = (campo: CampoCartera) => {
       const col = mapeo.indexOf(campo);
       return col >= 0 ? (celdas[col] ?? "").trim() : "";
     };
-    if (DATOS_DE_POLIZA.every((campo) => !valor(campo))) return;
-    totalFilas++;
-    const fila = i + tabla.filaInicial;
+    if (DATOS_DE_POLIZA.every((campo) => !valor(campo))) {
+      noSonPolizas++;
+      problemas.push({ fila, mensaje: "No tiene asegurado, documento, ramo ni vencimiento: parece una fila de totales o una nota.", tipo: "omitida" });
+      return;
+    }
     const error = (mensaje: string) => problemas.push({ fila, mensaje, tipo: "error" });
     const advertencia = (mensaje: string) => problemas.push({ fila, mensaje, tipo: "advertencia" });
-    const errores = problemas.length;
+    /** Lo que no se pudo leer se guarda en la póliza tal como vino. */
+    const comoVino: DatoCompania[] = [];
+    const provisorios: DatoProvisorio[] = [];
+    const guardar = (dato: string, texto: string) => comoVino.push({ etiqueta: `${dato} (como vino)`, valor: texto });
 
-    const nombre = valor("nombre");
-    if (!nombre) error("Falta el nombre o la razón social.");
+    const docTexto = valor("documento");
+    const doc = leerDocumento(docTexto);
+    let documento: string | null = null;
+    let documentoDigitos: string | null = null;
+    if (!doc) {
+      error("Falta el DNI o CUIT: se importa sin documento.");
+    } else if ("error" in doc) {
+      error(`${conMayuscula(doc.error)}: se importa tal como vino; corregilo en la ficha.`);
+      documento = docTexto;
+      documentoDigitos = docTexto.replace(/\D/g, "").replace(/^0+/, "") || null;
+      provisorios.push("documento");
+    } else {
+      if (doc.tipo === "cuit" && !cuitValido(doc.digitos)) advertencia(`Revisá el CUIT "${doc.texto}": el dígito verificador no coincide.`);
+      documento = doc.texto;
+      documentoDigitos = doc.digitos;
+    }
 
-    const doc = leerDocumento(valor("documento"));
-    if (!doc) error("Falta el DNI o CUIT.");
-    else if ("error" in doc) error(`${doc.error[0].toUpperCase()}${doc.error.slice(1)}.`);
-    else if (doc.tipo === "cuit" && !cuitValido(doc.digitos)) advertencia(`Revisá el CUIT "${doc.texto}": el dígito verificador no coincide.`);
+    let nombre = valor("nombre");
+    if (!nombre) {
+      nombre = documento ? `Sin nombre (${documento})` : `Sin nombre (fila ${fila})`;
+      error(`Falta el nombre o la razón social: se importa como "${nombre}".`);
+      provisorios.push("nombre");
+    }
+    // Sin una columna que lo diga ni un CUIT válido, persona o empresa es una suposición.
+    if (!valor("tipo") && (!doc || "error" in doc)) provisorios.push("tipo");
 
     const ramoOriginal = valor("ramo");
-    let ramo = "";
-    if (!ramoOriginal) error("Falta el ramo.");
-    else {
+    let ramo = "Sin ramo";
+    if (!ramoOriginal) {
+      error('Falta el ramo: se importa como "Sin ramo".');
+      provisorios.push("ramo");
+    } else {
       ramo = ramosElegidos[ramoOriginal] || ramoCanonico(ramoOriginal);
       if (!RAMOS_VALIDOS.has(ramo)) {
         desconocidos.add(ramoOriginal);
-        error(`Ramo "${ramoOriginal}" sin reconocer.`);
+        ramo = ramoOriginal;
+        error(`Ramo "${ramoOriginal}" sin reconocer: se importa así. Elegí abajo a cuál corresponde.`);
+        provisorios.push("ramo");
       }
     }
 
-    const hasta = leerFecha(valor("vigenciaHasta"));
-    if (!hasta) error("Falta el fin de vigencia.");
-    else if ("error" in hasta) error(`${hasta.error[0].toUpperCase()}${hasta.error.slice(1)}.`);
-    const desde = leerFecha(valor("vigenciaDesde"));
-    if (desde && "error" in desde) advertencia(`No se toma el inicio de vigencia: ${desde.error}.`);
+    const hastaTexto = valor("vigenciaHasta");
+    const hasta = leerFecha(hastaTexto);
+    let vigenciaHasta: string | null = null;
+    if (!hasta) error("Falta el fin de vigencia: se importa sin fecha.");
+    else if ("error" in hasta) {
+      error(`${conMayuscula(hasta.error)}: se importa sin fecha de fin.`);
+      guardar("Fin de vigencia", hastaTexto);
+    } else vigenciaHasta = hasta.iso;
+    // En algunas compañías es el fin del período facturado (el mes, en las mensuales): la póliza
+    // sigue vigente mientras venga en la cartera. Solo en las anuales es el vencimiento.
+    let finDelPeriodo: string | null = null;
+    if (vigenciaHasta && colFacturacion >= 0 && facturasPorAnio(celdas[colFacturacion] ?? "") !== 1) {
+      finDelPeriodo = vigenciaHasta;
+      vigenciaHasta = null;
+    }
+    const desdeTexto = valor("vigenciaDesde");
+    const desde = leerFecha(desdeTexto);
+    if (desde && "error" in desde) {
+      advertencia(`No se entiende el inicio de vigencia: ${desde.error}. Se guarda como vino.`);
+      guardar("Inicio de vigencia", desdeTexto);
+    }
 
     const companiaTexto = valor("compania") || companiaArchivo?.trim() || "";
-    if (!companiaTexto) error("Falta la compañía.");
+    if (!companiaTexto) error("Falta la compañía: se importa sin compañía.");
 
     // "0,00" es que la compañía no lo informa.
-    const importe = (campo: CampoCartera, nombreDato: string) => {
+    const importe = (campo: CampoCartera, dato: string) => {
       const texto = valor(campo);
       const monto = texto ? leerMonto(texto) : null;
-      if (texto && (monto === null || monto < 0)) advertencia(`No entendí ${nombreDato} "${texto}": queda sin cargar.`);
+      if (texto && (monto === null || monto < 0)) {
+        advertencia(`No se entiende ${dato.toLowerCase()} "${texto}": se guarda como vino.`);
+        guardar(dato, texto);
+      }
       return monto !== null && monto > 0 ? monto : null;
     };
-    const prima = importe("prima", "la prima");
-    const premio = importe("premio", "el premio");
+    const prima = importe("prima", "La prima");
+    const premio = importe("premio", "El premio");
     // Hay compañías que en algunos ramos informan el ajuste del endoso y no la suma total.
-    const suma = formato?.sumaNoEsTotalEn?.includes(ramo) ? null : importe("sumaAsegurada", "la suma asegurada");
+    let suma: number | null = null;
+    const ajuste = formato?.sumaNoEsTotalEn?.includes(ramo) ? leerMonto(valor("sumaAsegurada")) : null;
+    if (formato?.sumaNoEsTotalEn?.includes(ramo)) {
+      if (ajuste) comoVino.push({ etiqueta: "Ajuste de suma de la última factura", valor: pesosConCentavos(ajuste) });
+    } else suma = importe("sumaAsegurada", "La suma asegurada");
 
-    const nacimiento = leerFecha(valor("fechaNacimiento"));
-    if (nacimiento && "error" in nacimiento) advertencia(`No se toma la fecha de nacimiento: ${nacimiento.error}.`);
+    const nacimientoTexto = valor("fechaNacimiento");
+    const nacimiento = leerFecha(nacimientoTexto);
     const fechaNacimiento = nacimiento && "iso" in nacimiento && nacimiento.iso >= "1900" && nacimiento.iso < hoy ? nacimiento.iso : null;
+    if (nacimientoTexto && !fechaNacimiento) {
+      advertencia(`No se entiende la fecha de nacimiento "${nacimientoTexto}": se guarda como vino.`);
+      guardar("Fecha de nacimiento", nacimientoTexto);
+    }
 
     let email: string | null = valor("email") || null;
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      advertencia(`El email "${email}" no parece válido: queda sin cargar.`);
+      advertencia(`El email "${email}" no parece válido: se guarda como vino, en los datos de la póliza.`);
+      guardar("Email", email);
       email = null;
     }
     let telefono: string | null = valor("telefono") || null;
     if (telefono && !telefonoValido(telefono)) {
-      advertencia(`El teléfono "${telefono}" no parece válido: queda sin cargar.`);
+      advertencia(`El teléfono "${telefono}" no parece válido: se guarda como vino, en los datos de la póliza.`);
+      guardar("Teléfono", telefono);
       telefono = null;
     }
-    const cuotasNumero = Number(valor("cuotas"));
+    const cuotasTexto = valor("cuotas");
+    const cuotasNumero = Number(cuotasTexto);
+    const cuotas = Number.isInteger(cuotasNumero) && cuotasNumero >= 1 && cuotasNumero <= 24 ? cuotasNumero : null;
+    if (cuotasTexto && cuotas === null) guardar("Cuotas", cuotasTexto);
 
-    if (problemas.length > errores && problemas.slice(errores).some((p) => p.tipo === "error")) return;
     // Si la compañía no informa la prima anual, se calcula con el premio de cada factura.
     const calculada = prima === null ? calcularPrima(celdas) : null;
     if (calculada?.premioSinVerificar) {
@@ -679,17 +806,18 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
         `La prima anual se calculó con un premio que ${formato?.compania ?? "la compañía"} manda sin la coma decimal y no se pudo comparar con otra factura: revisala.`,
       );
     }
-    const d = doc as Documento;
     const numero = valor("numero") || null;
-    const compania = companiaCanonica(companiaTexto);
+    const compania = companiaTexto ? companiaCanonica(companiaTexto) : null;
     const poliza: FilaCartera = {
       fila,
-      tipo: tipoDe(valor("tipo"), d),
+      clave: claveDeAsegurado(documentoDigitos, nombre),
+      tipo: tipoDe(valor("tipo"), doc && !("error" in doc) ? doc : null),
       nombre,
-      documento: d.texto,
-      documentoDigitos: d.digitos,
+      documento,
+      documentoDigitos,
       ramo,
-      vigenciaHasta: (hasta as { iso: string }).iso,
+      vigenciaHasta,
+      finDelPeriodo,
       vigenciaDesde: desde && "iso" in desde ? desde.iso : null,
       compania,
       numero,
@@ -699,15 +827,17 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
       prima: prima ?? calculada?.prima ?? null,
       premio,
       sumaAsegurada: suma,
-      cuotas: Number.isInteger(cuotasNumero) && cuotasNumero >= 1 && cuotasNumero <= 24 ? cuotasNumero : null,
+      cuotas,
       formaPago: valor("formaPago") || null,
       datosCompania: [
+        ...(finDelPeriodo ? [{ etiqueta: "Fin del período facturado", valor: fechaCorta(finDelPeriodo) }] : []),
         ...mapeo.flatMap((campo, col) => {
           if (campo !== "otro") return [];
           const dato = datoCompania(tabla.encabezados[col] ?? "", celdas[col] ?? "", formato, referenciaDe(celdas, col));
           return dato ? [dato] : [];
         }),
         ...(calculada ? [calculada.detalle] : []),
+        ...comoVino,
       ],
       telefono,
       email,
@@ -716,24 +846,46 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
       codigoPostal: valor("codigoPostal") || null,
       fechaNacimiento,
       contacto: valor("contacto") || null,
+      provisorios,
     };
 
-    const clave = `${d.digitos}|${numero ?? `${ramo}|${compania ?? ""}`}`;
-    const certificado = valor("certificado");
-    const certificados = polizas.get(clave) ?? new Map<string, FilaCartera>();
-    const repetida = certificados.get(certificado);
-    if (repetida) advertencia(`Repite la póliza de la fila ${repetida.fila}: se toma esta.`);
-    certificados.set(certificado, poliza);
-    polizas.set(clave, certificados);
+    // La misma póliza en otra fila: un certificado más o la póliza repetida. Nada se pisa.
+    const clavePoliza = `${poliza.clave}|${numero ?? `${ramo}|${compania ?? ""}`}`;
+    const entradas = polizas.get(clavePoliza) ?? new Map<string, { poliza: FilaCartera; celdas: string[] }>();
+    let entrada = valor("certificado");
+    const anterior = entradas.get(entrada);
+    if (anterior && anterior.celdas.join("\u0000") === celdas.join("\u0000")) {
+      unidas++;
+      advertencia(`Repite exactamente la fila ${anterior.poliza.fila}: se toma una sola vez.`);
+      return;
+    }
+    if (anterior) {
+      entrada = `fila ${fila}`;
+      advertencia(`La póliza${numero ? ` ${numero}` : ""} ya está en la fila ${anterior.poliza.fila} con otros datos: se unieron en una sola; revisá los importes.`);
+    }
+    if (entradas.size) unidas++;
+    entradas.set(entrada, { poliza, celdas });
+    polizas.set(clavePoliza, entradas);
   });
 
-  const filas = [...polizas.values()].map((certificados) => {
-    const poliza = [...certificados.values()].reduce(sumarCertificado);
-    if (certificados.size < 2) return poliza;
-    return { ...poliza, datosCompania: [...poliza.datosCompania, { etiqueta: "Certificados", valor: String(certificados.size) }] };
+  const filas = [...polizas.values()].map((entradas) => {
+    const lista = [...entradas.entries()];
+    const poliza = lista.map(([, e]) => e.poliza).reduce(sumarCertificado);
+    if (lista.length < 2) return poliza;
+    // Si no son certificados, son la misma póliza en varias filas.
+    const sonCertificados = lista.every(([id]) => id && !id.startsWith("fila "));
+    const ids = lista.map(([id, e]) => (id || `fila ${e.poliza.fila}`));
+    return {
+      ...poliza,
+      datosCompania: [
+        ...poliza.datosCompania,
+        { etiqueta: sonCertificados ? "Certificados" : "Filas unidas", valor: String(lista.length) },
+        { etiqueta: sonCertificados ? "Detalle por certificado" : "Detalle por fila", valor: lista.map(([, e], j) => detalleDeEntrada(ids[j], e.poliza)).join(" · ") },
+      ],
+    };
   });
-  problemas.sort((a, b) => a.fila - b.fila || (a.tipo === b.tipo ? 0 : a.tipo === "error" ? -1 : 1));
-  return { filas, problemas, ramosDesconocidos: [...desconocidos], faltanObligatorios, totalFilas };
+  problemas.sort((a, b) => a.fila - b.fila || ORDEN_PROBLEMAS[a.tipo] - ORDEN_PROBLEMAS[b.tipo]);
+  return { filas, problemas, ramosDesconocidos: [...desconocidos], faltanObligatorios, totalFilas, unidas, noSonPolizas };
 }
 
 export type ResumenCartera = {
@@ -745,17 +897,32 @@ export type ResumenCartera = {
   filasConErrores: number;
 };
 
-/** Lo que va a pasar al importar, para el paso 3. `existentes`: documentos (solo dígitos) ya cargados. */
-export function resumirCartera(v: ValidacionCartera, existentes: Set<string>, hoy: string): ResumenCartera {
-  const documentos = new Set(v.filas.map((f) => f.documentoDigitos));
-  const nuevos = [...documentos].filter((d) => !existentes.has(d)).length;
+/**
+ * Lo que va a pasar al importar, para el paso 3. Cuenta como el guardado: un
+ * asegurado ya está si se lo reconoce (`existentes`, según `claveDeAsegurado`)
+ * o si alguna de sus pólizas ya está cargada (`polizasCargadas`, según
+ * `claveDePoliza`), por ejemplo porque se le corrigió el documento en la ficha.
+ */
+export function resumirCartera(
+  v: ValidacionCartera,
+  existentes: Set<string>,
+  hoy: string,
+  polizasCargadas: Set<string> = new Set(),
+): ResumenCartera {
+  const asegurados = new Set(v.filas.map((f) => f.clave));
+  const yaEstan = new Set(
+    v.filas
+      .filter((f) => existentes.has(f.clave) || (f.compania && f.numero && polizasCargadas.has(claveDePoliza(f.compania, f.numero))))
+      .map((f) => f.clave),
+  );
+  const nuevos = asegurados.size - yaEstan.size;
   const vencenPronto = new Set(
-    v.filas.filter((f) => f.vigenciaHasta >= hoy && diasEntre(hoy, f.vigenciaHasta) <= 30).map((f) => f.documentoDigitos),
+    v.filas.filter((f) => f.vigenciaHasta && f.vigenciaHasta >= hoy && diasEntre(hoy, f.vigenciaHasta) <= 30).map((f) => f.clave),
   );
   return {
-    asegurados: documentos.size,
+    asegurados: asegurados.size,
     nuevos,
-    actualizados: documentos.size - nuevos,
+    actualizados: asegurados.size - nuevos,
     polizas: v.filas.length,
     vencen30: vencenPronto.size,
     filasConErrores: new Set(v.problemas.filter((p) => p.tipo === "error").map((p) => p.fila)).size,

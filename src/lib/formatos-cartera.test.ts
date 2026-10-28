@@ -47,6 +47,8 @@ describe("Mapfre: cartera vigente", () => {
       SECCIÓN: "ramo",
       PÓLIZA: "numero",
       "TIPO FACT.": "otro",
+      "NRO.TW": "otro",
+      SOLICITUD: "otro",
       ANUALIDAD: "otro",
       RAMO: "producto",
       "FECHA VIG.": "vigenciaHasta",
@@ -61,44 +63,66 @@ describe("Mapfre: cartera vigente", () => {
       "END.ÚLT.FACT.": "otro",
       "PREMIO ÚLT.FACT.": "otro",
       "SUMA ASEG.ÚLT.FACT.": "sumaAsegurada",
+      "END.FACT.ANT.": "otro",
       "PREMIO FACT.ANT.": "otro",
+      "SUMA ASEG.FACT.ANT.": "otro",
       "NRO. DOCUMENTO": "documento",
     });
-    // Lo que no se importa dice por qué.
+    // No se deja afuera ninguna columna.
     const motivos = motivosDeFormato(t.encabezados, formato!);
-    expect(t.encabezados.filter((_, i) => motivos[i])).toEqual(["NRO.TW", "SOLICITUD", "END.FACT.ANT.", "SUMA ASEG.FACT.ANT."]);
+    expect(t.encabezados.filter((_, i) => motivos[i])).toEqual([]);
   });
 
   it("valida las filas con la compañía del formato", async () => {
     const t = await leerTablaCsv(MAPFRE);
     const formato = detectarFormato(t.encabezados)!;
     const v = validarCartera(t, mapeoDeFormato(t.encabezados, formato), { ramos: formato.ramos, compania: formato.compania, formato });
-    expect(v.filas.map((f) => [f.ramo, f.compania, f.vigenciaHasta, f.telefono, f.producto, f.sumaAsegurada, f.prima])).toEqual([
-      // En autos, la suma de la última factura es el ajuste del endoso: no se toma.
-      // Prima anual: el premio mensual por 12.
-      ["Auto", "Mapfre", "2026-10-23", "02235550001", "AUTOMOVILES INDIVIDUAL SCORING", null, 963705.12],
+    expect(v.filas.map((f) => [f.ramo, f.compania, f.vigenciaHasta, f.finDelPeriodo, f.telefono, f.producto, f.sumaAsegurada, f.prima])).toEqual([
+      // "FECHA VIG." es el fin del mes facturado, no el vencimiento: sigue vigente mientras esté en la cartera.
+      // En autos, la suma de la última factura es el ajuste del endoso. Prima anual: el premio mensual por 12.
+      ["Auto", "Mapfre", null, "2026-10-23", "02235550001", "AUTOMOVILES INDIVIDUAL SCORING", null, 963705.12],
       // Sin facturación informada, combinado se supone trimestral (a confirmar).
-      ["Hogar", "Mapfre", "2027-01-23", "2235550002", "POLIZA MAS", 760763800, 765769.6],
-      // Anual, pero todavía sin premio facturado.
-      ["Vida", "Mapfre", "2026-11-01", null, "OBLIGATORIO DECRETO 1567/74", null, null],
+      ["Hogar", "Mapfre", null, "2027-01-23", "2235550002", "POLIZA MAS", 760763800, 765769.6],
+      // Anual: la fecha sí es el vencimiento. Todavía sin premio facturado.
+      ["Vida", "Mapfre", "2026-11-01", null, null, "OBLIGATORIO DECRETO 1567/74", null, null],
+      // Ramo que UNIQO no conoce: se importa igual, como vino.
+      ["SEGURO TECNICO", "Mapfre", "2027-02-17", null, "0223155550004", "EQUIPOS DE CONTRATISTA", null, null],
     ]);
     expect(v.filas[0]).toMatchObject({ fechaNacimiento: "1977-02-16", codigoPostal: "7600", formaPago: "TC" });
     expect(v.filas[0].datosCompania).toEqual([
+      { etiqueta: "Fin del período facturado", valor: "23/10/2026" },
       { etiqueta: "Código de productor", valor: "10001" },
       { etiqueta: "Facturación", valor: "MENSUAL" },
+      { etiqueta: "N° TronWeb", valor: "1100000104" },
       { etiqueta: "Anualidad", valor: "14" },
       { etiqueta: "Siniestros informados por Mapfre", valor: "0" },
       { etiqueta: "Endoso de la última factura", valor: "9" },
       { etiqueta: "Premio de la última factura", valor: pesosConCentavos(80308.76) },
+      { etiqueta: "Endoso de la factura anterior", valor: "8" },
       // "8019272.00": Mapfre la manda sin la coma decimal.
       { etiqueta: "Premio de la factura anterior", valor: pesosConCentavos(80192.72) },
+      { etiqueta: "Suma de la factura anterior", valor: pesosConCentavos(-113000) },
       { etiqueta: "Cómo se calculó la prima anual", valor: `${pesosConCentavos(80308.76)} × 12 (premio de la última factura, con impuestos)` },
+      { etiqueta: "Ajuste de suma de la última factura", valor: pesosConCentavos(-54000) },
     ]);
     // Sin facturas todavía: ni endoso ni premio en cero.
-    expect(v.filas[2].datosCompania.map((d) => d.etiqueta)).toEqual(["Código de productor", "Facturación", "Anualidad", "Siniestros informados por Mapfre"]);
+    expect(v.filas[2].datosCompania.map((d) => d.etiqueta)).toEqual([
+      "Código de productor",
+      "Facturación",
+      "N° TronWeb",
+      "Anualidad",
+      "Siniestros informados por Mapfre",
+      // El teléfono "000000000" no se pierde: queda tal como vino.
+      "Teléfono (como vino)",
+    ]);
     expect(v.filas[2]).toMatchObject({ tipo: "empresa", nombre: "LIMPIEZA EJEMPLO S.A.", documento: "30-71000000-6" });
-    expect(v.problemas).toContainEqual({ fila: 4, mensaje: 'El teléfono "000000000" no parece válido: queda sin cargar.', tipo: "advertencia" });
+    expect(v.problemas).toContainEqual({
+      fila: 4,
+      mensaje: 'El teléfono "000000000" no parece válido: se guarda como vino, en los datos de la póliza.',
+      tipo: "advertencia",
+    });
     expect(v.ramosDesconocidos).toEqual(["SEGURO TECNICO"]);
+    expect(v.filas).toHaveLength(v.totalFilas);
   });
 
   it("lee el premio de la factura anterior aunque venga sin la coma decimal", async () => {
@@ -199,14 +223,17 @@ describe("Sancor: detalle de cartera", () => {
     ]);
   });
 
-  it("lee los documentos con letra, une los certificados y saltea los totales", async () => {
+  it("lee los documentos con letra, une los certificados sin perder su detalle y no toma los totales como póliza", async () => {
     const t = await leerTablaCsv(SANCOR);
     const formato = detectarFormato(t.encabezados)!;
     const v = validarCartera(t, mapeoDeFormato(t.encabezados, formato), { ramos: formato.ramos, compania: formato.compania, formato });
-    expect(v.totalFilas).toBe(6);
+    // 7 filas: 4 pólizas, 2 certificados de la de AP y la fila de totales. Cuadra.
+    expect([v.totalFilas, v.filas.length, v.unidas, v.noSonPolizas]).toEqual([7, 4, 2, 1]);
     expect(v.filas.map((f) => [f.fila, f.ramo, f.documento, f.numero, f.producto, f.prima, f.premio, f.sumaAsegurada])).toEqual([
       [3, "Auto", "25.000.111", "31000001", "864", 1108610, 1459576, 11433000],
       [4, "AP", "30-70000000-8", "13000002", "16", 2106225.17, 2773670.95, 8000000],
+      // El código de ramo 700 no se conoce: se importa igual.
+      [7, "700", "31.000.444", "2000003", "24", 48279.62, 64800.02, 500000],
       [8, "Hogar", "1.999.888", "4000004", "40", 36635.98, 49516.16, 115638226],
     ]);
     expect(v.filas[1].datosCompania).toEqual([
@@ -216,9 +243,16 @@ describe("Sancor: detalle de cartera", () => {
       { etiqueta: "Grupo estadístico", valor: "1170 - AP Deportistas" },
       { etiqueta: "N° de asociado en Sancor", valor: "7000002" },
       { etiqueta: "Certificados", valor: "3" },
+      {
+        etiqueta: "Detalle por certificado",
+        valor: `N° 1: suma ${pesosConCentavos(4000000)} · N° 2: suma ${pesosConCentavos(4000000)} · N° 0: prima ${pesosConCentavos(2106225.17)}, premio ${pesosConCentavos(2773670.95)}`,
+      },
     ]);
     expect(v.filas[1]).toMatchObject({ tipo: "empresa", compania: "Sancor", vigenciaDesde: "2026-07-08", vigenciaHasta: "2027-07-08" });
-    expect(v.problemas).toEqual([{ fila: 7, mensaje: 'Ramo "700" sin reconocer.', tipo: "error" }]);
+    expect(v.problemas).toEqual([
+      { fila: 7, mensaje: 'Ramo "700" sin reconocer: se importa así. Elegí abajo a cuál corresponde.', tipo: "error" },
+      { fila: 9, mensaje: "No tiene asegurado, documento, ramo ni vencimiento: parece una fila de totales o una nota.", tipo: "omitida" },
+    ]);
     expect(v.ramosDesconocidos).toEqual(["700"]);
   });
 });

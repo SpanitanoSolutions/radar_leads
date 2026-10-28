@@ -37,12 +37,15 @@ function descripcionSeparador(s: string | null) {
 
 export function AsistenteImportar({
   hoy,
-  documentos,
+  cargados,
+  polizasCargadas,
   hayEjemplos,
 }: {
   hoy: string;
-  /** Documentos ya cargados (solo dígitos), para saber quién es nuevo. */
-  documentos: string[];
+  /** Los asegurados ya cargados (`claveDeAsegurado`), para saber quién es nuevo. */
+  cargados: string[];
+  /** Las pólizas ya cargadas (`claveDePoliza`), para reconocer a quien se le corrigió el documento. */
+  polizasCargadas: string[];
   hayEjemplos: boolean;
 }) {
   const [paso, setPaso] = useState(1);
@@ -60,7 +63,8 @@ export function AsistenteImportar({
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
   const [estado, importar, importando] = useActionState<EstadoImportacion, FormData>(importarCartera, {});
 
-  const existentes = useMemo(() => new Set(documentos), [documentos]);
+  const existentes = useMemo(() => new Set(cargados), [cargados]);
+  const polizasExistentes = useMemo(() => new Set(polizasCargadas), [polizasCargadas]);
   const conColumnaCompania = mapeo.includes("compania");
   const companiaArchivo = conColumnaCompania ? null : compania.trim() || null;
   const validacion = useMemo(
@@ -68,7 +72,7 @@ export function AsistenteImportar({
     [tabla, mapeo, ramos, companiaArchivo, formato, paso],
   );
   const motivos = tabla && formato ? motivosDeFormato(tabla.encabezados, formato) : [];
-  const resumen = validacion ? resumirCartera(validacion, existentes, hoy) : null;
+  const resumen = validacion ? resumirCartera(validacion, existentes, hoy, polizasExistentes) : null;
   const faltan = faltanEnCartera(mapeo, companiaArchivo);
   const companias = validacion ? companiasDelArchivo(validacion.filas) : [];
   // Los códigos de ramo que trae el formato también se muestran, para revisarlos.
@@ -251,7 +255,14 @@ export function AsistenteImportar({
             <div className="tarjeta tarjeta-cifra">
               <div className="stat-titulo">Pólizas</div>
               <div className="cifra">{resumen.polizas}</div>
-              <div className="nota-pie">de {validacion.totalFilas} filas del archivo</div>
+              {/* Las cuentas cuadran: cada fila del archivo está en una póliza o se dice por qué no. */}
+              <div className="nota-pie">
+                {validacion.totalFilas} {validacion.totalFilas === 1 ? "fila" : "filas"} del archivo
+                {validacion.unidas > 0 &&
+                  ` · ${validacion.unidas} ${validacion.unidas === 1 ? "es certificado o repetición" : "son certificados o repeticiones"} de otra póliza`}
+                {validacion.noSonPolizas > 0 &&
+                  ` · ${validacion.noSonPolizas} no ${validacion.noSonPolizas === 1 ? "es una póliza" : "son pólizas"} (totales o notas)`}
+              </div>
             </div>
             <div className="tarjeta tarjeta-cifra">
               <div className="stat-titulo">Vencen en 30 días</div>
@@ -259,16 +270,16 @@ export function AsistenteImportar({
               <div className="nota-pie">aparecerán en Vencimientos</div>
             </div>
             <div className="tarjeta tarjeta-cifra">
-              <div className="stat-titulo">Filas con problemas</div>
+              <div className="stat-titulo">Pólizas con datos a corregir</div>
               <div className={`cifra ${resumen.filasConErrores ? "texto-rojo" : ""}`}>{resumen.filasConErrores}</div>
-              <div className="nota-pie">no se importan hasta corregirlas</div>
+              <div className="nota-pie">se importan igual: corregilas en la ficha</div>
             </div>
           </section>
 
           <section className="tarjeta tarjeta-padding" aria-labelledby="t-problemas">
             <div className="titulo-con-contador entre">
               <h2 id="t-problemas" className="titulo-tarjeta">
-                {problemas.length ? "Filas con problemas" : "Todo en orden"}
+                {problemas.length ? "Para revisar" : "Todo en orden"}
               </h2>
               {resumen.filasConErrores > 0 && tabla && (
                 <button
@@ -280,14 +291,17 @@ export function AsistenteImportar({
                 </button>
               )}
             </div>
-            {problemas.length === 0 && <p className="texto-suave">Todas las filas se pueden importar.</p>}
+            {problemas.length === 0 && <p className="texto-suave">Todas las filas tienen sus datos completos.</p>}
+            {problemas.length > 0 && (
+              <p className="texto-suave">Todas las pólizas se importan. Lo que falta o vino mal queda anotado para corregirlo.</p>
+            )}
             <ul className="lista-problemas">
               {(todosLosProblemas ? problemas : problemas.slice(0, PROBLEMAS_VISIBLES)).map((p, i) => (
-                <li key={`${p.fila}-${i}`} className={p.tipo === "advertencia" ? "problema-advertencia" : undefined}>
+                <li key={`${p.fila}-${i}`} className={p.tipo === "error" ? undefined : "problema-advertencia"}>
                   <span className="texto-gris">Fila {p.fila}</span>
                   <span>
                     {p.mensaje}
-                    {p.tipo === "advertencia" && <span className="texto-gris"> (se importa igual)</span>}
+                    {p.tipo === "omitida" && <span className="texto-gris"> (no es una póliza)</span>}
                   </span>
                 </li>
               ))}
@@ -314,7 +328,7 @@ export function AsistenteImportar({
                       value={ramos[r] ?? ""}
                       onChange={(e) => setRamos((x) => ({ ...x, [r]: e.target.value }))}
                     >
-                      <option value="">Sin elegir (no se importa)</option>
+                      <option value="">Sin elegir (queda como vino)</option>
                       {RAMOS_CARTERA.map((ramo) => (
                         <option key={ramo.id} value={ramo.id}>
                           {ramo.nombre}
@@ -334,7 +348,8 @@ export function AsistenteImportar({
                   <span className="opcion-nombre">Combinar</span>
                   <span className="opcion-detalle">
                     Actualiza los asegurados y las pólizas que ya existen (por DNI o CUIT y número de póliza) y suma los
-                    nuevos.
+                    nuevos. Nunca borra: lo que el archivo no trae queda como estaba, y lo que corregiste en la ficha
+                    no se pisa con un dato que venga mal.
                   </span>
                 </span>
               </label>

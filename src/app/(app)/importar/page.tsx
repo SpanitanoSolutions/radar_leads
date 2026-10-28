@@ -1,4 +1,4 @@
-import { obtenerDocumentosCargados, obtenerHayEjemplos, obtenerImportaciones } from "@/lib/datos-cartera";
+import { obtenerClavesDeAsegurados, obtenerClavesDePolizas, obtenerHayEjemplos, obtenerImportaciones } from "@/lib/datos-cartera";
 import { diaEnArgentina, fechaCorta } from "@/lib/fechas";
 import { AsistenteImportar } from "./AsistenteImportar";
 import "./importar.css";
@@ -7,8 +7,9 @@ import "./importar.css";
 export const instant = false;
 
 export default async function Importar() {
-  const [documentos, importaciones, hayEjemplos] = await Promise.all([
-    obtenerDocumentosCargados(),
+  const [cargados, polizasCargadas, importaciones, hayEjemplos] = await Promise.all([
+    obtenerClavesDeAsegurados(),
+    obtenerClavesDePolizas(),
     obtenerImportaciones(),
     obtenerHayEjemplos(),
   ]);
@@ -25,7 +26,7 @@ export default async function Importar() {
         </div>
       </header>
 
-      <AsistenteImportar hoy={hoy} documentos={documentos} hayEjemplos={hayEjemplos} />
+      <AsistenteImportar hoy={hoy} cargados={cargados} polizasCargadas={polizasCargadas} hayEjemplos={hayEjemplos} />
 
       {importaciones.length > 0 && (
         <section className="tarjeta" aria-labelledby="t-importaciones">

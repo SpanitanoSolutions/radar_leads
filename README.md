@@ -152,8 +152,13 @@ productor, que él decide cargar y que solo se ven detrás del login.
 
 En `/importar`, subí el CSV o XLSX que exportás de una compañía. El asistente
 detecta encabezados, permite corregir el mapeo y muestra errores por fila antes
-de guardar. **Combinar** actualiza por DNI/CUIT y número de póliza; **Reemplazar**
-marca como no vigentes las pólizas ausentes del archivo, sin borrarlas. Cada
+de guardar. **Combinar** actualiza por DNI/CUIT y número de póliza y suma lo
+nuevo; **Reemplazar** además marca como no vigentes las pólizas de esa compañía
+ausentes del archivo, sin borrarlas. Reimportar es como el productor mantiene
+su cartera al día, así que nunca borra ni pisa: lo que el archivo no trae queda
+como estaba, un dato de relleno o que vino mal ("Sin ramo", un DNI incompleto)
+no reemplaza lo que se corrigió en la ficha, y la póliza se reconoce por
+compañía y número aunque se haya corregido el documento del asegurado. Cada
 importación queda en el historial y en el menú lateral.
 
 Obligatorios: asegurado, DNI/CUIT, ramo, fin de vigencia y compañía (si el
@@ -161,9 +166,14 @@ archivo no la trae en una columna, se elige para todo el archivo). Del resto se
 importa todo lo que el productor necesita ver de sus pólizas y asegurados: lo
 que tiene un dato propio en UNIQO (producto, prima, premio, suma asegurada,
 fecha de nacimiento, código postal…) va ahí, y lo demás se guarda como "otro
-dato" de la póliza y se muestra en la ficha. Solo quedan afuera las columnas
-vacías, repetidas o que vienen rotas. Lo que se calcula queda explicado en la
-póliza, y lo que no se puede verificar se marca "(a confirmar)".
+dato" de la póliza y se muestra en la ficha. **No se deja afuera ninguna póliza
+ni ninguna columna con datos**: si un dato falta o viene mal (un DNI incompleto,
+un ramo que UNIQO no conoce, una fecha imposible), la póliza se importa igual,
+marcada para corregir, y lo que vino mal se guarda tal cual. El paso 3 cuadra
+las cuentas: cuántas filas trae el archivo, cuántas pólizas resultan y por qué
+alguna fila no es una póliza (certificados de otra, totales). Lo que se calcula
+queda explicado en la póliza, y lo que no se puede verificar se marca "(a
+confirmar)".
 
 Mapfre no informa la prima anual sino el premio de cada factura: la prima anual
 es ese premio por las facturas del año según la columna de facturación (×12
@@ -171,7 +181,13 @@ mensual, ×2 semestral, ×1 anual). Si la facturación viene vacía se supone se
 la sección (combinado e integral trimestrales, autos y motos mensuales) y la
 prima queda "(a confirmar)". El
 premio de la factura anterior llega sin la coma decimal ("18061979.00" es
-$ 180.619,79) y se ubica comparándolo con la última factura de la póliza.
+$ 180.619,79) y se ubica comparándolo con la última factura de la póliza. Su "FECHA VIG." es el fin
+del período facturado (el mes, en las mensuales): la póliza sigue vigente
+mientras venga en la cartera; importala con "Reemplazar" para dar de baja las
+que ya no estén. Si una póliza tenía cargada como vencimiento una fecha que no
+pasa del período que se está facturando (lo que guardaba una importación
+anterior), al reimportar deja de contarse como vencimiento y esa fecha queda en
+los otros datos como "Fin de vigencia anterior".
 
 Los listados que exporta cada compañía con sus propios encabezados (hoy, la
 cartera vigente de Mapfre y el detalle de cartera de Sancor) se reconocen solos:

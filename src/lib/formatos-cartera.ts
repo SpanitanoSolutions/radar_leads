@@ -5,10 +5,10 @@ import { normalizarEncabezado, type CampoCartera } from "./importacion";
 // solos, con la compañía y sus códigos de ramo. Para los demás queda la
 // sugerencia por sinónimos de CAMPOS_CARTERA.
 //
-// Cada columna del formato tiene una decisión, pensada en lo que el productor
-// necesita ver de sus pólizas y asegurados: va a un dato de UNIQO, se guarda
-// como "otro dato" de la póliza con un nombre claro, o no se importa porque
-// viene vacía, repite otra o viene rota (y se dice por qué).
+// Cada columna del formato tiene una decisión: va a un dato de UNIQO o se
+// guarda como "otro dato" de la póliza con un nombre claro. No se pierde nada
+// de lo que exporta la compañía; `omitidas` queda para lo que no sea un dato
+// (y se le dice al productor por qué).
 
 export type OtroDato = {
   /** Cómo se muestra en la póliza. */
@@ -39,8 +39,15 @@ export type FormatoCartera = {
   omitidas: Record<string, string>;
   /** Códigos de ramo propios de la compañía → ramo de UNIQO. */
   ramos?: Record<string, string>;
-  /** Ramos en los que la columna de suma asegurada no es la suma total. */
+  /** Ramos en los que la columna de suma asegurada no es la suma total (se guarda como ajuste). */
   sumaNoEsTotalEn?: string[];
+  /**
+   * La fecha de fin de vigencia es el fin del período facturado: salvo en las
+   * pólizas anuales (según `facturacion`), no es el vencimiento. Se guarda
+   * como "Fin del período facturado" y la póliza sigue vigente mientras venga
+   * en la cartera.
+   */
+  finDelPeriodo?: { facturacion: string };
   /**
    * Si la compañía no informa la prima anual: el premio de la última factura
    * (o, si todavía no hay, el de la anterior) por las facturas que hace al año
@@ -91,15 +98,18 @@ export const FORMATOS_CARTERA: FormatoCartera[] = [
       anualidad: { etiqueta: "Anualidad" },
       "cant siniestros": { etiqueta: "Siniestros informados por Mapfre" },
       "end ult fact": { etiqueta: "Endoso de la última factura", sinCero: true },
+      "end fact ant": { etiqueta: "Endoso de la factura anterior", sinCero: true },
+      // En combinado e integral es la suma; en autos, el ajuste del endoso.
+      "suma aseg fact ant": { etiqueta: "Suma de la factura anterior", tipo: "monto" },
+      "nro tw": { etiqueta: "N° TronWeb" },
+      solicitud: { etiqueta: "Solicitud" },
       productor: { etiqueta: "Código de productor" },
     },
-    omitidas: {
-      "nro tw": "Repite el número de póliza con el código de sección.",
-      solicitud: "Viene siempre vacía.",
-      "suma aseg fact ant": "Es la de la factura anterior: se toma la de la última.",
-      "end fact ant": "Es el endoso de la factura anterior: se toma el de la última.",
-    },
+    omitidas: {},
+    // En autos, "SUMA ASEG.ÚLT.FACT." es el ajuste del endoso: se guarda como tal.
     sumaNoEsTotalEn: ["Auto", "Moto", "Flota"],
+    // "FECHA VIG." es el fin del período facturado (el mes, en las mensuales).
+    finDelPeriodo: { facturacion: "tipo fact" },
     // Mapfre informa el premio de cada factura, no la prima anual.
     primaAnual: {
       premio: "premio ult fact",
