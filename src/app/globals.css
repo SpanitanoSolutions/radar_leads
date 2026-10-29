@@ -39,40 +39,43 @@
   --alto-barra: 52px;
 }
 
-html[data-theme="dark"] {
-  color-scheme: dark;
-  --fondo: #0b1112;
-  --fondo-suave: #10191b;
-  --tarjeta: #151f21;
-  --borde: #273639;
-  --borde-suave: #1e2b2e;
-  --borde-campo: #3b4c4e;
-  --texto: #f2f6f4;
-  --texto-2: #c0cdca;
-  --etiqueta: #9aadaa;
-  --acento: #9bec00;
-  --acento-hover: #b0f52d;
-  --acento-suave: #26350e;
-  --acento-texto: #a8ef22;
-  --acento-contraste: #172000;
-  --gris-suave: #202d30;
-  --gris-texto: #d0dad7;
-  --ambar-suave: #3b2c11;
-  --ambar-texto: #ffd276;
-  --ambar-claro: #34290f;
-  --ambar-borde: #72571d;
-  --ambar-fuerte: #4b3913;
-  --ambar-fuerte-texto: #ffe29b;
-  --verde-suave: #183526;
-  --verde-texto: #91daa6;
-  --verde-borde: #28583a;
-  --rojo-suave: #3c211f;
-  --rojo-texto: #ffaaa0;
-  --rojo-borde: #753d39;
-  --sombra-panel: rgba(0, 0, 0, 0.55);
-  --sombra-tarjeta: 0 1px 2px rgba(0, 0, 0, 0.18);
-  --sombra-flotante: 0 16px 38px -12px rgba(0, 0, 0, 0.62), 0 2px 8px rgba(0, 0, 0, 0.26);
-  --velo: rgba(0, 0, 0, 0.62);
+/* El papel es blanco: al imprimir se usa siempre la paleta clara. */
+@media screen {
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --fondo: #0b1112;
+    --fondo-suave: #10191b;
+    --tarjeta: #151f21;
+    --borde: #273639;
+    --borde-suave: #1e2b2e;
+    --borde-campo: #3b4c4e;
+    --texto: #f2f6f4;
+    --texto-2: #c0cdca;
+    --etiqueta: #9aadaa;
+    --acento: #9bec00;
+    --acento-hover: #b0f52d;
+    --acento-suave: #26350e;
+    --acento-texto: #a8ef22;
+    --acento-contraste: #172000;
+    --gris-suave: #202d30;
+    --gris-texto: #d0dad7;
+    --ambar-suave: #3b2c11;
+    --ambar-texto: #ffd276;
+    --ambar-claro: #34290f;
+    --ambar-borde: #72571d;
+    --ambar-fuerte: #4b3913;
+    --ambar-fuerte-texto: #ffe29b;
+    --verde-suave: #183526;
+    --verde-texto: #91daa6;
+    --verde-borde: #28583a;
+    --rojo-suave: #3c211f;
+    --rojo-texto: #ffaaa0;
+    --rojo-borde: #753d39;
+    --sombra-panel: rgba(0, 0, 0, 0.55);
+    --sombra-tarjeta: 0 1px 2px rgba(0, 0, 0, 0.18);
+    --sombra-flotante: 0 16px 38px -12px rgba(0, 0, 0, 0.62), 0 2px 8px rgba(0, 0, 0, 0.26);
+    --velo: rgba(0, 0, 0, 0.62);
+  }
 }
 
 * {
@@ -696,12 +699,17 @@ a:hover {
 }
 .firma-app {
   display: flex;
-  justify-content: flex-end;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   margin-top: auto;
   padding-top: 8px;
   color: var(--etiqueta);
   font-size: 11px;
+  text-align: right;
+}
+.firma-app p {
+  margin: 0;
 }
 .firma-app strong {
   color: var(--texto-2);
