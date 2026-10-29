@@ -6,9 +6,10 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 /**
  * Borra la cartera de ejemplo: asegurados (y con ellos sus pólizas, cuotas,
  * comprobantes, seguimientos y siniestros), mensajes, solicitudes,
- * liquidaciones, bitácora e importaciones marcadas como ejemplo. Las
- * conexiones que se sembraron como conectadas vuelven a "sin conectar".
- * No toca nada que haya cargado el productor.
+ * liquidaciones, bitácora e importaciones marcadas como ejemplo, y del
+ * Validador los listados, los comprobantes sueltos y las plantillas de
+ * ejemplo. Las conexiones que se sembraron como conectadas vuelven a "sin
+ * conectar". No toca nada que haya cargado el productor.
  */
 export async function borrarEjemplosDeCartera(tx: Tx | typeof db = db): Promise<number> {
   // La póliza ahora puede quedar desvinculada sin borrar un siniestro real.
@@ -28,11 +29,16 @@ export async function borrarEjemplosDeCartera(tx: Tx | typeof db = db): Promise<
   await tx.delete(schema.liquidacionesComision).where(eq(schema.liquidacionesComision.esEjemplo, true));
   await tx.delete(schema.actividadAgentes).where(eq(schema.actividadAgentes.esEjemplo, true));
   await tx.delete(schema.importaciones).where(eq(schema.importaciones.esEjemplo, true));
+  // Validador: los pagos detectados se van con su fuente.
+  await tx.delete(schema.validadorFuentes).where(eq(schema.validadorFuentes.esEjemplo, true));
+  await tx.delete(schema.comprobantes).where(eq(schema.comprobantes.esEjemplo, true));
+  await tx.delete(schema.conectorMapeos).where(eq(schema.conectorMapeos.esEjemplo, true));
   await tx
     .update(schema.conexiones)
     .set({ estado: "sin_conectar", datos: {}, actualizadoEl: new Date() })
     .where(sql`${schema.conexiones.datos} ->> 'ejemplo' = 'true'`);
-  // Los archivos que quedaron sin comprobante ni documento que los use.
+  // Los archivos que quedaron sin nada que los use. Cada tabla con archivo_id
+  // tiene que estar acá: si falta una, se borran archivos reales.
   await tx.execute(sql`
     delete from archivos a
     where not exists (select 1 from comprobantes c where c.archivo_id = a.id)
@@ -40,6 +46,9 @@ export async function borrarEjemplosDeCartera(tx: Tx | typeof db = db): Promise<
       and not exists (select 1 from siniestro_documentos s where s.archivo_id = a.id)
       and not exists (select 1 from siniestro_requisitos r where r.archivo_id = a.id)
       and not exists (select 1 from siniestro_archivos s where s.archivo_id = a.id)
+      and not exists (select 1 from siniestro_gastos g where g.comprobante_archivo_id = a.id)
+      and not exists (select 1 from siniestro_informes i where i.archivo_id = a.id)
+      and not exists (select 1 from validador_fuentes f where f.archivo_id = a.id)
   `);
   return borrados.length;
 }

@@ -48,7 +48,7 @@ ok("login correcto, inicio en el dashboard general");
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/0-dashboard.png`, fullPage: true });
 
 // 4. Búsqueda en cartera, panel lateral y ficha completa
-await page.getByRole("link", { name: "Asegurados" }).click();
+await page.getByRole("link", { name: /^Asegurados/ }).click();
 await page.getByRole("heading", { name: "Asegurados", level: 1 }).waitFor();
 await page.getByRole("searchbox", { name: "Buscar por nombre, DNI, CUIT o número de póliza" }).fill("Gómez, Lucía");
 await page.waitForFunction(() => new URL(location.href).searchParams.get("q") === "Gómez, Lucía");
@@ -166,7 +166,8 @@ await page.getByRole("button", { name: "Generar propuesta PDF" }).click();
 await page.getByText("Borrador · requiere aprobación").waitFor();
 await page.getByRole("button", { name: "Aprobar propuesta" }).click();
 await page.waitForURL(/aviso=propuesta-aprobada/);
-const propuestaHref = await page.getByRole("link", { name: "Descargar PDF" }).getAttribute("href");
+// El de la propuesta, no el del comparativo (que también se llama "Descargar PDF").
+const propuestaHref = await page.getByRole("article").getByRole("link", { name: "Descargar PDF" }).getAttribute("href");
 const descargaPropuesta = await page.request.get(new URL(propuestaHref, BASE).toString());
 assert.equal(descargaPropuesta.status(), 200);
 assert.match((await descargaPropuesta.body()).toString("latin1"), /^%PDF-1\.4/);
@@ -175,7 +176,7 @@ await page.waitForURL(/aviso=completada/);
 ok("cotizacion: generar propuesta, aprobarla, descargar el PDF y completar la solicitud");
 await page.goto(BASE + "/agentes/cotizacion");
 await page.getByRole("link", { name: "Desempeño" }).click();
-await page.getByText("Solicitudes ganadas").waitFor();
+await page.getByRole("heading", { name: "Desempeño por aseguradora" }).waitFor();
 ok("cotización: filtros y pestaña de desempeño");
 
 // 12. Validador: confirmar pago y reflejarlo en Pagadas
@@ -186,50 +187,96 @@ await page.goto(BASE + "/agentes/validador?tab=pagadas");
 await page.locator("tbody.grupo-asegurado", { hasText: "Acosta, Valeria" }).waitFor();
 ok("validador: confirmar pago y ver la cuota en Pagadas");
 
-// 13. Cobranza: aprobar un borrador de mensaje
-await page.goto(BASE + "/agentes/cobranza");
-await page.getByRole("button", { name: "Aprobar y enviar" }).first().click();
-await page.waitForURL(/aviso=mensaje-enviado/);
-ok("cobranza: aprobar y enviar un mensaje");
+// 13. Validador (criterio 15 de docs/specs/validador-v2.md): importar un listado → ver los totales →
+// expandir un asegurado → confirmar un comprobante → cuota pagada → enviar una vencida a Cobranza.
+// El listado usa el formato de Sancor que el seed deja como plantilla, así se lee sin preguntar.
+const hoyAR = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
+const dia = (d) => {
+  const f = new Date(`${hoyAR}T12:00:00Z`);
+  f.setUTCDate(f.getUTCDate() + d);
+  const iso = f.toISOString().slice(0, 10);
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+};
+const listado = [
+  "Póliza;Ítem;Endoso;Cuota;Cupón;Vencimiento;Importe;Moneda;Fecha de cobro;Medio de pago;Estado",
+  `61-RCP-0332;;;9/12;;${dia(-6)};$ 54.800,00;Pesos;${dia(-1)};Transferencia;COBRADA`,
+].join("\r\n");
+await page.goto(BASE + "/agentes/validador?tab=revisar");
+await page.locator("#listado-compania").selectOption("Sancor");
+await page.locator("#listado-archivo").setInputFiles({ name: "cobranzas_sancor_e2e.csv", mimeType: "text/csv", buffer: Buffer.from(listado, "utf8") });
+await page.getByRole("button", { name: "Subir listado" }).click();
+await page.waitForURL(/aviso=listado-procesado.*#listado-\d+$/);
+await page.locator(new URL(page.url()).hash).getByText("1 fila leída: 1 coincidió con la cartera, 0 a revisar y 0 no identificadas.").waitFor();
 
-// 14. Siniestros: revisar y aprobar la denuncia armada
+await page.goto(BASE + "/agentes/validador");
+const totales = page.getByRole("region", { name: "Totales por plazo" });
+for (const bloque of ["Esta semana", "Próximos", "Vencidos"]) await totales.getByText(bloque, { exact: true }).waitFor();
+assert.match(await totales.textContent(), /US\$/, "los totales separan los dólares");
+await page.getByRole("button", { name: /^Ver las cuotas de / }).first().click();
+await page.locator("table.tabla-subcuotas").first().waitFor();
+
+await page.goto(BASE + "/agentes/validador?tab=revisar");
+const comprobante = page.locator("article.caso-revisar", { hasText: "ARIAS BRUNO" });
+await comprobante.getByRole("button", { name: "Es este cobro: confirmar" }).first().click();
+await page.waitForURL(/aviso=pago-confirmado/);
+await page.goto(BASE + "/agentes/validador?tab=pagadas");
+for (const asegurado of ["Arias, Bruno", "Clínica Dental Costa Azul SRL"]) await page.locator("tbody.grupo-asegurado", { hasText: asegurado }).waitFor();
+
+await page.goto(BASE + "/agentes/validador?bloque=vencidos");
+const vencidos = page.locator("tbody.grupo-asegurado");
+let enviada = false;
+for (let i = 0; i < Math.min(await vencidos.count(), 10) && !enviada; i++) {
+  const grupo = vencidos.nth(i);
+  await grupo.getByRole("button", { name: /^Ver las cuotas de / }).click();
+  const enviar = grupo.getByRole("button", { name: "Enviar a Cobranza" });
+  if (await enviar.count()) {
+    await enviar.first().click();
+    await page.waitForURL(/aviso=enviado-a-cobranza/);
+    enviada = true;
+  }
+}
+assert.ok(enviada, "hay una cuota vencida de un asegurado con contacto");
+ok("validador: listado, totales, asegurado expandido, comprobante confirmado y vencida enviada a Cobranza");
+
+// 14. Cobranza: aprobar un borrador de mensaje (el de una tarjeta, no "Aprobar y enviar N mensajes").
+// Solo sale con WhatsApp o Gmail conectados de verdad; en una base de prueba avisa que no se pudo.
+await page.goto(BASE + "/agentes/cobranza");
+await page.getByRole("button", { name: "Aprobar y enviar", exact: true }).first().click();
+await page.waitForURL(/aviso=mensaje-(enviado|error)/);
+ok(`cobranza: aprobar un mensaje (${/mensaje-enviado/.test(page.url()) ? "enviado" : "sin canal conectado, no salió"})`);
+
+// 15. Siniestros: revisar y aprobar la denuncia armada (sale por email: sin Gmail conectado, avisa que no se pudo)
 await page.goto(BASE + "/agentes/siniestros");
 await page.getByRole("heading", { name: "Agente de siniestros", level: 1 }).waitFor();
 await page.getByRole("button", { name: "Aprobar y enviar denuncia" }).click();
-await page.waitForURL(/aviso=denuncia-enviada/);
-await page.getByRole("status").getByText("La denuncia se envió a la compañía.").waitFor();
-ok("siniestros: aprobar y enviar la denuncia simulada");
+await page.waitForURL(/aviso=(denuncia-enviada|envio-error)/);
+const denunciaEnviada = /denuncia-enviada/.test(page.url());
+await page.getByText(denunciaEnviada ? "La denuncia se envió a la compañía." : "No se pudo enviar. Revisá la conexión y volvé a intentar.").waitFor();
+ok(`siniestros: aprobar la denuncia (${denunciaEnviada ? "enviada" : "sin canal conectado, no salió"})`);
 
-// 15. Conciliador: enviar un reclamo preparado
+// 16. Conciliador: enviar el reclamo preparado. Sancor tiene diferencias a propósito: "sin diferencia" sería un error del seed.
 await page.goto(BASE + "/agentes/conciliador");
 await page.getByRole("heading", { name: "Agente conciliador", level: 1 }).waitFor();
 await page.getByRole("link", { name: "Sancor", exact: true }).click();
 await page.getByRole("button", { name: "Enviar reclamo" }).click();
-await page.waitForURL(/aviso=reclamo-enviado/);
-ok("conciliador: enviar el reclamo preparado");
+await page.waitForURL(/aviso=(reclamo-enviado|envio-error)/);
+ok(`conciliador: el reclamo preparado (${/reclamo-enviado/.test(page.url()) ? "enviado" : "sin canal conectado, no salió"})`);
 
-// 16. Configuración: conectar WhatsApp en modo simulado
+// 17. Configuración: WhatsApp se valida contra Meta (ya no hay modo simulado). Sin el token en el
+// servidor, "Verificar conexion" lo explica y no queda conectado.
 await page.goto(BASE + "/configuracion?panel=whatsapp");
-const codigoPendiente = page.getByLabel("Código que te llegó por SMS");
-if (await codigoPendiente.count()) {
-  await codigoPendiente.fill("123456");
-  await page.getByRole("button", { name: "Verificar" }).click();
+await page.getByRole("heading", { name: "Conectar WhatsApp" }).waitFor();
+const verificarWhatsApp = page.getByRole("button", { name: "Verificar conexion" });
+if (await verificarWhatsApp.count()) {
+  await verificarWhatsApp.click();
+  await page.getByRole("alert").first().waitFor();
+  ok("configuración: WhatsApp sin el token de Meta avisa y no se conecta");
+} else {
   await page.getByRole("status").getByText(/WhatsApp conectado/).waitFor();
+  ok("configuración: WhatsApp conectado con Meta");
 }
-const whatsappPrevio = page.getByRole("button", { name: "Desconectar" });
-if (await whatsappPrevio.count()) {
-  await whatsappPrevio.click();
-  await page.waitForURL(/aviso=desconectada/);
-  await page.goto(BASE + "/configuracion?panel=whatsapp");
-}
-await page.getByLabel("Número de WhatsApp").fill("+54 9 223 555 0199");
-await page.getByRole("button", { name: "Continuar con Meta" }).click();
-await page.getByLabel("Código que te llegó por SMS").fill("123456");
-await page.getByRole("button", { name: "Verificar" }).click();
-await page.getByRole("status").getByText(/WhatsApp conectado/).waitFor();
-ok("configuración: conectar WhatsApp simulado");
 
-// 17. Vista de teléfono sin scroll horizontal de página
+// 18. Vista de teléfono sin scroll horizontal de página
 await page.setViewportSize({ width: 390, height: 844 });
 for (const ruta of [
   "/asegurados",
@@ -260,9 +307,10 @@ if (SHOTS) {
 }
 ok("sin desborde horizontal a 390px");
 
-// 18. Cerrar sesión
+// 19. Cerrar sesión
 await page.setViewportSize({ width: 1440, height: 1000 });
 await page.goto(BASE + "/");
+await page.locator("summary.barra-perfil-resumen").click();
 await page.getByRole("button", { name: "Cerrar sesión" }).click();
 await page.waitForURL(/\/login/, { waitUntil: "commit" });
 await page.goto(BASE + "/sectores");

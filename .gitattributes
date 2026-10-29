@@ -1,0 +1,3 @@
+# Archivos que git no tiene que tocar al convertir saltos de línea (un PDF se rompe).
+*.pdf binary
+*.xlsx binary
