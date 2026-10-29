@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cerrarSesion } from "@/app/login/actions";
 import type { Cuenta } from "@/lib/datos";
 import {
@@ -52,6 +52,16 @@ const ICONOS: Record<Icono, (props: { size?: number }) => React.ReactNode> = {
   engranaje: IconoEngranaje,
 };
 
+// El tema vive en <html data-theme>: lo fija el script de layout.tsx antes de
+// hidratar. Se lee de ahí y se escucha su cambio, sin copiarlo a un estado.
+function suscribirTema(avisar: () => void) {
+  const observador = new MutationObserver(avisar);
+  observador.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observador.disconnect();
+}
+const temaOscuroEnPagina = () => document.documentElement.dataset.theme === "dark";
+const temaOscuroEnServidor = () => false;
+
 /**
  * Barra superior y menú lateral de todas las pantallas privadas.
  * En celular el menú se esconde detrás de un botón y se abre como panel.
@@ -69,14 +79,10 @@ export function Marco({
 }) {
   const pathname = usePathname();
   const [abierto, setAbierto] = useState(false);
-  const [temaOscuro, setTemaOscuro] = useState(false);
+  const temaOscuro = useSyncExternalStore(suscribirTema, temaOscuroEnPagina, temaOscuroEnServidor);
   const boton = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLElement>(null);
   const campoBusqueda = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setTemaOscuro(document.documentElement.dataset.theme === "dark");
-  }, []);
 
   useEffect(() => {
     const buscarConAtajo = (evento: KeyboardEvent) => {
@@ -98,7 +104,6 @@ export function Marco({
     } catch {
       // El tema sigue activo durante esta sesión aunque el navegador bloquee el almacenamiento.
     }
-    setTemaOscuro(nuevoTema === "dark");
   }
 
   function cerrar() {
