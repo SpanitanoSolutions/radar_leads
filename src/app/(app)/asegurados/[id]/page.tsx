@@ -20,7 +20,8 @@ import { diaEnArgentina, diasEntre, edad, fechaCorta } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { oportunidadesDe } from "@/lib/oportunidades";
 import { nombreEtapa } from "@/lib/siniestros";
-import { avisarVencimiento, guardarNota, prepararRenovacion, subirDocumento } from "../actions";
+import { guardarNota, prepararRenovacion, subirDocumento } from "../actions";
+import { BotonAvisar } from "../BotonAvisar";
 import { FormAsegurado } from "../FormAsegurado";
 import "../asegurados.css";
 
@@ -177,13 +178,11 @@ export default async function FichaAsegurado({
                   </button>
                 </form>
                 {(contacto.telefono || contacto.email) && (
-                  <form action={avisarVencimiento}>
-                    <input type="hidden" name="aseguradoId" value={a.id} />
-                    <input type="hidden" name="volver" value={volver} />
-                    <button type="submit" className="boton boton-mediano">
-                      {contacto.telefono ? "Avisar por WhatsApp" : "Avisar por email"}
-                    </button>
-                  </form>
+                  <BotonAvisar
+                    aseguradoId={a.id}
+                    etiqueta={contacto.telefono ? "Avisar por WhatsApp" : "Avisar por email"}
+                    className="boton boton-mediano"
+                  />
                 )}
               </div>
             </>

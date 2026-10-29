@@ -2,7 +2,6 @@
 // ?aviso=<código> y la página lo muestra arriba, con role="status".
 
 const AVISOS: Record<string, { texto: string; tono: "ok" | "info" | "error" }> = {
-  "aviso-preparado": { texto: "Aviso de vencimiento preparado. Revisalo y aprobalo en Vencimientos.", tono: "ok" },
   "sin-contacto": { texto: "No tiene teléfono ni email: completá el contacto para poder avisarle.", tono: "error" },
   "documento-subido": { texto: "Documento guardado.", tono: "ok" },
   "documento-vacio": { texto: "Elegí un archivo para subir.", tono: "error" },
