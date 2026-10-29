@@ -142,7 +142,7 @@ export default async function MisSectores({
           <h2 id="t-fuentes" className="titulo-seccion">Fuentes de datos</h2>
           <ul className="lista-fuentes">
             {FUENTES.map((f) => {
-              const estado = f.requiere && !process.env[f.requiere] ? "por-configurar" : f.estado;
+              const estado = f.requiere?.some((v) => !process.env[v] || process.env[v] === "0") ? "por-configurar" : f.estado;
               return (
                 <li key={f.nombre}>
                   <span>

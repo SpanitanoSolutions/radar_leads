@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { buscarTelefono } from "./buscar";
-import { claveEmpresa, type EmpresaABuscar, type TelefonoEncontrado } from "./telefono";
+import { busquedaApagada, claveEmpresa, type EmpresaABuscar, type TelefonoEncontrado } from "./telefono";
 
 const { leads } = schema;
 
@@ -75,21 +75,16 @@ async function guardar(ids: number[], resultado: TelefonoEncontrado | null) {
  * Busca el teléfono de las empresas que todavía no lo tienen. Cada ejecución
  * procesa como mucho `limite` empresas y deja de empezar búsquedas nuevas al
  * pasar `plazoMs`, así entra en el tiempo máximo de una función de Vercel.
- * Sin ANTHROPIC_API_KEY no hace nada.
+ * Sin ANTHROPIC_API_KEY o sin TELEFONOS_IA=1 no hace nada (ver busquedaApagada).
  */
 export async function completarTelefonos({
   limite = 30,
   plazoMs = 200_000,
   simultaneas = 4,
 }: { limite?: number; plazoMs?: number; simultaneas?: number } = {}): Promise<ResumenTelefonos> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return {
-      estado: "sin-configurar",
-      empresasBuscadas: 0,
-      encontrados: 0,
-      pendientes: 0,
-      detalle: "Falta la variable ANTHROPIC_API_KEY: no se buscaron teléfonos.",
-    };
+  const apagada = busquedaApagada(process.env);
+  if (apagada) {
+    return { estado: "sin-configurar", empresasBuscadas: 0, encontrados: 0, pendientes: 0, detalle: apagada };
   }
 
   const [pendientes, anteriores] = await Promise.all([empresasPendientes(), resultadosAnteriores()]);

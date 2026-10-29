@@ -110,8 +110,9 @@ confiable, el lead queda como "La empresa no lo publica" y no se vuelve a buscar
   vaciar la cola de una vez: `npm run telefonos -- 400`.
 - Costo estimado: unos US$ 0,03 por empresa (US$ 10 cada 1.000 búsquedas web
   más el modelo). Se paga en console.anthropic.com, aparte de la suscripción a Claude.
-- Requiere `ANTHROPIC_API_KEY`. Sin ella, la búsqueda no corre y el resto
-  funciona igual.
+- Requiere `ANTHROPIC_API_KEY` y prenderla con `TELEFONOS_IA=1`: con la clave
+  sola no arranca (la clave también la usan los agentes). Sin las dos, la
+  búsqueda no corre y el resto funciona igual.
 - Antes de llamar, conviene cruzar los números con el
   [Registro Nacional No Llame](https://nollame.aaip.gob.ar) (Ley 26.951).
 
@@ -279,8 +280,8 @@ npm run dev                   # http://localhost:3000
 2. **Base de datos:** en el proyecto, pestaña *Storage* → **Neon** → crear base.
    Vercel carga `DATABASE_URL` automáticamente.
 3. **Variables:** en *Settings → Environment Variables* carga `APP_PASSWORD`
-   (la contraseña de tu papá), `SESSION_SECRET`, `CRON_SECRET` y, para los
-   teléfonos, `ANTHROPIC_API_KEY`.
+   (la contraseña de tu papá), `SESSION_SECRET`, `CRON_SECRET` y, para la IA,
+   `ANTHROPIC_API_KEY` (la búsqueda de teléfonos además necesita `TELEFONOS_IA=1`).
 4. **Redeploy.** El build aplica las migraciones y, si la base está vacía,
    carga sectores y leads de ejemplo (`scripts/preparar-db.ts`). Nunca pisa datos existentes.
    Los deploys de **preview** (ramas sin mergear) no migran: en Vercel, Preview

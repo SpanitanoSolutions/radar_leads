@@ -63,8 +63,8 @@ export const FUENTES: {
   nombre: string;
   detalle: string;
   estado: EstadoFuente;
-  /** Variable de entorno que la activa: sin ella figura "Por configurar". */
-  requiere?: string;
+  /** Variables de entorno que la activan: si falta alguna (o vale "0"), figura "Por configurar". */
+  requiere?: string[];
 }[] = [
   {
     nombre: "Licitaciones nacionales",
@@ -85,7 +85,7 @@ export const FUENTES: {
     nombre: "Teléfonos de las empresas",
     detalle: "Claude busca en la web el teléfono que publica cada empresa",
     estado: "activa",
-    requiere: "ANTHROPIC_API_KEY",
+    requiere: ["ANTHROPIC_API_KEY", "TELEFONOS_IA"],
   },
   {
     nombre: "Habilitaciones municipales",

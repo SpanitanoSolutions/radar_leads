@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { claveEmpresa, consultaTelefono, interpretarRegistro, limpiarTelefono } from "./telefono";
+import { busquedaApagada, claveEmpresa, consultaTelefono, interpretarRegistro, limpiarTelefono } from "./telefono";
+
+describe("busquedaApagada", () => {
+  it("con la clave sola no arranca: hay que prenderla con TELEFONOS_IA=1", () => {
+    expect(busquedaApagada({})).toMatch(/ANTHROPIC_API_KEY/);
+    expect(busquedaApagada({ ANTHROPIC_API_KEY: "clave" })).toMatch(/TELEFONOS_IA/);
+    expect(busquedaApagada({ ANTHROPIC_API_KEY: "clave", TELEFONOS_IA: "0" })).toMatch(/TELEFONOS_IA/);
+    expect(busquedaApagada({ ANTHROPIC_API_KEY: "clave", TELEFONOS_IA: "1" })).toBeNull();
+  });
+});
 
 describe("limpiarTelefono", () => {
   it("acepta los formatos con que las empresas publican sus teléfonos", () => {
