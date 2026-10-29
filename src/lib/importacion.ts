@@ -29,20 +29,31 @@ export function detectarSeparador(linea: string): string {
   return [";", ",", "\t"].sort((a, b) => cuenta(b) - cuenta(a))[0];
 }
 
+const vacia = (fila: string[]) => !fila.some((c) => c.trim());
+
 /**
  * Algunas compañías exportan con filas vacías o un título arriba de los
  * encabezados: el encabezado es la primera fila que tiene al menos la mitad de
- * las celdas llenas de la más completa.
+ * las celdas llenas de la más completa, entre las 20 que siguen a la primera
+ * fila con datos.
  */
 function ubicarEncabezado(filas: string[][]): number {
-  const llenas = filas.slice(0, 20).map((f) => f.filter((c) => c.trim()).length);
+  const primera = Math.max(0, filas.findIndex((f) => !vacia(f)));
+  const llenas = filas.slice(primera, primera + 20).map((f) => f.filter((c) => c.trim()).length);
   const minimo = Math.max(2, Math.max(0, ...llenas) / 2);
-  return Math.max(0, llenas.findIndex((n) => n >= minimo));
+  return primera + Math.max(0, llenas.findIndex((n) => n >= minimo));
 }
 
+/**
+ * `filas` tiene que traer las vacías en su lugar: la fila i es la i + 1 del
+ * archivo, y así los avisos dicen el número que se ve en Excel. Las vacías
+ * del final se sacan (no corren ningún número).
+ */
 function armarTabla(archivo: string, filas: string[][], separador: string | null): Tabla {
   const inicio = ubicarEncabezado(filas);
-  return { archivo, encabezados: filas[inicio] ?? [], filas: filas.slice(inicio + 1), separador, filaInicial: inicio + 2 };
+  let fin = filas.length;
+  while (fin > inicio + 1 && vacia(filas[fin - 1])) fin--;
+  return { archivo, encabezados: filas[inicio] ?? [], filas: filas.slice(inicio + 1, fin), separador, filaInicial: inicio + 2 };
 }
 
 export async function leerTablaCsv(texto: string, archivo = "archivo.csv"): Promise<Tabla> {
@@ -51,7 +62,7 @@ export async function leerTablaCsv(texto: string, archivo = "archivo.csv"): Prom
   const separador = detectarSeparador(lineas.find((l) => /[;,\t]/.test(l.replace(/"[^"]*"/g, ""))) ?? "");
   // Las filas vacías se conservan para que los mensajes digan el número de fila real.
   const filas: string[][] = [];
-  for await (const celdas of celdasCsv([texto], separador)) filas.push(celdas.map((c) => c.trim()));
+  for await (const celdas of celdasCsv([texto], separador, { conservarVacias: true })) filas.push(celdas.map((c) => c.trim()));
   return armarTabla(archivo, filas, separador);
 }
 
@@ -661,7 +672,7 @@ export function validarCartera(tabla: Tabla, mapeo: (CampoCartera | "")[], opcio
   let unidas = 0;
   let noSonPolizas = 0;
   if (faltanObligatorios.length) {
-    return { filas: [], problemas, ramosDesconocidos: [], faltanObligatorios, totalFilas: tabla.filas.length, unidas, noSonPolizas };
+    return { filas: [], problemas, ramosDesconocidos: [], faltanObligatorios, totalFilas: tabla.filas.filter((f) => !vacia(f)).length, unidas, noSonPolizas };
   }
   const referenciaDe = referenciasSinComa(tabla, formato);
   const calcularPrima = calculadoraDePrima(tabla, formato, referenciaDe);

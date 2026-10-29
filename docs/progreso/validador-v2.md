@@ -206,7 +206,10 @@ Para repetirla: los pasos de "Cómo repetir la prueba" de la fase 1, con `postgr
 - **Seed (fase 5):** las pólizas de los conectores simulados no son las del seed, así que hoy todo lo que traen queda "no identificado". El seed de demo tiene que alinearlas.
 - **PDF largo:** un listado de 20 páginas puede superar los 16.000 tokens de salida de Haiku. Si pasa con el set real, hay que partirlo por páginas.
 - **Cotización** sigue guardando sus credenciales en `conexiones.datos`. Pasarlas a `credenciales_portal` es un trabajo aparte.
-- **Ya venía de antes:** el lector de CSV (`celdasCsv`) saltea las líneas en blanco, así que después de una línea vacía los números de fila de los avisos quedan corridos. Afecta también a la importación de la cartera.
+- **Arreglado el 29/10/2026 (venía de antes):** los números de fila de los avisos quedaban corridos después de una línea en blanco de un CSV, o si un Excel empezaba más abajo de la fila 1. Afectaba también a la cartera y a las liquidaciones.
+  - Ahora `celdasCsv(…, { conservarVacias: true })` y `leerXlsx()` conservan las filas vacías en su lugar.
+  - `ubicarEncabezado()` busca desde la primera fila con datos, y `armarTabla()` saca solo las vacías del final.
+  - Tests en `csv.test.ts` e `importacion.test.ts`.
 
 ## Próximo paso exacto
 Fase 4, la UI de `/agentes/validador` (sección 5 de la spec), sobre lo que ya existe en `src/agentes/validador/`:

@@ -7,10 +7,15 @@
  * dentro de un campo, aunque queden partidos entre dos pedazos.
  */
 
-/** Cada fila como lista de celdas, tal como vienen (las líneas vacías se saltean). */
+/**
+ * Cada fila como lista de celdas, tal como vienen. Las líneas vacías se
+ * saltean, salvo con `conservarVacias`: ahí llegan como [], para que la fila
+ * n del resultado sea la fila n que se ve al abrir el archivo en Excel.
+ */
 export async function* celdasCsv(
   pedazos: AsyncIterable<string> | Iterable<string>,
   separador = ",",
+  { conservarVacias = false }: { conservarVacias?: boolean } = {},
 ): AsyncGenerator<string[]> {
   let fila: string[] = [];
   let campo = "";
@@ -25,7 +30,11 @@ export async function* celdasCsv(
     campo = "";
     const completa = fila;
     fila = [];
-    if (completa.length === 1 && completa[0] === "") return; // línea vacía
+    if (completa.length === 1 && completa[0] === "") {
+      // Línea vacía
+      if (conservarVacias) yield [];
+      return;
+    }
     yield completa;
   }
 

@@ -114,7 +114,7 @@ export async function leerXlsx(bytes: Uint8Array): Promise<string[][]> {
     while (filas.length < numero - 1) filas.push([]);
     filas[numero - 1] = celdas;
   }
-  // Sin las filas vacías del principio (algunas planillas empiezan más abajo).
-  while (filas.length && !filas[0].some((x) => x !== "")) filas.shift();
+  // Las vacías del principio también se conservan: si la planilla empieza
+  // más abajo, sacarlas correría todos los números de fila.
   return filas;
 }

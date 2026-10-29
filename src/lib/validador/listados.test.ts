@@ -15,6 +15,7 @@ import {
 
 const CSV = [
   "Listado de cobranzas - Sancor Seguros",
+  "",
   "Póliza;Certificado;Cuota;Recibo;Vencimiento;Importe;Moneda;Fecha de pago;Forma de pago;Estado;Asegurado",
   "0664794781;;4/12;29933892721;29/10/2026;$ 1.915,61;$;28/10/2026;Transferencia;Cobrada;GARCIA JUAN",
   "88-322019;2;3 de 6;;05/11/2026;U$S 120,50;;;Débito CBU;Impaga;FLOTA SRL",
@@ -136,7 +137,7 @@ describe("leerListado", () => {
 
     const [primera, flota, cob] = r.filas;
     expect(primera).toMatchObject({
-      fila: 3,
+      fila: 4,
       pago: {
         compania: "Sancor",
         poliza: "0664794781",
@@ -159,11 +160,11 @@ describe("leerListado", () => {
     expect(cob.pago).toMatchObject({ poliza: "77100", estadoCompania: "pagada" });
 
     expect(r.problemas).toEqual([
-      { fila: 7, mensaje: 'No entendí el monto "abc".' },
-      { fila: 8, mensaje: 'El vencimiento: la fecha "31/02/2026" no existe.' },
-      { fila: 9, mensaje: "Es una fila de totales: no es un pago." },
-      { fila: 10, mensaje: 'No entendí el estado "Rehabilitada": aclaralo en la plantilla de la compañía.' },
-      { fila: 11, mensaje: "El monto es -500,00: puede ser una devolución o una nota de crédito, revisalo a mano." },
+      { fila: 8, mensaje: 'No entendí el monto "abc".' },
+      { fila: 9, mensaje: 'El vencimiento: la fecha "31/02/2026" no existe.' },
+      { fila: 10, mensaje: "Es una fila de totales: no es un pago." },
+      { fila: 11, mensaje: 'No entendí el estado "Rehabilitada": aclaralo en la plantilla de la compañía.' },
+      { fila: 12, mensaje: "El monto es -500,00: puede ser una devolución o una nota de crédito, revisalo a mano." },
     ]);
   });
 
