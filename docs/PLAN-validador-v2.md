@@ -14,7 +14,7 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes`. Progreso: [progreso/
 | Corridas, fuentes y pagos | `actividad_agentes` (bitácora de texto) | `validador_corridas`, `validador_fuentes` y `validador_pagos_detectados` | — |
 | Comprobantes | Tabla `comprobantes` (cuota, canal, medio, monto, destino, operación, chequeos y estado) | Cuota propuesta con puntaje, moneda y datos extraídos | **No se crea `validador_comprobantes`**: en la fase 3 se extiende `comprobantes`, para no duplicar |
 | Configuración | `configuracion_agentes` (jsonb por agente) | `validador_config` con programación, tolerancia de monto, interruptor de gracia y notificaciones, en cascada | — |
-| Credenciales y plantillas | — | `credenciales_portal` y `plantillas_importacion` | Pasan a la fase 2, junto con el cifrado AES-GCM y `conector_mapeos`, que están pendientes en la base común |
+| Credenciales y plantillas | — | `credenciales_portal` y `conector_mapeos` (que también guarda las plantillas de importación) | Pasan a la fase 2, junto con el cifrado AES-GCM, que está pendiente en la base común. No se crea `plantillas_importacion` (pregunta 5) |
 
 ## 2. Fases
 
@@ -80,9 +80,16 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes`. Progreso: [progreso/
    - En la fase 3, Cobranza calcula el "fin de gracia" con `resolverGracia()` y `diasDeGracia()` (1.ª cuota o siguientes, por ramo) en vez de `companias.dias_gracia`, que queda sin uso.
    - **Cuidado:** hoy Cobranza usa 30 días si la compañía no tiene dato; con la gracia nueva, sin fila la gracia es 0 y sus pasos se adelantan. Antes de cambiar Cobranza hay que cargar `validador_gracia`: copiar `companias.dias_gracia` con ramo `*` o pedirla en Configuración. A decidir al empezar la fase 3.
 2. **`por_vencer`. Decidido el 29/10/2026: semana calendario, de lunes a domingo.** Hecho en `calcularEstado()` con `finDeSemana()` de `src/lib/fechas.ts`. `montosPorPlazo()` del v1 sigue con 7 días corridos hasta que la fase de UI lo reemplace.
-3. **Ramos (abierta).** La grilla de gracia usa los ramos canónicos de la cartera (`RAMOS_CARTERA`: Auto, Flota, Hogar…), no la lista de la sección 3 de la spec (Automotor, Combinado familiar…). ¿Se unifican?
+3. **Ramos. Decidido el 29/10/2026: una sola lista, la de la cartera** (`RAMOS_CARTERA` en `src/lib/ramos.ts`).
+   - La grilla de gracia, los filtros y la importación usan los mismos ramos.
+   - Los nombres que traen los listados (Automotor, Combinado familiar…) se llevan a esa lista con `ramoCanonico()`, que `gracia.ts` ya usa.
+   - Lo que la lista no tiene (por ejemplo, Incendio o Salud) lo cubre la fila "Todos los ramos" (`*`) de la gracia.
+   - Se corrigió la tabla de la sección 3 de la spec.
 4. **Canceladas y los otros agentes. Decidido el 29/10/2026: Cobranza lee `estado_validacion`.**
    - En la fase 3, Cobranza deja de perseguir lo que el Validador marca `pagada` o `cancelada`, y su cron deja de pasar a `vencida` las cuotas con vencimiento anterior a hoy (`src/agentes/cobranza/index.ts`).
    - Propuesta: si `estado_validacion` está en `null` (la cuota todavía no se validó), Cobranza lo calcula con `calcularEstado()`.
    - `cuotas.estado` se sigue sincronizando para Inicio, el Resumen general y Estadísticas.
-5. **Plantillas de importación (abierta).** ¿`plantillas_importacion` (Validador) y `conector_mapeos` (base común) son la misma tabla? Hay que responderla antes de la fase 2.
+5. **Plantillas de importación. Decidido el 29/10/2026: una sola tabla, `conector_mapeos`.** No se crea `plantillas_importacion`. Propuesta de diseño para la migración 0026 de la fase 2, junto con `credenciales_portal`:
+   - La plantilla del listado de cobranza de una compañía es una fila de `conector_mapeos` con la operación `importar_listado`. La clave es compañía × ramo (`*` para el listado) × operación, con versión, como en la spec de conectores.
+   - Guarda el mapeo (columnas → campos de `PagoNormalizado`, fila de encabezado y formatos de fecha y monto) en jsonb, el origen (IA o manual) y si el productor lo confirmó.
+   - Cotización y Siniestros usan la misma tabla con sus operaciones.

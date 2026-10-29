@@ -65,19 +65,27 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes` (necesita sus tipos y
 - Los pesos del matching (30/25/20/15/10 en listados; 40/25/20/10/5 en comprobantes, con mínimo 40) son constantes exportadas. Se calibran con `scripts/evaluar-validador.ts` y el set real de Julian.
 - Tolerancia de monto por defecto: $ 1 (la misma que `chequearComprobante()`), configurable en `validador_config`.
 
-## Preguntas abiertas
-Sección 4 del plan. Julian decidió tres el 29/10/2026:
+## Preguntas del plan: todas decididas (29/10/2026)
+Detalle en la sección 4 del plan.
 - **Cobranza usa la gracia del Validador** (`validador_gracia`), no `companias.dias_gracia`. Se hace en la fase 3. Antes hay que cargar la gracia, porque sin fila es 0 y hoy Cobranza usa 30.
 - **"Esta semana" es la semana calendario**, de lunes a domingo. Ya está hecho: `finDeSemana()` en `src/lib/fechas.ts` y `calcularEstado()`, con tests.
+- **Ramos:** una sola lista, la de la cartera (`RAMOS_CARTERA`). No cambia código, porque `gracia.ts` ya usa `ramoCanonico()`.
 - **Cobranza lee `estado_validacion`.** Se hace en la fase 3.
+- **Plantillas:** se guardan en `conector_mapeos`, con la operación `importar_listado`. No se crea `plantillas_importacion`.
 
-Siguen abiertas la lista de ramos (3) y si plantillas y `conector_mapeos` son la misma tabla (5).
+## Subido y probado
+- El 29/10/2026 se subieron `feat/base-agentes` y `feat/validador-v2` a GitHub, sin PR. Los deploys de preview no migran la base (`scripts/preparar-db.ts`), así que la 0024 y la 0025 recién se aplican al mergear a `main`.
+- **Producción usa Postgres 18.6** (Neon, `SHOW server_version;`), así que `NULLS NOT DISTINCT` funciona.
+- **Probado contra Postgres 18.6** (Docker descartable, 29/10/2026):
+  - La base quedó en `main` (`dae54c6`, hasta la 0023) con los datos de ejemplo. Después, `db:preparar` de esta rama aplicó la 0024 y la 0025.
+  - Las 53 cuotas quedaron idénticas (misma huella md5) y todas en ARS.
+  - En una transacción deshecha: repetir (póliza, número) sin ítem falla, dos ítems de la misma cuota pasan y repetir un ítem falla.
 
-## Subido
-El 29/10/2026 se subieron `feat/base-agentes` y `feat/validador-v2` a GitHub, sin PR. Los deploys de preview no migran la base (`scripts/preparar-db.ts`), así que la 0024 y la 0025 recién se aplican al mergear a `main`. Falta confirmar la versión de Postgres de Neon (`SHOW server_version;` en Vercel → Storage → neon-amethyst-drum → Query).
+## Orden
+Julian eligió hacer la importación, los comprobantes y el cron (fases 2 y 3) **antes** que las pantallas (fase 4), para armarlas con datos reales.
 
 ## Próximo paso exacto
-Responder la pregunta 5 (plantillas contra `conector_mapeos`). Después, fase 2:
+Fase 2:
 - Parser determinista de listados XLSX y CSV a `PagoNormalizado`, reusando `leerXlsx` y `celdasCsv` como `src/lib/importacion.ts`.
-- `plantillas_importacion` en la migración `0026`.
+- `conector_mapeos` (con las plantillas de importación) y `credenciales_portal` en la migración `0026`.
 - Test del criterio 3: un listado con formato guardado actualiza las cuotas coincidentes y deja las demás a revisar o no identificadas, sin llamar a la IA.

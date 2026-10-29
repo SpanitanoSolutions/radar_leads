@@ -54,7 +54,7 @@ El Validador es **la fuente de verdad del estado de pago de cada cuota** de la c
 | Inciso | Ítem o unidad de la póliza (clave en **flotas**: un vehículo por ítem) |
 | Endoso | Endoso (igual) |
 | Formas de pago | Débito automático (tarjeta o CBU), Pago Fácil / Rapipago, transferencia, Mercado Pago, efectivo al productor |
-| Ramos: Automóviles, Vida, GMM, RC, Daños, Marítimo y Transportes, Otros | Automotor, Flotas, Vida, AP / Salud, RC, Combinado familiar / Integral de comercio, Incendio, Transporte, Caución, ART, Otros |
+| Ramos: Automóviles, Vida, GMM, RC, Daños, Marítimo y Transportes, Otros | Los ramos de la cartera (`RAMOS_CARTERA`): Auto, Moto, Flota, Hogar, Vida, AP, ART, Integral de comercio, RC, Caución, Carga… Los nombres de cada compañía (Automotor, Combinado familiar…) se llevan a esa lista. Lo que no está en ella lo cubre "Todos los ramos" |
 | Aseguradoras: GNP, Qualitas, Banorte, SMNYL, Chubb, Mapfre, MetLife, HDI… | Catálogo de UNIQO (Sancor, La Segunda, Federación Patronal, Rivadavia, San Cristóbal, Mercantil Andina, Allianz, Zurich, Meridional, Rus, Provincia Seguros, Mapfre…) |
 | Zona horaria America/Mexico_City | America/Argentina/Buenos_Aires |
 | Cancelación por falta de pago | Suspensión o anulación por falta de pago según las condiciones de cada compañía (motivo configurable) |
@@ -164,7 +164,7 @@ Extender las tablas existentes de pólizas y cuotas; no duplicarlas.
 - `validador_gracia`: org_id, producer_id?, compañía, ramo, días de la 1.ª cuota, días de las siguientes y habilitado.
 - `validador_config`: frecuencia, hora de ejecución, hora de enriquecimiento, zona horaria, tolerancia de monto y notificaciones (canales, destinatarios, eventos, modo).
 - `credenciales_portal`: compañía, etiqueta, usuario, secreto cifrado, estado y último uso. Compartida con Cotización.
-- `plantillas_importacion`: compañía y mapeo de columnas.
+- Plantillas de importación (compañía y mapeo de columnas): se guardan en `conector_mapeos`, la tabla de mapeos de la base común, con la operación `importar_listado`. No hay una tabla aparte.
 
 ## 8. Criterios de aceptación
 - [ ] Dada una cuota de automotor que vence hoy en una compañía con 15 días de gracia para la 1.ª cuota, entonces aparece en "Esta semana" y no en "Vencidos" hasta el día 16.
