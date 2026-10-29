@@ -2369,6 +2369,83 @@ a.kpi-agente:hover {
   border-top-left-radius: 2px;
 }
 
+/* Ventana para revisar y aprobar un mensaje sin salir de la pantalla */
+.ventana {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--tarjeta);
+  color: var(--texto);
+  box-shadow: var(--sombra-flotante);
+}
+.ventana::backdrop {
+  background: var(--velo);
+}
+.ventana-contenido,
+.ventana-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ventana-contenido {
+  padding: 20px 22px;
+}
+.ventana-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ventana-cabecera .texto-suave {
+  margin: 4px 0 0;
+}
+.ventana-titulo {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.ventana-cerrar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radio);
+  background: transparent;
+  color: var(--etiqueta);
+  cursor: pointer;
+}
+.ventana-cerrar:hover {
+  background: var(--gris-suave);
+}
+.ventana-texto {
+  min-height: 240px;
+  font-size: 15px;
+  resize: vertical;
+}
+.ventana-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 14px;
+}
+.ventana-pie > .texto-suave {
+  margin-right: auto;
+}
+@media (max-width: 640px) {
+  .ventana {
+    width: calc(100vw - 16px);
+  }
+  .ventana-contenido {
+    padding: 16px;
+  }
+}
+
 /* Formularios en grilla y campos */
 .form-grilla {
   display: grid;

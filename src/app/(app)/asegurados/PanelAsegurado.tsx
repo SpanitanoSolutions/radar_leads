@@ -18,7 +18,8 @@ import { diaEnArgentina, diasEntre, fechaCorta } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { oportunidadesDe } from "@/lib/oportunidades";
 import { AsistenteWhatsApp } from "./AsistenteWhatsApp";
-import { alternarSeguimiento, avisarVencimiento, pedirCotizacionOportunidad, prepararRenovacion } from "./actions";
+import { BotonAvisar } from "./BotonAvisar";
+import { alternarSeguimiento, pedirCotizacionOportunidad, prepararRenovacion } from "./actions";
 
 const CLASE_TIPO = {
   "Mejora de cobertura": "pastilla-ambar-fuerte",
@@ -146,13 +147,7 @@ export function PanelAsegurado({
                         Preparar renovación
                       </button>
                     </form>
-                    <form action={avisarVencimiento}>
-                      <input type="hidden" name="aseguradoId" value={a.id} />
-                      <input type="hidden" name="volver" value={volver} />
-                      <button type="submit" className="boton boton-chico-alto">
-                        Avisar al cliente
-                      </button>
-                    </form>
+                    <BotonAvisar aseguradoId={a.id} etiqueta="Avisar al cliente" className="boton boton-chico-alto" />
                   </div>
                 )}
               </div>

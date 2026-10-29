@@ -7,7 +7,7 @@ import { diaEnArgentina, diaYMes, fechaCorta } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { conFirma } from "@/lib/plantillas";
 import { agruparPorSemana } from "@/lib/vencimientos";
-import { avisarVencimiento } from "../asegurados/actions";
+import { BotonAvisar } from "../asegurados/BotonAvisar";
 import { aprobarMensaje, omitirMensaje } from "../mensajes/actions";
 import "../asegurados/asegurados.css";
 
@@ -166,16 +166,13 @@ export default async function Vencimientos({
                         <Link href={`/asegurados/${a.id}`} className="boton boton-chico">
                           Ver ficha
                         </Link>
-                        {contactable && !conAviso.has(a.id) && (
-                          <form action={avisarVencimiento}>
-                            <input type="hidden" name="aseguradoId" value={a.id} />
-                            <input type="hidden" name="volver" value={volver} />
-                            <button type="submit" className="boton boton-chico">
-                              Avisar
-                            </button>
-                          </form>
+                        {contactable && (
+                          <BotonAvisar
+                            aseguradoId={a.id}
+                            etiqueta={conAviso.has(a.id) ? "Revisar aviso" : "Avisar"}
+                            className="boton boton-chico"
+                          />
                         )}
-                        {conAviso.has(a.id) && <span className="pastilla pastilla-azul">Aviso para aprobar</span>}
                       </div>
                     </td>
                   </tr>

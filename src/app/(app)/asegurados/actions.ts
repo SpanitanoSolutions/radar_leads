@@ -6,10 +6,13 @@ import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
 import { borrarEjemplosDeCartera } from "@/db/ejemplos";
 import { crearSolicitud, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
+import type { CanalMensaje } from "@/db/schema";
 import { contactoDe, esVigente, gruposDeVencimiento, textoAvisoVencimiento } from "@/lib/asegurados";
 import { requerirSesion } from "@/lib/auth";
+import { obtenerCuenta } from "@/lib/datos";
 import { diaEnArgentina, diaYMes } from "@/lib/fechas";
 import { oportunidadesDe } from "@/lib/oportunidades";
+import { conFirma } from "@/lib/plantillas";
 
 const TAMANO_MAXIMO = 5 * 1024 * 1024;
 
@@ -56,22 +59,25 @@ export async function alternarSeguimiento(formData: FormData) {
 
 /**
  * Prepara el aviso de vencimiento de las pólizas que vencen primero. Queda
- * como borrador en Vencimientos: no sale hasta que lo aprobás.
+ * como borrador en Vencimientos: no sale hasta que lo aprobás. Si ya había
+ * un borrador para ese vencimiento, devuelve ese.
  */
-async function prepararAviso(aseguradoId: number): Promise<boolean> {
+async function prepararAviso(
+  aseguradoId: number,
+): Promise<{ ok: true; id: number; cliente: string } | { ok: false; motivo: "sin-vencimiento" | "sin-contacto" }> {
   const hoy = diaEnArgentina(new Date());
   const a = await aseguradoConPolizas(aseguradoId);
   const [grupo] = gruposDeVencimiento(a.polizas, hoy, 1);
-  if (!grupo) return false;
+  if (!grupo) return { ok: false, motivo: "sin-vencimiento" };
   const { telefono, email } = contactoDe(a);
-  if (!telefono && !email) return false;
+  if (!telefono && !email) return { ok: false, motivo: "sin-contacto" };
   const referencia = `vencimiento:${a.id}:${grupo.fecha}`;
   const [existente] = await db
     .select({ id: schema.mensajes.id })
     .from(schema.mensajes)
     .where(and(eq(schema.mensajes.referencia, referencia), eq(schema.mensajes.estado, "borrador")));
-  if (existente) return true;
-  await db.insert(schema.mensajes).values({
+  if (existente) return { ok: true, id: existente.id, cliente: a.nombre };
+  const [nuevo] = await db.insert(schema.mensajes).values({
     aseguradoId: a.id,
     agente: "cartera",
     canal: telefono ? "whatsapp" : "email",
@@ -81,15 +87,55 @@ async function prepararAviso(aseguradoId: number): Promise<boolean> {
     motivo: `${grupo.polizas.length === 1 ? "Vence 1 póliza" : `Vencen ${grupo.polizas.length} pólizas`} el ${diaYMes(grupo.fecha)}.`,
     texto: textoAvisoVencimiento(a, grupo.polizas),
     esEjemplo: a.esEjemplo,
-  });
-  return true;
+  }).returning({ id: schema.mensajes.id });
+  return { ok: true, id: nuevo.id, cliente: a.nombre };
 }
 
-export async function avisarVencimiento(formData: FormData) {
+export type AvisoParaAprobar = {
+  id: number;
+  cliente: string;
+  canal: CanalMensaje;
+  destinatario: string;
+  motivo: string | null;
+  texto: string;
+};
+
+/**
+ * "Avisar" desde la cartera o Vencimientos: prepara el borrador y lo devuelve
+ * para revisarlo y aprobarlo en una ventana, sin salir de la pantalla.
+ */
+export async function prepararAvisoVencimiento(
+  aseguradoId: number,
+): Promise<{ ok: true; aviso: AvisoParaAprobar } | { ok: false; error: string }> {
   await requerirSesion();
-  const ok = await prepararAviso(entero(formData.get("aseguradoId")));
-  revalidarCartera();
-  volver(formData, ok ? "aviso-preparado" : "sin-contacto");
+  try {
+    const r = await prepararAviso(entero(String(aseguradoId)));
+    if (!r.ok) {
+      return {
+        ok: false,
+        error: r.motivo === "sin-contacto"
+          ? "No tiene teléfono ni email: completá el contacto para poder avisarle."
+          : "No tiene pólizas vigentes por vencer.",
+      };
+    }
+    const [[m], cuenta] = await Promise.all([
+      db.select().from(schema.mensajes).where(eq(schema.mensajes.id, r.id)),
+      obtenerCuenta(),
+    ]);
+    return {
+      ok: true,
+      aviso: {
+        id: m.id,
+        cliente: r.cliente,
+        canal: m.canal,
+        destinatario: m.destinatario ?? "",
+        motivo: m.motivo,
+        texto: conFirma(m.texto, cuenta.nombre),
+      },
+    };
+  } catch {
+    return { ok: false, error: "No pudimos preparar el aviso. Probá de nuevo en un rato." };
+  }
 }
 
 /** Acción en lote desde la lista: prepara el aviso de cada asegurado elegido. */
@@ -98,7 +144,7 @@ export async function avisarVencimientoLote(ids: number[]): Promise<{ preparados
   let preparados = 0;
   let sinContacto = 0;
   for (const id of ids.filter((x) => Number.isInteger(x) && x > 0).slice(0, 500)) {
-    if (await prepararAviso(id)) preparados++;
+    if ((await prepararAviso(id)).ok) preparados++;
     else sinContacto++;
   }
   revalidarCartera();
