@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import type { ErrorCorridaValidador } from "@/db/schema";
 import { procesarTrabajos } from "@/lib/ia/cola";
 import { diaEnArgentina } from "@/lib/fechas";
-import { estadoDeCorrida, periodoDeConsulta, resumenDeCorrida, type DatosResumen } from "@/lib/validador/corrida";
+import { estadoDeCorrida, MINUTOS_CAIDA, periodoDeConsulta, resumenDeCorrida, type DatosResumen } from "@/lib/validador/corrida";
 import type { Etapa } from "@/lib/validador/programacion";
 import { companiasConCuotasAbiertas, recalcularEstados, type AlcanceValidador } from "./cartera";
 import { avanzarFuente, fuentesPendientes, traerDeConectores } from "./fuentes";
@@ -18,8 +18,6 @@ import { MANEJADORES_VALIDADOR } from "./trabajos";
 
 const AGENTE = "validador";
 const c = schema.validadorCorridas;
-/** Una corrida en curso desde hace más que esto se considera caída. */
-const MINUTOS_CAIDA = 15;
 /** Casos "a revisar" que explica la IA por corrida: los más nuevos primero. */
 const CASOS_POR_CORRIDA = 20;
 

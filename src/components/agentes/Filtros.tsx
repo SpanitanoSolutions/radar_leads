@@ -6,9 +6,10 @@ import { IconoBuscar } from "@/components/iconos";
 
 export type CampoFiltro =
   | { nombre: string; tipo: "buscar"; etiqueta: string; placeholder: string }
-  | { nombre: string; tipo: "elegir"; etiqueta: string; opciones: { valor: string; texto: string }[] };
+  | { nombre: string; tipo: "elegir"; etiqueta: string; opciones: { valor: string; texto: string }[] }
+  | { nombre: string; tipo: "fecha"; etiqueta: string };
 
-/** Filtros en píldora que viven en la URL (búsqueda con espera, listas al cambiar). */
+/** Filtros en píldora que viven en la URL (búsqueda con espera, listas y fechas al cambiar). Cambiar uno vuelve a la primera página. */
 export function Filtros({ campos, valores }: { campos: CampoFiltro[]; valores: Record<string, string> }) {
   const router = useRouter();
   const ruta = usePathname();
@@ -21,6 +22,7 @@ export function Filtros({ campos, valores }: { campos: CampoFiltro[]; valores: R
     if (valor) p.set(nombre, valor);
     else p.delete(nombre);
     p.delete("aviso");
+    p.delete("pagina");
     const qs = p.toString();
     iniciar(() => router.replace(qs ? `${ruta}?${qs}` : ruta, { scroll: false }));
   };
@@ -44,6 +46,16 @@ export function Filtros({ campos, valores }: { campos: CampoFiltro[]; valores: R
               }}
             />
           </div>
+        ) : c.tipo === "fecha" ? (
+          <label key={c.nombre} className="filtro-fecha">
+            <span>{c.etiqueta}</span>
+            <input
+              type="date"
+              className="campo campo-pildora"
+              defaultValue={valores[c.nombre] ?? ""}
+              onChange={(e) => ir(c.nombre, e.target.value)}
+            />
+          </label>
         ) : (
           <select
             key={c.nombre}

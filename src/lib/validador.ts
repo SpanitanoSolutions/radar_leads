@@ -3,8 +3,9 @@ import { normalizar } from "@/fuentes/clasificacion";
 import { diaEnArgentina, diasEntre } from "./fechas";
 import { pesos } from "./formato";
 
-// Validador de pagos: junta las cuotas que se pagan juntas (un "cobro"),
-// revisa los comprobantes contra la cuota y decide en qué pestaña va cada uno.
+// Validador de pagos: junta las cuotas que se pagan juntas (un "cobro") y
+// revisa los comprobantes contra la cuota. Lo que muestra la pantalla está en
+// src/lib/validador/pantalla.ts.
 
 export type CuotaConPoliza = {
   id: number;
@@ -176,34 +177,12 @@ export function problemasDe(chequeos: Chequeo[]): number {
   return chequeos.filter((c) => c.resultado !== "ok").length;
 }
 
-export type Pestana = "pendientes" | "revisar" | "vencidos" | "pagados";
-
-export function pestanaDe(cobro: Pick<Cobro, "pagada" | "vencimiento">, comprobante: { chequeos: Chequeo[] } | null, hoy: string): Pestana {
-  if (cobro.pagada) return "pagados";
-  if (comprobante && problemasDe(comprobante.chequeos) > 0) return "revisar";
-  if (cobro.vencimiento < hoy) return "vencidos";
-  return "pendientes";
-}
-
 /** "Hoy", "En 3 días", "Hace 8 días", con su tono. */
 export function textoVence(vencimiento: string, hoy: string): { texto: string; tono: "rojo" | "ambar-fuerte" | "ambar" | "gris" } {
   const dias = diasEntre(hoy, vencimiento);
   if (dias < 0) return { texto: `Hace ${-dias === 1 ? "1 día" : `${-dias} días`}`, tono: "rojo" };
   if (dias === 0) return { texto: "Hoy", tono: "ambar-fuerte" };
   return { texto: `En ${dias === 1 ? "1 día" : `${dias} días`}`, tono: dias <= 7 ? "ambar" : "gris" };
-}
-
-export function montosPorPlazo(cobros: Pick<Cobro, "pagada" | "vencimiento" | "monto">[], hoy: string) {
-  const abiertos = cobros.filter((c) => !c.pagada);
-  const grupo = (f: (dias: number) => boolean) => {
-    const lista = abiertos.filter((c) => f(diasEntre(hoy, c.vencimiento)));
-    return { monto: lista.reduce((s, c) => s + c.monto, 0), cuotas: lista.length };
-  };
-  return {
-    semana: grupo((d) => d >= 0 && d <= 7),
-    proximos: grupo((d) => d > 7 && d <= 30),
-    vencidas: grupo((d) => d < 0),
-  };
 }
 
 /** Qué falta conectar para que el validador trabaje solo. Null si está todo. */

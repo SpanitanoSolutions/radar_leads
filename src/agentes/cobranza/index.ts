@@ -151,13 +151,14 @@ const MOTIVO: Record<Paso, string> = {
 };
 
 /**
- * Prepara (o, si el paso es automático, envía) un mensaje de un cobro.
+ * Prepara (o, si el paso es automático, envía) un mensaje de un cobro. Con
+ * `soloBorrador` queda siempre para aprobar ("Enviar a Cobranza" del Validador).
  * Devuelve null si el asegurado no tiene cómo recibirlo.
  */
 export async function prepararMensaje(
   cabezaId: number,
   tipo: Pendiente,
-  extra: { motivo?: string; pagado?: number; problema?: string; agente?: "cobranza" | "validador" } = {},
+  extra: { motivo?: string; pagado?: number; problema?: string; agente?: "cobranza" | "validador"; soloBorrador?: boolean } = {},
   ahora: Date = new Date(),
 ): Promise<{ id: number; enviado: boolean } | null> {
   const referencia = referenciaDe(cabezaId, tipo);
@@ -210,7 +211,7 @@ export async function prepararMensaje(
 
   const paso = typeof tipo === "number" ? config.pasos.find((p) => p.paso === tipo) : undefined;
   const puedeSalir = !config.reglas.horario || dentroDeHorario(ahora);
-  if (paso?.automatico && tipo !== 4 && puedeSalir) {
+  if (paso?.automatico && tipo !== 4 && puedeSalir && !extra.soloBorrador) {
     const r = await enviarMensaje(m.id);
     if (r.ok) {
       await marcarPaso(cabezaId, tipo as Paso, destino.canal === "whatsapp" ? "WhatsApp" : "Email", ahora);

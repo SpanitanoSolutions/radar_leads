@@ -12,9 +12,11 @@ import {
   faltanEnMapeo,
   leerListado,
   leerMapeoListado,
+  mapeoDeColumnas,
   mapeoDePropuestaIA,
   OPERACION_LISTADO,
   proponerMapeoPorSinonimos,
+  type CampoListado,
   type MapeoListado,
   type PlantillaListado,
 } from "@/lib/validador/listados";
@@ -201,6 +203,38 @@ export async function confirmarMapeo(fuenteId: number, mapeo: MapeoListado, alca
   });
   await bitacora(`Guardó la plantilla del listado de ${fuente.compania}: la próxima vez se lee sin preguntar.`, `fuente:${fuenteId}`);
   return avanzarFuente(fuenteId, { alcance });
+}
+
+/** Los encabezados y las primeras filas de un listado, para que el productor confirme qué dato tiene cada columna. */
+export async function tablaParaConfirmar(fuenteId: number): Promise<{ encabezados: string[]; filas: string[][] } | null> {
+  const [fuente] = await db.select().from(schema.validadorFuentes).where(eq(schema.validadorFuentes.id, fuenteId));
+  const tabla = fuente ? await tablaDe(fuente).catch(() => null) : null;
+  if (!tabla) return null;
+  return { encabezados: tabla.encabezados, filas: tabla.filas.filter((f) => f.some((c) => c.trim())).slice(0, 5) };
+}
+
+/**
+ * Lo que eligió el productor en la pantalla (un campo por columna, más el
+ * estado y la moneda por defecto), con los valores propios de la compañía que
+ * había propuesto la IA, como mapeo para confirmarMapeo().
+ */
+export async function confirmarMapeoElegido(
+  fuenteId: number,
+  elegido: { campos: (CampoListado | "")[]; estadoPorDefecto: MapeoListado["estadoPorDefecto"]; monedaPorDefecto: MapeoListado["monedaPorDefecto"] },
+  alcance: AlcanceValidador,
+): Promise<EstadoFuente> {
+  const [fuente] = await db.select().from(schema.validadorFuentes).where(eq(schema.validadorFuentes.id, fuenteId));
+  if (!fuente || fuente.estado !== "mapeo_por_confirmar") throw new Error("Ese listado ya no espera que confirmes las columnas.");
+  const tabla = await tablaDe(fuente);
+  if (!tabla) throw new Error("El listado ya no está guardado: subilo de nuevo.");
+  const propuesto = leerMapeoListado(fuente.mapeoPropuesto);
+  const mapeo = mapeoDeColumnas(tabla.encabezados, elegido.campos, {
+    estadoPorDefecto: elegido.estadoPorDefecto,
+    monedaPorDefecto: elegido.monedaPorDefecto,
+    estados: propuesto?.estados ?? {},
+    medios: propuesto?.medios ?? {},
+  });
+  return confirmarMapeo(fuenteId, mapeo, alcance);
 }
 
 /** Las fuentes subidas que quedaron sin procesar (por ejemplo, porque falló algo): las retoma la corrida. */

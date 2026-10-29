@@ -178,13 +178,13 @@ await page.getByRole("link", { name: "Desempeño" }).click();
 await page.getByText("Solicitudes ganadas").waitFor();
 ok("cotización: filtros y pestaña de desempeño");
 
-// 12. Validador: confirmar pago y reflejarlo en Pagados
+// 12. Validador: confirmar pago y reflejarlo en Pagadas
 await page.goto(BASE + "/agentes/validador?tab=revisar");
 await page.getByRole("button", { name: "Confirmar pago" }).first().click();
 await page.waitForURL(/aviso=pago-confirmado/);
-await page.goto(BASE + "/agentes/validador?tab=pagados");
-await page.locator("tbody.cobro", { hasText: "Acosta, Valeria" }).waitFor();
-ok("validador: confirmar pago y ver la cuota en Pagados");
+await page.goto(BASE + "/agentes/validador?tab=pagadas");
+await page.locator("tbody.grupo-asegurado", { hasText: "Acosta, Valeria" }).waitFor();
+ok("validador: confirmar pago y ver la cuota en Pagadas");
 
 // 13. Cobranza: aprobar un borrador de mensaje
 await page.goto(BASE + "/agentes/cobranza");

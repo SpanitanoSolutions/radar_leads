@@ -81,11 +81,12 @@ export async function cuotasDeCobrosCerrados(tx: Transaccion, ids: number[]): Pr
 }
 
 /**
- * Confirma el pago de un cobro: marca las cuotas como pagadas, el comprobante
- * como confirmado y corta la secuencia de cobranza (los borradores pendientes
- * se omiten), salvo que la regla esté desactivada.
+ * Confirma el pago de un cobro: marca las cuotas como pagadas (el día de pago
+ * es hoy, salvo que se indique otro), el comprobante como confirmado y corta
+ * la secuencia de cobranza (los borradores pendientes se omiten), salvo que la
+ * regla esté desactivada.
  */
-export async function confirmarCobro(cabezaId: number, opciones: { medio: string; conProblemas?: boolean; origen?: OrigenConfirmacion }) {
+export async function confirmarCobro(cabezaId: number, opciones: { medio: string; conProblemas?: boolean; origen?: OrigenConfirmacion; fechaPago?: string }) {
   const ids = await cuotasDelCobro(cabezaId);
   if (!ids.length) throw new Error("Cuota inexistente");
   const ahora = new Date();
@@ -97,7 +98,7 @@ export async function confirmarCobro(cabezaId: number, opciones: { medio: string
         pagadaEl: ahora,
         medioPago: opciones.medio,
         estadoValidacion: "pagada",
-        fechaPago: diaEnArgentina(ahora),
+        fechaPago: opciones.fechaPago ?? diaEnArgentina(ahora),
         origenConfirmacion: opciones.origen ?? "manual",
         ultimaRevision: ahora,
       })
