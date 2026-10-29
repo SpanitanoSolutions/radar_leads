@@ -18,6 +18,17 @@ export type TelefonoEncontrado = {
   fuenteUrl: string;
 };
 
+/**
+ * Por qué no corre la búsqueda de teléfonos, o null si puede correr. Además de
+ * la clave de Anthropic, hay que prenderla a propósito con TELEFONOS_IA=1: la
+ * clave también la usan los agentes, y cargarla no tiene que empezar a gastar acá.
+ */
+export function busquedaApagada(env: Record<string, string | undefined>): string | null {
+  if (!env.ANTHROPIC_API_KEY) return "Falta la variable ANTHROPIC_API_KEY: no se buscaron teléfonos.";
+  if (env.TELEFONOS_IA !== "1") return "La búsqueda de teléfonos está apagada (TELEFONOS_IA no es 1): no se buscaron teléfonos.";
+  return null;
+}
+
 /** Una misma empresa puede tener varios leads (p. ej. varias licitaciones): se busca una sola vez. */
 export function claveEmpresa(e: Pick<EmpresaABuscar, "empresa" | "cuit" | "localidad">): string {
   const cuit = (e.cuit ?? "").replace(/\D/g, "");
