@@ -426,6 +426,11 @@ Cuando estén disponibles diez casos anonimizados con resultados esperados, `npm
 - **Corrida:** el cron o "Ejecutar validación" consultan los conectores, cruzan, aplican los cambios y recalculan los estados. Cada corrida queda en `validador_corridas` y en Actividad.
 - **Comprobantes:** la IA los lee, el matching propone el cobro con su puntaje y el productor confirma. Nunca se marcan pagados solos.
 - **Cobranza** usa la gracia del Validador (`validador_gracia`) y no persigue las cuotas pagadas o canceladas por la compañía.
+- **Configuración (`/agentes/validador/configuracion`):**
+  - las credenciales de los portales (cifradas) y la plantilla de listado de cada compañía;
+  - la gracia por compañía × ramo, que marca las compañías sin gracia cargada, y la tolerancia de monto;
+  - la programación, con la próxima ejecución real según el cron, que pasa una vez por día a las 08:00;
+  - los avisos al productor por WhatsApp o email: un resumen diario o un aviso por evento, solo después de las corridas automáticas. A los asegurados no les escribe: eso sigue siendo un borrador de Cobranza.
 - Spec: `docs/specs/validador-v2.md`. Plan: `docs/PLAN-validador-v2.md`. Progreso: `docs/progreso/validador-v2.md`.
 
 ## Specs de producto

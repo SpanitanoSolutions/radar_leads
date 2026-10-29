@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { diaEnArgentina, sumarDias } from "./fechas";
 import { companiaCanonica } from "./importacion";
 import { MINUTOS_CAIDA } from "./validador/corrida";
+import { OPERACION_LISTADO } from "./validador/listados";
 import { desdePagadas, ultimasFuentes, VENTANA, type CuotaValidador } from "./validador/pantalla";
 
 // Lecturas de la pantalla del Validador. Como todo en src/lib/datos*.ts,
@@ -250,4 +251,33 @@ export async function obtenerPolizasParaRenovaciones() {
     .from(polizas)
     .innerJoin(asegurados, eq(asegurados.id, polizas.aseguradoId))
     .where(isNull(asegurados.bajaEl));
+}
+
+// ---------- Configuración (/agentes/validador/configuracion) ----------
+
+export async function obtenerFilasGracia() {
+  await connection();
+  return db.select().from(schema.validadorGracia);
+}
+
+/** Las plantillas de listado de cada compañía (todas las versiones), la más nueva primero. */
+export async function obtenerPlantillasListado() {
+  await connection();
+  const m = schema.conectorMapeos;
+  return db.select().from(m).where(eq(m.operacion, OPERACION_LISTADO)).orderBy(m.compania, desc(m.version));
+}
+
+export async function obtenerSaludConectores() {
+  await connection();
+  return db.select().from(schema.conectorSalud);
+}
+
+/** La última corrida de cada etapa, de cualquier origen: la "última ejecución" de Programación. */
+export async function obtenerUltimasCorridas() {
+  await connection();
+  const c = schema.validadorCorridas;
+  const [validacion, enriquecimiento] = await Promise.all(
+    (["validacion", "enriquecimiento"] as const).map((etapa) => db.select().from(c).where(eq(c.etapa, etapa)).orderBy(desc(c.iniciadaEl)).limit(1)),
+  );
+  return { validacion: validacion[0] ?? null, enriquecimiento: enriquecimiento[0] ?? null };
 }

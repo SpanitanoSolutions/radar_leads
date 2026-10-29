@@ -76,6 +76,30 @@ export function tocaEjecutar(config: ConfigValidador, etapa: Etapa, ultima: Date
   return !(antes.dia <= local.dia && desdeLaHora(antes, inicio, hora));
 }
 
+/**
+ * Las pasadas del cron del Validador, en hora UTC: tienen que coincidir con
+ * /api/cron/validador en vercel.json ("0 11 * * *", las 08:00 de Argentina).
+ */
+export const PASADAS_CRON_UTC = ["11:00"];
+
+/**
+ * Cuándo corre de verdad: la primera pasada del cron en que le toca a la
+ * etapa. Null si en los próximos dos meses no le toca nunca. Pasa, por
+ * ejemplo, con frecuencia diaria y una hora posterior a la última pasada del
+ * día: cada pasada llega antes de la hora del mismo día.
+ */
+export function proximaPasada(config: ConfigValidador, etapa: Etapa, ultima: Date | null, ahora: Date, pasadas: string[] = PASADAS_CRON_UTC): Date | null {
+  const hoy = ahora.toISOString().slice(0, 10);
+  for (let d = 0; d <= 62; d++) {
+    const dia = sumarDias(hoy, d);
+    for (const hora of [...pasadas].sort()) {
+      const pasada = new Date(`${dia}T${hora}:00Z`);
+      if (pasada >= ahora && tocaEjecutar(config, etapa, ultima, pasada)) return pasada;
+    }
+  }
+  return null;
+}
+
 /** Cuándo vuelve a tocar: ahora mismo si está pendiente, o la hora del período siguiente. */
 export function proximaEjecucion(config: ConfigValidador, etapa: Etapa, ultima: Date | null, ahora: Date): Date {
   if (tocaEjecutar(config, etapa, ultima, ahora)) return ahora;

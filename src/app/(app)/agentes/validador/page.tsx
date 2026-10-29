@@ -213,7 +213,7 @@ export default async function Validador({
         activo={activo}
         descripcion="Cruza lo que informan las compañías y los comprobantes de tus asegurados con las cuotas de la cartera, respetando la gracia de cada compañía y ramo. Lo que no cierra te lo deja para revisar: nada se marca pagado sin una fuente o sin tu confirmación."
       >
-        <Link href="/configuracion" className="boton">
+        <Link href="/agentes/validador/configuracion" className="boton">
           Configuración
         </Link>
         <Link href={verActividad ? urlValidador(sp, { ver: null }) : urlValidador(sp, { ver: "actividad" })} className="boton">
@@ -283,6 +283,7 @@ export default async function Validador({
       {!verActividad && deCuotas && (
         <div className="lista-cabecera validador-filtros">
           <Filtros
+            key={pestana}
             valores={{ q: filtros.q, cia: filtros.compania, ramo: filtros.ramo, medio: filtros.medio, desde: filtros.desde, hasta: filtros.hasta }}
             campos={[
               { nombre: "q", tipo: "buscar", etiqueta: "Buscar póliza o asegurado", placeholder: "Buscar póliza o asegurado" },

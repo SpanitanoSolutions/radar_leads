@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONFIG_POR_DEFECTO, resolverConfigValidador, type FilaConfigValidador } from "./configuracion";
+import { CONFIG_POR_DEFECTO, leerProgramacion, resolverConfigValidador, type FilaConfigValidador } from "./configuracion";
 
 const fila = (extra: Partial<FilaConfigValidador>): FilaConfigValidador => ({
   frecuencia: null,
@@ -39,5 +39,20 @@ describe("resolverConfigValidador", () => {
   it("un valor que no se entiende hereda del nivel de arriba", () => {
     const filas = [fila({ horaEjecucion: "06:00" }), fila({ orgId: "org-1", horaEjecucion: "25:00", frecuencia: "cada tanto", toleranciaMonto: -1 })];
     expect(resolverConfigValidador(filas, ALCANCE)).toMatchObject({ horaEjecucion: "06:00", frecuencia: "diaria", toleranciaMonto: 1 });
+  });
+});
+
+describe("leerProgramacion", () => {
+  const base = { frecuencia: "diaria", horaEjecucion: "07:00", horaEnriquecimiento: "08:00", zonaHoraria: "America/Argentina/Buenos_Aires" };
+
+  it("acepta una programación completa", () => {
+    expect(leerProgramacion(base)).toEqual({ valores: { ...base, frecuencia: "diaria" } });
+  });
+
+  it("rechaza frecuencias, horas y zonas que no conoce, y el enriquecimiento antes de la validación", () => {
+    expect(leerProgramacion({ ...base, frecuencia: "anual" })).toEqual({ error: "Elegí la frecuencia." });
+    expect(leerProgramacion({ ...base, horaEjecucion: "7" })).toEqual({ error: "Las horas van como 07:00." });
+    expect(leerProgramacion({ ...base, horaEnriquecimiento: "07:00" })).toEqual({ error: "El enriquecimiento tiene que ser después de la validación." });
+    expect(leerProgramacion({ ...base, zonaHoraria: "Marte/Olympus" })).toEqual({ error: "Elegí la zona horaria." });
   });
 });
