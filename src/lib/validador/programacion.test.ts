@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONFIG_POR_DEFECTO, type ConfigValidador } from "./configuracion";
-import { enZona, inicioDelPeriodo, instanteEnZona, proximaEjecucion, tocaEjecutar } from "./programacion";
+import { enZona, inicioDelPeriodo, instanteEnZona, PASADAS_CRON_UTC, proximaEjecucion, proximaPasada, tocaEjecutar } from "./programacion";
 
 // El jueves 29/10/2026 en Buenos Aires (UTC−3).
 const art = (dia: string, hora: string) => new Date(`${dia}T${hora}:00-03:00`);
@@ -65,5 +67,36 @@ describe("proximaEjecucion", () => {
     expect(proximaEjecucion(config({ frecuencia: "mensual" }), "validacion", art("2026-10-01", "07:00"), despues).toISOString()).toBe("2026-11-01T10:00:00.000Z");
     // Pendiente: en la próxima pasada del cron.
     expect(proximaEjecucion(config(), "validacion", null, despues)).toEqual(despues);
+  });
+});
+
+describe("proximaPasada", () => {
+  it("diaria a las 07:00: corre en la pasada de las 08:00 de Argentina", () => {
+    const ultima = art("2026-10-29", "08:00");
+    expect(proximaPasada(config(), "validacion", ultima, art("2026-10-29", "15:00"))?.toISOString()).toBe("2026-10-30T11:00:00.000Z");
+    expect(proximaPasada(config(), "validacion", null, art("2026-10-29", "06:00"))?.toISOString()).toBe("2026-10-29T11:00:00.000Z");
+  });
+
+  it("diaria después de la última pasada del día: no corre nunca", () => {
+    expect(proximaPasada(config({ horaEjecucion: "10:00" }), "validacion", null, art("2026-10-29", "06:00"))).toBeNull();
+  });
+
+  it("semanal a las 10:00: corre en la pasada del martes", () => {
+    const ultima = art("2026-10-27", "08:00");
+    expect(proximaPasada(config({ frecuencia: "semanal", horaEjecucion: "10:00" }), "validacion", ultima, art("2026-10-29", "12:00"))?.toISOString()).toBe(
+      "2026-11-03T11:00:00.000Z",
+    );
+  });
+
+  it("las pasadas coinciden con el cron de vercel.json", () => {
+    const vercel = JSON.parse(readFileSync(join(process.cwd(), "vercel.json"), "utf8")) as { crons: { path: string; schedule: string }[] };
+    const horas = vercel.crons
+      .filter((c) => c.path === "/api/cron/validador")
+      .map((c) => {
+        const [minuto, hora, ...resto] = c.schedule.split(" ");
+        expect(resto).toEqual(["*", "*", "*"]);
+        return `${hora.padStart(2, "0")}:${minuto.padStart(2, "0")}`;
+      });
+    expect(horas.sort()).toEqual([...PASADAS_CRON_UTC].sort());
   });
 });

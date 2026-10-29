@@ -56,3 +56,24 @@ export function resolverConfigValidador(filas: FilaConfigValidador[], alcance: {
   }
   return resuelta;
 }
+
+/** Las zonas horarias para elegir; la primera es la de siempre. */
+export const ZONAS_HORARIAS: { id: string; texto: string }[] = [
+  { id: "America/Argentina/Buenos_Aires", texto: "Argentina (Buenos Aires)" },
+  { id: "America/Montevideo", texto: "Uruguay (Montevideo)" },
+  { id: "America/Santiago", texto: "Chile (Santiago)" },
+  { id: "America/Asuncion", texto: "Paraguay (Asunción)" },
+  { id: "America/Sao_Paulo", texto: "Brasil (San Pablo)" },
+];
+
+export type Programacion = Pick<ConfigValidador, "frecuencia" | "horaEjecucion" | "horaEnriquecimiento" | "zonaHoraria">;
+
+/** Lo que se carga en Configuración → Programación. El enriquecimiento va después de la validación. */
+export function leerProgramacion(datos: Record<keyof Programacion, string>): { valores: Programacion } | { error: string } {
+  const frecuencia = FRECUENCIAS.find((f) => f === datos.frecuencia);
+  if (!frecuencia) return { error: "Elegí la frecuencia." };
+  if (!HORA.test(datos.horaEjecucion) || !HORA.test(datos.horaEnriquecimiento)) return { error: "Las horas van como 07:00." };
+  if (datos.horaEnriquecimiento <= datos.horaEjecucion) return { error: "El enriquecimiento tiene que ser después de la validación." };
+  if (!ZONAS_HORARIAS.some((z) => z.id === datos.zonaHoraria)) return { error: "Elegí la zona horaria." };
+  return { valores: { frecuencia, horaEjecucion: datos.horaEjecucion, horaEnriquecimiento: datos.horaEnriquecimiento, zonaHoraria: datos.zonaHoraria } };
+}

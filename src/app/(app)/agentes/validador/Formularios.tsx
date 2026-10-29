@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { createContext, startTransition, useActionState, useContext, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { TablaMapeo } from "@/components/importacion/Asistente";
 import { COLUMNAS_LISTADO, type CampoListado } from "@/lib/validador/listados";
@@ -67,17 +67,26 @@ export function ProgresoCorrida({ inicial }: { inicial: Corrida[] }) {
   );
 }
 
+/** Si el formulario se está enviando, cuando lo envía FormConError (ahí useFormStatus no se entera). */
+const Enviando = createContext<boolean | null>(null);
+
 /** El botón de un formulario, deshabilitado mientras se envía. */
 export function BotonEnviar({ texto, enviando, className = "boton boton-primario boton-mediano" }: { texto: string; enviando: string; className?: string }) {
   const { pending } = useFormStatus();
+  const ocupado = useContext(Enviando) ?? pending;
   return (
-    <button type="submit" className={className} disabled={pending}>
-      {pending ? enviando : texto}
+    <button type="submit" className={className} disabled={ocupado}>
+      {ocupado ? enviando : texto}
     </button>
   );
 }
 
-/** Un formulario cuya acción devuelve el error para mostrarlo al lado; si sale bien, la acción redirige. */
+/**
+ * Un formulario cuya acción devuelve el error para mostrarlo al lado; si sale
+ * bien, la acción redirige. Se envía desde onSubmit y no con `action`: con
+ * `action`, React vacía los campos al terminar aunque haya error, y se pierde
+ * lo que cargó el productor.
+ */
 export function FormConError({
   accion,
   className,
@@ -87,10 +96,17 @@ export function FormConError({
   className?: string;
   children: React.ReactNode;
 }) {
-  const [estado, enviar] = useActionState(accion, {});
+  const [estado, enviar, ocupado] = useActionState(accion, {});
   return (
-    <form action={enviar} className={className}>
-      {children}
+    <form
+      className={className}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const datos = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+        startTransition(() => enviar(datos));
+      }}
+    >
+      <Enviando value={ocupado}>{children}</Enviando>
       {estado.error && (
         <p className="mensaje-error" role="alert">
           {estado.error}

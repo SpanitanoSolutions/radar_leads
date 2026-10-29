@@ -9,6 +9,7 @@ import type { Etapa } from "@/lib/validador/programacion";
 import { companiasConCuotasAbiertas, recalcularEstados, type AlcanceValidador } from "./cartera";
 import { avanzarFuente, fuentesPendientes, traerDeConectores } from "./fuentes";
 import { explicarCaso, iaDisponible, OPERACIONES_IA, resumirCorrida } from "./ia";
+import { avisarResumen, avisarValidacion } from "./notificaciones";
 import { MANEJADORES_VALIDADOR } from "./trabajos";
 
 // Una corrida del Validador (sección 6 de docs/specs/validador-v2.md). La
@@ -131,7 +132,9 @@ export async function correrValidacion(id: number, origen: Origen, alcance: Alca
   } catch {
     errores.push({ compania: null, codigo: "interno", mensaje: "La corrida se cortó por un error interno; se reintenta en la próxima." });
   }
-  return terminar(id, { errores, resumen: resumenDeCorrida(datos), cuotasActualizadas, companiasProcesadas: datos.companias }, origen, "validacion");
+  const estado = await terminar(id, { errores, resumen: resumenDeCorrida(datos), cuotasActualizadas, companiasProcesadas: datos.companias }, origen, "validacion");
+  if (origen === "cron") await avisarValidacion({ pagosConfirmados: datos.pagadas, porVencer: datos.porVencer, vencidas: datos.vencidas, errores }, alcance);
+  return estado;
 }
 
 /** Los casos "a revisar" sin explicar: Sonnet explica y sugiere; nada se aplica solo. */
@@ -175,8 +178,8 @@ async function explicarCasos(alcance: AlcanceValidador): Promise<{ costoUsd: num
  * Pasos 6 a 8 (hora de enriquecimiento): procesa la cola de IA del Validador
  * (listados y comprobantes subidos), explica los casos a revisar y deja el
  * resumen del día. Sin IA, solo procesa lo que no la necesita y el resumen es
- * el de la validación. Las notificaciones por WhatsApp o email se suman con
- * la pantalla de Configuración.
+ * el de la validación. Después de las corridas automáticas salen los avisos
+ * al productor, según Configuración → Notificaciones (notificaciones.ts).
  */
 export async function correrEnriquecimiento(id: number, origen: Origen, alcance: AlcanceValidador) {
   const errores: ErrorCorridaValidador[] = [];
@@ -206,5 +209,7 @@ export async function correrEnriquecimiento(id: number, origen: Origen, alcance:
   } catch {
     errores.push({ compania: null, codigo: "interno", mensaje: "El enriquecimiento se cortó por un error interno; se reintenta en la próxima corrida." });
   }
-  return terminar(id, { errores, resumen, costoIaUsd }, origen, "enriquecimiento");
+  const estado = await terminar(id, { errores, resumen, costoIaUsd }, origen, "enriquecimiento");
+  if (origen === "cron") await avisarResumen(resumen, alcance);
+  return estado;
 }

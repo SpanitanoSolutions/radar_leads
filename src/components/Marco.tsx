@@ -159,7 +159,7 @@ export function Marco({
     { href: "/agentes/cobranza", texto: "Mensajes para aprobar", cantidad: notificaciones.cobranza },
     { href: "/agentes/cotizacion?estado=atencion", texto: "Cotizaciones con atención", cantidad: notificaciones.cotizaciones },
     { href: "/agentes/siniestros", texto: "Siniestros abiertos", cantidad: notificaciones.siniestros },
-    { href: "/agentes/validador?tab=vencidos", texto: "Cuotas vencidas", cantidad: notificaciones.cuotasVencidas },
+    { href: "/agentes/validador?bloque=vencidos", texto: "Cuotas vencidas", cantidad: notificaciones.cuotasVencidas },
   ].filter((aviso) => aviso.cantidad > 0);
   const totalAvisos = avisos.reduce((suma, aviso) => suma + aviso.cantidad, 0);
 
