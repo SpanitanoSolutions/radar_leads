@@ -169,6 +169,13 @@
       "when": 1793204659100,
       "tag": "0023_ia_configuracion",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793270016556,
+      "tag": "0024_conectores",
+      "breakpoints": true
     }
   ]
 }
