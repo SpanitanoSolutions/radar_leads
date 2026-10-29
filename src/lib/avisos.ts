@@ -17,6 +17,8 @@ const AVISOS: Record<string, { texto: string; tono: "ok" | "info" | "error" }> =
   "comprobante-incompleto": { texto: "Completá la fecha y el monto del comprobante.", tono: "error" },
   "comprobante-cargado": { texto: "Comprobante cargado y revisado.", tono: "ok" },
   revisados: { texto: "Listo: el agente revisó los comprobantes pendientes.", tono: "ok" },
+  "validacion-iniciada": { texto: "Listo: el validador está consultando las compañías y revisando los comprobantes. El resultado queda en Actividad.", tono: "ok" },
+  "validacion-en-curso": { texto: "Ya hay una validación en curso: el resultado queda en Actividad.", tono: "ok" },
   "promesa-registrada": { texto: "Promesa de pago registrada. La secuencia queda en pausa hasta esa fecha.", tono: "ok" },
   "promesa-sin-fecha": { texto: "Elegí la fecha en que prometió pagar.", tono: "error" },
   "llamada-anotada": { texto: "Anotado. El agente te lo vuelve a proponer mañana.", tono: "info" },

@@ -378,13 +378,18 @@ export type Chequeo = {
   texto: string;
 };
 
+/** Un cobro posible para un comprobante: las cuotas que se pagan juntas, con puntaje y motivos. */
+export type CandidatoCobro = { cuotaId: number; cuotaIds: number[]; puntaje: number; motivos: string[] };
+
 /** Comprobante de pago que mandó un asegurado, con lo que encontró el validador. */
 export const comprobantes = pgTable("comprobantes", {
   id: serial("id").primaryKey(),
-  /** Primera cuota del cobro (las cuotas del mismo asegurado, compañía y vencimiento se cobran juntas). */
-  cuotaId: integer("cuota_id")
-    .notNull()
-    .references(() => cuotas.id, { onDelete: "cascade" }),
+  /**
+   * Primera cuota del cobro (las cuotas del mismo asegurado, compañía y
+   * vencimiento se cobran juntas). Null mientras el productor no confirma a
+   * qué cobro corresponde un comprobante subido suelto.
+   */
+  cuotaId: integer("cuota_id").references(() => cuotas.id, { onDelete: "cascade" }),
   canal: canalComprobanteEnum("canal").notNull(),
   /** "Transferencia · Banco Nación", "Rapipago"… */
   medio: text("medio"),
@@ -395,6 +400,17 @@ export const comprobantes = pgTable("comprobantes", {
   numeroOperacion: text("numero_operacion"),
   archivoId: integer("archivo_id").references(() => archivos.id, { onDelete: "set null" }),
   chequeos: jsonb("chequeos").$type<Chequeo[]>().notNull().default([]),
+  // Validador v2: comprobantes subidos sueltos, leídos con IA o a mano.
+  moneda: text("moneda").$type<Moneda>().notNull().default("ARS"),
+  /** Número de operación, código de pago o concepto que escribió el que pagó. */
+  referencia: text("referencia"),
+  pagador: text("pagador"),
+  documentoPagador: text("documento_pagador"),
+  /** manual | pendiente (IA en cola) | ia | error */
+  extraccion: text("extraccion").notNull().default("manual"),
+  /** Los cobros posibles que propone el matching; nunca se confirma solo. */
+  candidatos: jsonb("candidatos").$type<CandidatoCobro[]>().notNull().default([]),
+  motivoPropuesta: text("motivo_propuesta"),
   estado: estadoComprobanteEnum("estado").notNull().default("por_revisar"),
   recibidoEl: timestamp("recibido_el", { withTimezone: true }).notNull().defaultNow(),
   revisadoEl: timestamp("revisado_el", { withTimezone: true }),
@@ -1090,6 +1106,52 @@ export const conectorSalud = pgTable("conector_salud", {
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("conector_salud_canal_idx").on(t.compania, t.canal, t.orgId, t.producerId)]);
 
+/**
+ * Mapeos aprendidos y confirmados por compañía × ramo × operación, con
+ * versión. El listado de cobranza del Validador es la operación
+ * `importar_listado` con ramo "*". Cada operación valida `mapeo` con su
+ * esquema zod al leerlo.
+ */
+export const conectorMapeos = pgTable("conector_mapeos", {
+  id: serial("id").primaryKey(),
+  compania: text("compania").notNull(),
+  ramo: text("ramo").notNull().default("*"),
+  operacion: text("operacion").notNull(),
+  version: integer("version").notNull().default(1),
+  mapeo: jsonb("mapeo").$type<Record<string, unknown>>().notNull(),
+  /** ia | manual */
+  origen: text("origen").notNull(),
+  /** Un mapeo sin confirmar no se usa solo. */
+  confirmado: boolean("confirmado").notNull().default(false),
+  confirmadoEl: timestamp("confirmado_el", { withTimezone: true }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("conector_mapeos_version_uq").on(t.compania, t.ramo, t.operacion, t.version, t.orgId, t.producerId).nullsNotDistinct(),
+  index("conector_mapeos_operacion_idx").on(t.operacion, t.compania),
+]);
+
+/**
+ * Credenciales de los portales de las compañías, compartidas por los agentes.
+ * El secreto va cifrado con AES-256-GCM (src/lib/cifrado.ts): nunca se
+ * muestra, nunca va a logs y solo se descifra para pasárselo al conector.
+ */
+export const credencialesPortal = pgTable("credenciales_portal", {
+  id: serial("id").primaryKey(),
+  compania: text("compania").notNull(),
+  etiqueta: text("etiqueta").notNull(),
+  usuario: text("usuario").notNull(),
+  secretoCifrado: text("secreto_cifrado").notNull(),
+  /** activa | vencida | desactivada */
+  estado: text("estado").notNull().default("activa"),
+  ultimoUsoEl: timestamp("ultimo_uso_el", { withTimezone: true }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("credenciales_portal_compania_idx").on(t.compania, t.orgId, t.producerId)]);
+
 // ---------- Validador de pagos v2 (docs/specs/validador-v2.md) ----------
 
 /**
@@ -1145,17 +1207,28 @@ export const validadorCorridas = pgTable("validador_corridas", {
   id: serial("id").primaryKey(),
   /** cron | manual */
   origen: text("origen").notNull(),
+  /** validacion (trae y cruza) | enriquecimiento (IA: comprobantes, casos a revisar y resumen) */
+  etapa: text("etapa").notNull().default("validacion"),
   /** en_curso | ok | con_errores */
   estado: text("estado").notNull().default("en_curso"),
+  /** Porcentaje, para "Ejecutar validación". */
+  progreso: integer("progreso").notNull().default(0),
   iniciadaEl: timestamp("iniciada_el", { withTimezone: true }).notNull().defaultNow(),
   terminadaEl: timestamp("terminada_el", { withTimezone: true }),
   companiasProcesadas: integer("companias_procesadas").notNull().default(0),
   cuotasActualizadas: integer("cuotas_actualizadas").notNull().default(0),
   errores: jsonb("errores").$type<ErrorCorridaValidador[]>().notNull().default([]),
   costoIaUsd: numeric("costo_ia_usd", { precision: 12, scale: 6, mode: "number" }),
+  /** Para el productor: el de la IA si está activa; si no, el que arma el código. */
+  resumen: text("resumen"),
   orgId: text("org_id"),
   producerId: text("producer_id"),
 }, (t) => [index("validador_corridas_fecha_idx").on(t.orgId, t.iniciadaEl)]);
+
+/** La tabla de un PDF tal como la transcribió la IA: el mapeo y los montos los lee el código. */
+export type TablaExtraida = { encabezados: string[]; filas: string[][] };
+/** Una fila del listado que no se pudo leer: se cuenta y se muestra, nunca se descarta en silencio. */
+export type ProblemaFuente = { fila: number; mensaje: string };
 
 /** Un listado importado o lo que devolvió un conector para una compañía y un período. */
 export const validadorFuentes = pgTable("validador_fuentes", {
@@ -1164,14 +1237,22 @@ export const validadorFuentes = pgTable("validador_fuentes", {
   compania: text("compania").notNull(),
   /** api | portal | archivo */
   tipo: text("tipo").notNull(),
+  /** Nombre del archivo subido, o el canal del conector. */
+  nombre: text("nombre"),
   periodoDesde: date("periodo_desde", { mode: "string" }),
   periodoHasta: date("periodo_hasta", { mode: "string" }),
   /** xlsx | csv | pdf | conector */
   formato: text("formato").notNull(),
   archivoId: integer("archivo_id").references(() => archivos.id, { onDelete: "set null" }),
-  /** pendiente | procesando | procesada | error */
+  /** pendiente | extrayendo (IA) | mapeo_por_confirmar | procesada | error */
   estado: text("estado").notNull().default("pendiente"),
+  /** La plantilla (conector_mapeos) con la que se leyó. */
+  mapeoId: integer("mapeo_id").references(() => conectorMapeos.id, { onDelete: "set null" }),
+  /** Formato desconocido: la propuesta (de la IA o por sinónimos) que espera la confirmación del productor. */
+  mapeoPropuesto: jsonb("mapeo_propuesto").$type<Record<string, unknown>>(),
+  extraccion: jsonb("extraccion").$type<TablaExtraida>(),
   filasExtraidas: integer("filas_extraidas").notNull().default(0),
+  problemas: jsonb("problemas").$type<ProblemaFuente[]>().notNull().default([]),
   errorSeguro: text("error_seguro"),
   orgId: text("org_id"),
   producerId: text("producer_id"),
@@ -1185,6 +1266,10 @@ export const validadorPagosDetectados = pgTable("validador_pagos_detectados", {
   id: serial("id").primaryKey(),
   fuenteId: integer("fuente_id").notNull().references(() => validadorFuentes.id, { onDelete: "cascade" }),
   corridaId: integer("corrida_id").references(() => validadorCorridas.id, { onDelete: "set null" }),
+  /** Número de fila en el archivo (null si vino de un conector). */
+  fila: integer("fila"),
+  /** La fila tal como vino, con sus encabezados: no se pierde ninguna columna. */
+  original: jsonb("original").$type<Record<string, string>>(),
   datos: jsonb("datos").$type<PagoNormalizado>().notNull(),
   cuotaId: integer("cuota_id").references(() => cuotas.id, { onDelete: "set null" }),
   puntaje: integer("puntaje").notNull().default(0),
@@ -1194,6 +1279,12 @@ export const validadorPagosDetectados = pgTable("validador_pagos_detectados", {
   /** Lo que se decidió hacer con la cuota (src/lib/validador/estados.ts → cambioPorInforme). */
   cambio: text("cambio"),
   motivo: text("motivo"),
+  /** A revisar: lo que explica la IA (solo sugiere; confirma el productor). */
+  explicacion: text("explicacion"),
+  /** confirmar | revisar | enviar_a_cobranza | avisar_productor */
+  accionPropuesta: text("accion_propuesta"),
+  /** La candidata que sugiere la IA, siempre una de `candidatos`. */
+  cuotaSugeridaId: integer("cuota_sugerida_id").references(() => cuotas.id, { onDelete: "set null" }),
   revisadoEl: timestamp("revisado_el", { withTimezone: true }),
   orgId: text("org_id"),
   producerId: text("producer_id"),

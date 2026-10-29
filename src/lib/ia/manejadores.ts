@@ -1,5 +1,6 @@
 import "server-only";
 import { after } from "next/server";
+import { MANEJADORES_VALIDADOR } from "@/agentes/validador/trabajos";
 import { procesarTrabajos, type Manejadores } from "./cola";
 import type { DespachadorTrabajosIA } from "./registro";
 
@@ -8,7 +9,7 @@ import type { DespachadorTrabajosIA } from "./registro";
  * claveManejador). Cada agente agrega acá los suyos; una operación sin
  * manejador no se toma de la cola.
  */
-export const MANEJADORES: Manejadores = {};
+export const MANEJADORES: Manejadores = { ...MANEJADORES_VALIDADOR };
 
 /**
  * Procesa la cola después de responder la request, así una acción que encola

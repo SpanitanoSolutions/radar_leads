@@ -55,6 +55,9 @@ function claveItem(texto: string | null): string {
 
 const mismaCompania = (a: string | null, b: string | null) => a !== null && b !== null && companiaCanonica(a) === companiaCanonica(b);
 const dentroDeTolerancia = (a: number, b: number, tolerancia: number) => Math.abs(a - b) <= tolerancia + 0.005;
+/** Si la compañía no informa el número de cuota (`cuotaN` 0), la identifica el vencimiento. */
+const mismaCuota = (cuota: CuotaCartera, pago: PagoNormalizado) =>
+  pago.cuotaN > 0 ? cuota.numero === pago.cuotaN : cuota.vencimiento === pago.vencimiento;
 
 type Evaluacion = { cuota: CuotaCartera; puntaje: number; completa: boolean; motivos: string[] };
 
@@ -69,14 +72,16 @@ function evaluar(pago: PagoNormalizado, cuota: CuotaCartera, opciones: OpcionesM
   const moneda = cuota.moneda === pago.moneda;
   const criterios = {
     poliza: true,
-    cuota: cuota.numero === pago.cuotaN,
+    cuota: mismaCuota(cuota, pago),
     monto: moneda && dentroDeTolerancia(cuota.monto, pago.monto, opciones.toleranciaMonto),
     vencimiento: cuota.vencimiento === pago.vencimiento,
     moneda,
   };
   const motivos: string[] = [];
-  if (!poliza) motivos.push(`Coincide el cupón, pero la póliza figura como ${pago.poliza}.`);
-  if (!criterios.cuota) motivos.push(`Es la cuota ${cuota.numero} de ${cuota.cantidadCuotas} y la compañía informa la ${pago.cuotaN} de ${pago.cuotaTotal}.`);
+  if (!poliza && pago.poliza) motivos.push(`Coincide el cupón, pero la póliza figura como ${pago.poliza}.`);
+  if (!criterios.cuota && pago.cuotaN > 0) {
+    motivos.push(`Es la cuota ${cuota.numero} de ${cuota.cantidadCuotas} y la compañía informa la ${pago.cuotaN}${pago.cuotaTotal ? ` de ${pago.cuotaTotal}` : ""}.`);
+  }
   if (!moneda) motivos.push(`La cuota es en ${cuota.moneda} y la compañía informa ${pago.moneda}.`);
   else if (!criterios.monto) {
     motivos.push(`La compañía informa ${importe(pago.monto, pago.moneda)} y la cuota es de ${importe(cuota.monto, cuota.moneda)}.`);
@@ -123,7 +128,7 @@ export function matchearPago(pago: PagoNormalizado, cuotas: CuotaCartera[], opci
   }
 
   // Pago agrupado: una sola fila por la cuota de todos los ítems de una flota.
-  const delGrupo = evaluadas.filter((e) => e.cuota.numero === pago.cuotaN && e.cuota.moneda === pago.moneda && e.cuota.vencimiento === pago.vencimiento);
+  const delGrupo = evaluadas.filter((e) => mismaCuota(e.cuota, pago) && e.cuota.moneda === pago.moneda && e.cuota.vencimiento === pago.vencimiento);
   const suma = delGrupo.reduce((s, e) => s + e.cuota.monto, 0);
   if (!pago.item && delGrupo.length > 1 && dentroDeTolerancia(suma, pago.monto, opciones.toleranciaMonto)) {
     return {

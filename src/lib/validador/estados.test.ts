@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sumarDias } from "@/lib/fechas";
-import { bloqueDe, calcularEstado, cambioPorInforme, totalesPorBloque, totalizar, type CuotaActual } from "./estados";
+import { bloqueDe, calcularEstado, cambioPorInforme, estadoCuotaDe, totalesPorBloque, totalizar, type CuotaActual } from "./estados";
 import { resolverGracia } from "./gracia";
 
 const HOY = "2026-10-29";
@@ -116,5 +116,16 @@ describe("cambioPorInforme", () => {
 
   it("que la compañía diga vencida no cambia nada: el vencimiento lo calcula la gracia", () => {
     expect(cambioPorInforme(impaga, informe("vencida"))).toEqual({ tipo: "sin_cambios", motivo: null });
+  });
+});
+
+describe("estadoCuotaDe", () => {
+  it("lleva el estado del Validador al que leen Inicio y Estadísticas", () => {
+    expect(estadoCuotaDe("pagada")).toBe("pagada");
+    expect(estadoCuotaDe("vencida")).toBe("vencida");
+    // En gracia (por vencer) todavía no está vencida.
+    expect(estadoCuotaDe("por_vencer")).toBe("pendiente");
+    expect(estadoCuotaDe("pendiente")).toBe("pendiente");
+    expect(estadoCuotaDe("cancelada")).toBeNull();
   });
 });

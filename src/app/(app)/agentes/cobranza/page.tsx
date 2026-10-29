@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Aviso } from "@/components/Aviso";
 import { Bitacora, EncabezadoAgente } from "@/components/agentes/Agente";
 import { CONFIG_COBRANZA_INICIAL, PASOS_COBRANZA } from "@/agentes/cobranza/secuencia";
+import { graciaDeLaCartera } from "@/agentes/validador/cartera";
 import type { ConfigCobranza } from "@/db/schema";
 import { contactoDe } from "@/lib/asegurados";
 import {
@@ -19,7 +20,6 @@ import {
   agenteConfigurado,
   obtenerActividad,
   obtenerComprobantes,
-  obtenerCompanias,
   obtenerConfigAgente,
   obtenerContactos,
   obtenerCuotasDelMes,
@@ -31,6 +31,7 @@ import { diaEnArgentina, diaDeLaSemana, diaYMes, diasEntre, sumarDias } from "@/
 import { pesos } from "@/lib/formato";
 import { conFirma } from "@/lib/plantillas";
 import { agruparCobros, textoVence } from "@/lib/validador";
+import { diasDeGracia } from "@/lib/validador/gracia";
 import { aprobarTodos, guardarSecuencia } from "./actions";
 import { TarjetaPendiente, type Pendiente } from "./TarjetaPendiente";
 import "../agentes.css";
@@ -63,13 +64,13 @@ export default async function Cobranza({
   const verActividad = sp.ver === "actividad";
   const hoy = diaEnArgentina(new Date());
 
-  const [activo, recientes, delMes, pendientesDb, seguimientos, companias, config, cuenta, actividad] = await Promise.all([
+  const [activo, recientes, delMes, pendientesDb, seguimientos, graciaDe, config, cuenta, actividad] = await Promise.all([
     agenteConfigurado("cobranza"),
     obtenerCuotasRecientes(hoy),
     obtenerCuotasDelMes(hoy),
     obtenerPendientesCobranza(hoy),
     obtenerSeguimientosActivos(),
-    obtenerCompanias(),
+    graciaDeLaCartera(),
     obtenerConfigAgente<ConfigCobranza>("cobranza"),
     obtenerCuenta(),
     verActividad ? obtenerActividad("cobranza") : Promise.resolve([]),
@@ -84,7 +85,6 @@ export default async function Cobranza({
     obtenerComprobantes(cobros.map((c) => c.cabezaId)),
     obtenerContactos([...new Set(cobros.map((c) => c.aseguradoId))]),
   ]);
-  const gracia = new Map(companias.map((c) => [c.nombre, c.diasGracia]));
   const kpis = kpisCobranza(
     agruparCobros(delMes).map((c) => ({ ...c, cuotas: c.cuotas.length })),
     hoy,
@@ -159,7 +159,7 @@ export default async function Cobranza({
         proximo: textoProximo({
           vencimiento: cobro.vencimiento,
           hoy,
-          diasGracia: gracia.get(cobro.compania ?? "") ?? 30,
+          diasGracia: diasDeGracia(graciaDe(cobro.compania, cobro.cuotas[0].ramo), cobro.cuotas[0].numero),
           hecho: s.paso,
           pausa,
           sinContacto,

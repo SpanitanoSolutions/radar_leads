@@ -11,6 +11,9 @@ import type { CuotaConPoliza } from "./validador";
 
 const { cuotas, polizas, asegurados } = schema;
 
+/** Las cuotas que la compañía canceló (anulación) no se cobran ni cuentan como deuda. */
+const noCancelada = sql`coalesce(${cuotas.estadoValidacion}, '') <> 'cancelada'`;
+
 export async function agenteConfigurado(agente: string): Promise<boolean> {
   await connection();
   const [fila] = await db
@@ -81,7 +84,7 @@ export async function obtenerCuotasRecientes(hoy: string): Promise<CuotaConPoliz
       and(
         isNull(asegurados.bajaEl),
         or(
-          and(sql`${cuotas.estado} <> 'pagada'`, gte(cuotas.vencimiento, sumarDias(hoy, -60)), lte(cuotas.vencimiento, sumarDias(hoy, 30))),
+          and(sql`${cuotas.estado} <> 'pagada'`, noCancelada, gte(cuotas.vencimiento, sumarDias(hoy, -60)), lte(cuotas.vencimiento, sumarDias(hoy, 30))),
           and(eq(cuotas.estado, "pagada"), gte(cuotas.pagadaEl, haceUnaSemana)),
         ),
       ),
@@ -110,7 +113,7 @@ export async function obtenerComprobantes(cuotaIds: number[]): Promise<Map<numbe
     .where(inArray(schema.comprobantes.cuotaId, cuotaIds))
     .orderBy(desc(schema.comprobantes.recibidoEl));
   const porCuota = new Map<number, Comprobante>();
-  for (const c of filas) if (!porCuota.has(c.cuotaId)) porCuota.set(c.cuotaId, c);
+  for (const c of filas) if (c.cuotaId !== null && !porCuota.has(c.cuotaId)) porCuota.set(c.cuotaId, c);
   return porCuota;
 }
 
@@ -118,11 +121,6 @@ export async function obtenerCuentasCompanias(): Promise<Map<string, CuentaCompa
   await connection();
   const filas = await db.select({ nombre: schema.companias.nombre, cuentas: schema.companias.cuentas }).from(schema.companias);
   return new Map(filas.map((f) => [f.nombre, f.cuentas]));
-}
-
-export async function obtenerCompanias() {
-  await connection();
-  return db.select().from(schema.companias);
 }
 
 /** Datos de contacto de varios asegurados. */
@@ -204,7 +202,7 @@ export async function obtenerCuotasDelMes(hoy: string): Promise<CuotaConPoliza[]
     .from(cuotas)
     .innerJoin(polizas, eq(polizas.id, cuotas.polizaId))
     .innerJoin(asegurados, eq(asegurados.id, polizas.aseguradoId))
-    .where(and(isNull(asegurados.bajaEl), gte(cuotas.vencimiento, desde), lte(cuotas.vencimiento, hasta)));
+    .where(and(isNull(asegurados.bajaEl), noCancelada, gte(cuotas.vencimiento, desde), lte(cuotas.vencimiento, hasta)));
 }
 
 /** Siniestros con su póliza, asegurado, documentación e historial. */

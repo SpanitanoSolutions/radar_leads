@@ -1,4 +1,4 @@
-import type { EstadoValidacion, OrigenConfirmacion } from "@/db/schema";
+import type { EstadoCuota, EstadoValidacion, OrigenConfirmacion } from "@/db/schema";
 import type { EstadoCompaniaCuota, MedioPago, Moneda } from "@/lib/conectores/tipos";
 import { diasEntre, finDeSemana, sumarDias } from "@/lib/fechas";
 import { diasDeGracia, type Gracia } from "./gracia";
@@ -38,6 +38,28 @@ export function calcularEstado(cuota: CuotaParaEstado, contexto: { hoy: string; 
   if (cuota.vencimiento <= finDeSemana(contexto.hoy)) return { ...base, estado: "por_vencer" };
   return { ...base, estado: "pendiente" };
 }
+
+/**
+ * El estado que lee el resto de UNIQO (cuotas.estado: Inicio, Estadísticas).
+ * La que sigue en gracia todavía no está vencida. Una cancelada no se toca:
+ * esas pantallas la excluyen por estado_validacion.
+ */
+export function estadoCuotaDe(estado: EstadoValidacion): EstadoCuota | null {
+  if (estado === "pagada" || estado === "vencida") return estado;
+  if (estado === "cancelada") return null;
+  return "pendiente";
+}
+
+/** Cómo se muestra el medio de pago en la cuota (cuotas.medio_pago). */
+export const ETIQUETA_MEDIO: Record<MedioPago, string> = {
+  debito_tarjeta: "Débito con tarjeta",
+  debito_cbu: "Débito por CBU",
+  pago_facil: "Pago Fácil",
+  rapipago: "Rapipago",
+  transferencia: "Transferencia",
+  mercadopago: "Mercado Pago",
+  efectivo_productor: "Efectivo al productor",
+};
 
 // ---------- Totales de la vista Cobranza ----------
 

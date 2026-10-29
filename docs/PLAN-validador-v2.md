@@ -78,7 +78,8 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes`. Progreso: [progreso/
 ## 4. Preguntas abiertas y decisiones
 1. **Dos "gracias". Decidido el 29/10/2026: Cobranza pasa a usar la gracia del Validador.**
    - En la fase 3, Cobranza calcula el "fin de gracia" con `resolverGracia()` y `diasDeGracia()` (1.ª cuota o siguientes, por ramo) en vez de `companias.dias_gracia`, que queda sin uso.
-   - **Cuidado:** hoy Cobranza usa 30 días si la compañía no tiene dato; con la gracia nueva, sin fila la gracia es 0 y sus pasos se adelantan. Antes de cambiar Cobranza hay que cargar `validador_gracia`: copiar `companias.dias_gracia` con ramo `*` o pedirla en Configuración. A decidir al empezar la fase 3.
+   - **Cuidado:** hoy Cobranza usa 30 días si la compañía no tiene dato; con la gracia nueva, sin fila la gracia es 0 y sus pasos se adelantan.
+   - **Decidido el 29/10/2026:** la migración 0027 copia `companias.dias_gracia` (30) a `validador_gracia` como fila de plataforma con ramo `*`, también para las compañías de la cartera que no están en `companias`. Una compañía nueva arranca sin gracia hasta que se cargue en Configuración. Hecho en la fase 3.
 2. **`por_vencer`. Decidido el 29/10/2026: semana calendario, de lunes a domingo.** Hecho en `calcularEstado()` con `finDeSemana()` de `src/lib/fechas.ts`. `montosPorPlazo()` del v1 sigue con 7 días corridos hasta que la fase de UI lo reemplace.
 3. **Ramos. Decidido el 29/10/2026: una sola lista, la de la cartera** (`RAMOS_CARTERA` en `src/lib/ramos.ts`).
    - La grilla de gracia, los filtros y la importación usan los mismos ramos.

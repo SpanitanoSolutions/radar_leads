@@ -6,6 +6,8 @@ import { enviarMensaje } from "@/agentes/envio";
 import { agruparCobros, type Cobro } from "@/lib/validador";
 import { dentroDeHorario, pasoQueToca, referenciaDe, type Paso, type Pendiente } from "@/lib/cobranza";
 import { obtenerCuotas, obtenerCuotasRecientes } from "@/lib/datos-agentes";
+import { diasDeGracia } from "@/lib/validador/gracia";
+import { graciaDeLaCartera, recalcularEstados } from "../validador/cartera";
 import { diaYMes, sumarDias } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { completarPlantilla, nombreDePila } from "@/lib/plantillas";
@@ -185,7 +187,7 @@ export async function prepararMensaje(
     cuota: cobro.cuotas[0].numero,
     monto: cobro.monto,
     vencimiento: cobro.vencimiento,
-    diasGracia: compania?.diasGracia ?? 30,
+    diasGracia: diasDeGracia((await graciaDeLaCartera())(cobro.compania, cobro.cuotas[0].ramo), cobro.cuotas[0].numero),
     mediosPago: compania?.mediosPago ?? "transferencia",
     pagado: extra.pagado,
     problema: extra.problema ? problemaParaElCliente(extra.problema, cobro.compania ?? "la compañía") : undefined,
@@ -234,12 +236,13 @@ export async function marcarPaso(cabezaId: number, paso: Paso, contacto: string,
 }
 
 /**
- * Lo que corre el cron cada mañana: marca las cuotas vencidas, retoma las
+ * Lo que corre el cron cada mañana: actualiza los estados con la gracia del
+ * Validador (una cuota en gracia todavía no está vencida), retoma las
  * promesas de pago que ya pasaron y prepara el mensaje del paso que toca en
  * cada cobro impago. No envía nada que no esté marcado como automático.
  */
 export async function generarBorradores(hoy: string, ahora: Date = new Date()) {
-  await db.update(schema.cuotas).set({ estado: "vencida" }).where(and(eq(schema.cuotas.estado, "pendiente"), sql`${schema.cuotas.vencimiento} < ${hoy}`));
+  await recalcularEstados(hoy);
   await db
     .update(schema.seguimientosCobranza)
     .set({ estado: "activo", motivoPausa: null, ultimaNovedad: "No pagó en la fecha prometida", actualizadoEl: ahora })
@@ -257,7 +260,7 @@ export async function generarBorradores(hoy: string, ahora: Date = new Date()) {
         .where(and(inArray(schema.comprobantes.cuotaId, cabezas), eq(schema.comprobantes.estado, "por_revisar")))
     : [];
   const esperandoValidacion = new Set(comprobantes.map((c) => c.cuotaId));
-  const companias = new Map((await db.select().from(schema.companias)).map((c) => [c.nombre, c]));
+  const graciaDe = await graciaDeLaCartera();
 
   let preparados = 0;
   let enviados = 0;
@@ -266,7 +269,7 @@ export async function generarBorradores(hoy: string, ahora: Date = new Date()) {
     const seg = seguimientos.find((s) => s.cuotaId === cobro.cabezaId);
     if (seg && seg.estado !== "activo") continue;
     if (esperandoValidacion.has(cobro.cabezaId)) continue;
-    const gracia = companias.get(cobro.compania ?? "")?.diasGracia ?? 30;
+    const gracia = diasDeGracia(graciaDe(cobro.compania, cobro.cuotas[0].ramo), cobro.cuotas[0].numero);
     const paso = pasoQueToca(cobro.vencimiento, hoy, gracia, seg?.paso ?? 0);
     if (!paso) continue;
     const r = await prepararMensaje(cobro.cabezaId, paso, {}, ahora);
