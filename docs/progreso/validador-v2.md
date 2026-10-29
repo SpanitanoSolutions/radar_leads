@@ -23,8 +23,20 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes` (necesita sus tipos y
   - **`cuotas`:** columnas nuevas `item`, `endoso`, `cupon`, `moneda` (ARS por defecto), `estado_validacion`, `fecha_pago`, `origen_confirmacion`, `ultima_revision`, `cancelada_el` y `motivo_cancelacion`.
   - **Única de `cuotas`:** antes era (póliza, número) y ahora es (póliza, número, ítem, endoso) con `NULLS NOT DISTINCT`, porque en una flota cada ítem tiene su cuota n de N (el conector simulado ya lo devuelve así). Para las cuotas existentes, sin ítem ni endoso, la regla es la misma. Ningún `onConflict` usaba el índice viejo.
   - **Tablas nuevas:** `validador_gracia`, `validador_config`, `validador_corridas`, `validador_fuentes` y `validador_pagos_detectados`, todas con `org_id` y `producer_id`.
-  - **Postgres 15 o más:** `NULLS NOT DISTINCT` lo necesita. Neon crea 16 o 17 por defecto, pero hay que confirmarlo.
-  - **Sin probar contra Postgres:** no hay base local. Se aplica en el próximo deploy de producción (`preparar-db`).
+  - **Postgres 15 o más:** `NULLS NOT DISTINCT` lo necesita. Neon crea 16 o 17 por defecto, pero hay que confirmar la versión de producción en la consola de Neon.
+  - **Probada contra Postgres 17.11** (Docker descartable, 29/10/2026):
+    - Con el código de `57cfdee`, la base quedó en la 0024 con los datos de ejemplo (53 cuotas). Después, `db:preparar` de esta rama aplicó la 0025. Las 53 cuotas quedaron idénticas (misma huella md5 antes y después), todas en ARS. El índice viejo se borró y se creó la única nueva.
+    - En una transacción deshecha:
+      - repetir (póliza, número) sin ítem falla;
+      - dos ítems de la misma flota pasan, y repetir un ítem falla;
+      - gracia y configuración no aceptan dos filas del mismo alcance, pero sí plataforma más organización;
+      - borrar una fuente borra sus pagos, y borrar una cuota deja el pago sin cuota.
+    - Una base vacía con la 0000 a la 0025 y el seed nuevo también funciona.
+  - **Cómo repetir la prueba:**
+    1. `docker run -d --name uniqo-pg-prueba -e POSTGRES_PASSWORD=prueba -e POSTGRES_DB=uniqo -p 55432:5432 postgres:17`.
+    2. `DATABASE_URL=postgres://postgres:prueba@127.0.0.1:55432/uniqo npm run db:preparar`.
+    3. Para simular producción, correr el paso 2 primero desde un worktree del commit anterior.
+  - En producción se aplica en el próximo deploy (`preparar-db`).
 - **Reglas** en `src/lib/validador/`, puras y con tests al lado:
   - **`gracia.ts`:**
     - `resolverGracia()`: cascada plataforma → organización → productor y ramo exacto sobre `*`. Compañía y ramo se comparan con `companiaCanonica` y `ramoCanonico`.
