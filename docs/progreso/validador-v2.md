@@ -443,7 +443,7 @@ Rama `feat/validador-cierre`, que sale de `main` con la 4b ya mergeada (PR #31).
 ## Próximo paso exacto
 1. ~~Subir la 4b~~: hecho (PR #31).
 2. ~~Fase 5 (cierre)~~: hecha en `feat/validador-cierre`. Falta el PR y el merge (trae la migración 0028, que solo agrega columnas).
-3. **Con Julian:**
+3. **Cuando se habilite cada conexión** (decisión de Julian del 29/10/2026: las conexiones reales y la IA se habilitan de a una y se prueban; no son bloqueos):
    - el set real: listados anonimizados de 3 compañías y 20 comprobantes, con su `set.json` como el de `scripts/evaluacion-validador/demo/`. Correr `npm run evaluar:validador -- <carpeta> --ia` y calibrar los pesos del matching con lo que salga;
    - la IA real (criterios 4 y 12): subir un PDF de listado desconocido en la pantalla y ver que la IA lo transcribe y queda la plantilla al confirmarlo; y con `CONECTORES_SIMULADOS=1`, que el enriquecimiento explique los casos a revisar y escriba el resumen. Necesita una `ANTHROPIC_API_KEY` en un entorno que no sea producción (la de producción está solo en Production).
 
