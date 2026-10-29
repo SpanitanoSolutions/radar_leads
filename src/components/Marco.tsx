@@ -309,8 +309,10 @@ export function Marco({
         <main id="contenido" className="contenido" tabIndex={-1}>
           {children}
           <footer className="firma-app">
-            <span>Powered by</span>
-            <strong>Spanitano Solutions</strong>
+            <p>
+              Powered by <strong>Spanitano Solutions</strong>
+            </p>
+            <p>© {new Date().getFullYear()} Spanitano Solutions. Todos los derechos reservados.</p>
           </footer>
         </main>
       </div>
