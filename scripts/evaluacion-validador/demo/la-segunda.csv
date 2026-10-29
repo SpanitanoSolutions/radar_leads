@@ -1,0 +1,18 @@
+Nro. Póliza,Unidad,Cuota Nro.,Cant. Cuotas,Fecha Vto.,Importe,Fecha Pago,Situación,Forma de Cobro
+SEG-AU-1050377,,5,12,10/10/2026,"$ 59.263,88",10/10/2026,Cobrada,Débito tarjeta
+SEG-AU-3751522,,4,6,10/10/2026,"$ 112.513,57",,Vencida,
+SEG-FL-5262583,1,3,12,10/10/2026,"$ 142.218,06",10/10/2026,Cobrada,Transferencia
+SEG-FL-5262583,2,3,12,10/10/2026,"$ 142.218,06",13/10/2026,Cobrada,Transferencia
+SEG-FL-5262583,3,3,12,10/10/2026,"$ 142.218,06",09/10/2026,Cobrada,Transferencia
+SEG-HO-1774558,,7,12,10/10/2026,"$ 16.732,57",,Vencida,
+SEG-IC-6651735,,6,12,10/10/2026,"USD 324,55",11/10/2026,Cobrada,Transferencia
+SEG-VI-9904431,,9,12,10/10/2026,"$ 9.404,52",05/10/2026,Cobrada,Mercado Pago
+SEG-AU-1050377,,6,12,10/11/2026,"$ 59.263,88",,Pendiente,
+SEG-AU-3751522,,5,6,10/11/2026,"$ 112.513,57",,Pendiente,
+SEG-FL-5262583,1,4,12,10/11/2026,"$ 142.218,06",,Pendiente,
+SEG-FL-5262583,2,4,12,10/11/2026,"$ 142.218,06",,Pendiente,
+SEG-FL-5262583,3,4,12,10/11/2026,"$ 142.218,06",,Pendiente,
+SEG-HO-1774558,,8,12,10/11/2026,"$ 16.732,57",,Anulada,
+SEG-IC-6651735,,7,12,10/11/2026,"USD 324,55",,Pendiente,
+SEG-VI-9904431,,10,12,10/11/2026,"$ 9.404,52",,Pendiente,
+SEG-AU-7730112,,3,12,10/10/2026,"$ 48.900,00",09/10/2026,Cobrada,Pago Fácil

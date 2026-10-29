@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { EstadoCotizacion } from "@/lib/cotizacion";
+import { ramoCanonico } from "@/lib/ramos";
 
 export type NuevaSolicitud = {
   aseguradoId?: number | null;
@@ -30,7 +31,9 @@ export class SinCompaniasCotizablesError extends Error {
  */
 export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
   const aseguradoras = await db.select().from(schema.cotizacionAseguradoras).where(eq(schema.cotizacionAseguradoras.activa, true));
-  const habilitadas = aseguradoras.filter((aseguradora) => !aseguradora.ramos.length || aseguradora.ramos.includes(s.ramo)).map(({ nombre }) => nombre);
+  // El lead y la ficha usan los ramos de la cartera ("Flota", "Auto") y las compañías, los de Cotización ("Flotas", "Automotor").
+  const ramo = ramoCanonico(s.ramo);
+  const habilitadas = aseguradoras.filter((aseguradora) => !aseguradora.ramos.length || aseguradora.ramos.some((r) => ramoCanonico(r) === ramo)).map(({ nombre }) => nombre);
   if (!habilitadas.length) throw new SinCompaniasCotizablesError();
 
   const solicitadas = s.companias?.length ? [...new Set(s.companias)] : habilitadas;

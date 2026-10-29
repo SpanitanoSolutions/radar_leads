@@ -6,12 +6,13 @@
  * Donde los diseños se contradicen, mandan los asegurados y pólizas de
  * Cartera.dc.html; los demás textos se adaptaron a esos datos.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import type { Chequeo, CotizacionRecibida, Retenciones } from "../src/db/schema";
 import { borrarEjemplosDeCartera } from "../src/db/ejemplos";
 import { CONFIG_COBRANZA_INICIAL } from "../src/agentes/cobranza/secuencia";
 import { diaEnArgentina, sumarDias } from "../src/lib/fechas";
+import { ACUERDOS_VALIDADOR, graciaDeEjemplo, sembrarValidador } from "./validador-ejemplo";
 
 type P = {
   ramo: string;
@@ -321,8 +322,8 @@ const CUOTAS: C[] = [
   ["FC-55120", 9, 90000, { dia: 6 }, { cuando: { dia: 4 }, medio: "Transferencia" }],
 ];
 
-/** Comisión acordada con cada compañía, por ramo (porcentaje). */
-const ACUERDOS: Record<string, Record<string, number>> = {
+/** Comisión acordada con cada compañía, por ramo (porcentaje). Se suman los ramos de las pólizas del Validador. */
+const ACUERDOS_CARTERA: Record<string, Record<string, number>> = {
   Sancor: { Integral: 15, Hogar: 20, "Integral de comercio": 20, "RC profesional": 20, ART: 10 },
   "Federación Patronal": { Flota: 12, Auto: 15, Vida: 20, AP: 20, ART: 10 },
   "La Segunda": { Auto: 20, Moto: 20, "Integral de comercio": 25 },
@@ -340,6 +341,9 @@ const ACUERDOS: Record<string, Record<string, number>> = {
   },
   "Fianzas y Crédito": { Caución: 25 },
 };
+const ACUERDOS: Record<string, Record<string, number>> = Object.fromEntries(
+  [...new Set([...Object.keys(ACUERDOS_CARTERA), ...Object.keys(ACUERDOS_VALIDADOR)])].map((c) => [c, { ...ACUERDOS_CARTERA[c], ...ACUERDOS_VALIDADOR[c] }]),
+);
 
 const COMPANIAS = [
   {
@@ -376,6 +380,20 @@ const COMPANIAS = [
     emailComisiones: "administracion@ejemplo-fyc.com.ar",
     emailSiniestros: null,
     mediosPago: "transferencia",
+  },
+  {
+    nombre: "San Cristóbal",
+    cuentas: [{ titular: "San Cristóbal Seguros", banco: "Banco Provincia", alias: "sancristobal.cobros" }],
+    emailComisiones: "productores@ejemplo-sancristobal.com.ar",
+    emailSiniestros: "siniestros@ejemplo-sancristobal.com.ar",
+    mediosPago: "transferencia, débito automático o Pago Fácil",
+  },
+  {
+    nombre: "Rivadavia",
+    cuentas: [{ titular: "Seguros Rivadavia", banco: "Banco Nación", alias: "rivadavia.cobranza" }],
+    emailComisiones: "comisiones@ejemplo-rivadavia.com.ar",
+    emailSiniestros: "siniestros@ejemplo-rivadavia.com.ar",
+    mediosPago: "transferencia o Rapipago",
   },
 ];
 
@@ -488,6 +506,9 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
       cuotaId.set(`${numero}#${n}`, fila.id);
     }
     const cuota = (numero: string, n: number) => cuotaId.get(`${numero}#${n}`)!;
+
+    // Validador de pagos: 6 compañías con las pólizas de los conectores simulados, listados y comprobantes sueltos.
+    const validador = await sembrarValidador(tx, { hoy, importacionId: importacion.id, cuentas: new Map(COMPANIAS.map((c) => [c.nombre, c.cuentas])) });
 
     // Comprobantes que llegaron (Validador de pagos).
     const ok = (id: Chequeo["id"], texto: string): Chequeo => ({ id, resultado: "ok", texto });
@@ -1287,6 +1308,22 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
             comision: Math.round(monto * porcentaje) / 100,
           };
         });
+      // Lo que el Validador dio por pagado en el período también se liquidó.
+      const delValidador = await tx
+        .select({ numero: schema.polizas.numero, polizaId: schema.polizas.id, ramo: schema.polizas.ramo, n: schema.cuotas.numero, monto: schema.cuotas.monto })
+        .from(schema.cuotas)
+        .innerJoin(schema.polizas, eq(schema.polizas.id, schema.cuotas.polizaId))
+        .where(and(
+          eq(schema.polizas.compania, l.compania),
+          inArray(schema.polizas.numero, validador.polizas),
+          eq(schema.cuotas.estado, "pagada"),
+          gte(schema.cuotas.pagadaEl, new Date(`${periodo}-01T00:00:00-03:00`)),
+          lt(schema.cuotas.pagadaEl, new Date(`${primeroDelMes}T00:00:00-03:00`)),
+        ));
+      for (const c of delValidador) {
+        const porcentaje = ACUERDOS[l.compania][c.ramo];
+        items.push({ polizaNumero: c.numero!, polizaId: c.polizaId, cuotaNumero: c.n, base: c.monto, porcentaje, comision: Math.round(c.monto * porcentaje) / 100 });
+      }
       const liquidado = items.reduce((s, i) => s + i.comision, 0);
       const retenido = (l.retenciones.iibb ?? 0) + (l.retenciones.ganancias ?? 0);
       const [fila] = await tx
@@ -1317,10 +1354,13 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
       )
       .onConflictDoNothing();
     await tx.insert(schema.companias).values(COMPANIAS).onConflictDoNothing();
-    // Gracia del Validador (la usa también Cobranza): los 30 días de siempre, para todos los ramos.
+    // Gracia del Validador (la usa también Cobranza): los 30 días de siempre, para todos los ramos, salvo en dos compañías.
     await tx
       .insert(schema.validadorGracia)
-      .values(COMPANIAS.map((c) => ({ compania: c.nombre, ramo: "*", diasPrimera: 30, diasSiguientes: 30 })))
+      .values(COMPANIAS.map((c) => {
+        const [diasPrimera, diasSiguientes] = graciaDeEjemplo(c.nombre);
+        return { compania: c.nombre, ramo: "*", diasPrimera, diasSiguientes };
+      }))
       .onConflictDoNothing();
     const conectada = (clave: string, tipo: string, datos: Record<string, string | boolean>, compania?: string) => ({
       clave,

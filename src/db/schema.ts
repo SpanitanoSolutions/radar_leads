@@ -414,6 +414,8 @@ export const comprobantes = pgTable("comprobantes", {
   estado: estadoComprobanteEnum("estado").notNull().default("por_revisar"),
   recibidoEl: timestamp("recibido_el", { withTimezone: true }).notNull().defaultNow(),
   revisadoEl: timestamp("revisado_el", { withTimezone: true }),
+  /** Los sueltos (sin cuota) no se borran con el asegurado de ejemplo: se borran por esta marca. */
+  esEjemplo: boolean("es_ejemplo").notNull().default(false),
 });
 
 /** Dónde está cada cobro en la secuencia de cobranza. */
@@ -1126,6 +1128,7 @@ export const conectorMapeos = pgTable("conector_mapeos", {
   confirmadoEl: timestamp("confirmado_el", { withTimezone: true }),
   orgId: text("org_id"),
   producerId: text("producer_id"),
+  esEjemplo: boolean("es_ejemplo").notNull().default(false),
   creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique("conector_mapeos_version_uq").on(t.compania, t.ramo, t.operacion, t.version, t.orgId, t.producerId).nullsNotDistinct(),
@@ -1256,6 +1259,7 @@ export const validadorFuentes = pgTable("validador_fuentes", {
   errorSeguro: text("error_seguro"),
   orgId: text("org_id"),
   producerId: text("producer_id"),
+  esEjemplo: boolean("es_ejemplo").notNull().default(false),
   creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("validador_fuentes_estado_idx").on(t.estado, t.creadoEl)]);
 

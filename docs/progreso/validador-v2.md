@@ -4,13 +4,15 @@ Spec: [validador-v2.md](../specs/validador-v2.md). Plan: [PLAN-validador-v2.md](
 Ramas:
 - Las fases 1 a 3 se hicieron en `feat/validador-v2` (sobre `feat/base-agentes`), mergeadas a `main` con los PR #27 y #28.
 - La 4a se hizo en `feat/validador-pantalla`, mergeada con el PR #30 y en producción.
-- La 4b está en `feat/validador-configuracion`, que sale de `main`, sin PR.
+- La 4b se hizo en `feat/validador-configuracion`, mergeada con el PR #31.
+- La 5 (cierre) está en `feat/validador-cierre`, que sale de `main`.
 
 ## Estado
-**Fases 1 a 4b hechas** (29/10/2026). Falta el cierre (fase 5).
-- `npm test`: pasan 465 de 470 (14 nuevos en la 4b). Los 5 que fallan (`catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`) son los mismos de antes.
+**Fases 1 a 5 hechas** (29/10/2026). Quedan dos pruebas que dependen de Julian: el set real (criterio 14) y la IA real con un PDF (criterios 4 y 12).
+- `npm test`: pasan 474 de 479 (9 nuevos en la fase 5). Los 5 que fallan (`catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`) son los mismos de antes.
 - `npm run lint`: sin errores (las 3 advertencias viejas, en archivos que no se tocaron).
 - `npm run build`: OK.
+- `npm run test:e2e`: **pasa entero** (23 pasos) contra Postgres 18.6 con el seed.
 
 | Fase | Estado |
 |---|---|
@@ -18,8 +20,8 @@ Ramas:
 | 2. Fuentes (listados, plantillas, credenciales y conectores) | Hecha |
 | 3. Corrida y comprobantes | Hecha (las notificaciones se hicieron en la 4b) |
 | 4a. Pantalla principal (`/agentes/validador`) | Hecha y en producción (PR #30) |
-| 4b. Configuración (4 pestañas) y notificaciones | Hecha (commit `c51bbbb`, rama `feat/validador-configuracion`, sin subir ni PR) |
-| 5. Seed, evaluación, E2E y PR | Pendiente (el README ya está actualizado) |
+| 4b. Configuración (4 pestañas) y notificaciones | Hecha y mergeada (PR #31) |
+| 5. Seed, evaluación, E2E y PR | Hecha (rama `feat/validador-cierre`). El script está listo y espera el set real |
 
 ## Cambios desde la sesión anterior (29/10/2026)
 - `feat/base-agentes` y `feat/validador-v2` están mergeadas a `main` (PR #27 y #28). Las migraciones de la 0024 a la 0027 ya se aplicaron en producción.
@@ -45,8 +47,8 @@ Ramas:
 | 11. Sin IA funciona y se ocultan los controles | Hecho: en la pantalla principal, sin IA no se ofrece PDF ni la lectura de comprobantes con IA; en la Configuración, los textos del enriquecimiento y del resumen no nombran la IA |
 | 12. Conectores simulados: corrida, excepciones explicadas y resumen | Corrida y resumen, sí. La IA explica las excepciones en el enriquecimiento; falta probarlo con la IA real |
 | 13. Si un conector falla, vuelve a manual y avisa | En código: error en la corrida, Actividad y `conector_salud`. Desde la 4b, el evento "Errores de la corrida" avisa al productor por WhatsApp o email. El armado del aviso está probado contra Postgres; el envío real no, porque Gmail no estaba conectado. La falla del conector, solo con los tests de canales |
-| 14. Set de prueba de Julian (95 % y 90 %) | Fase 5 |
-| 15. E2E | Fase 5 |
+| 14. Set de prueba de Julian (95 % y 90 %) | Script hecho (`npm run evaluar:validador`) y probado con el set de demo. **Falta el set real de Julian** y correrlo con `--ia` |
+| 15. E2E | Hecho: paso 13 de `e2e/flujos.mjs`, y la suite completa pasa |
 
 ## Hecho (fase 1)
 - **Plan:** `docs/PLAN-validador-v2.md` con la tabla "ya existe / falta / cambia", las fases y las preguntas abiertas. Se escribió y se implementó en la misma sesión, porque así lo pidió Julian ("plan corto primero, después implementá").
@@ -397,9 +399,56 @@ Además:
 - el recorrido de 18 pasos de la 4a volvió a pasar sobre una base limpia;
 - se comprobó que el buscador queda vacío al cambiar de pestaña.
 
+## Fase 5 (cierre, 29/10/2026)
+Rama `feat/validador-cierre`, que sale de `main` con la 4b ya mergeada (PR #31). Julian todavía no tiene el set real: el script se arma con un set de demo y queda listo para correr con el suyo.
+
+### Diseño (decidido al empezar, 29/10/2026)
+- **Migración `0028`:** `es_ejemplo` en `validador_fuentes`, `comprobantes` y `conector_mapeos`, para que `borrarEjemplosDeCartera()` se lleve también los listados, los comprobantes sueltos y la plantilla de ejemplo.
+- **Arreglo de paso:** la limpieza de archivos de `borrarEjemplosDeCartera()` no miraba `validador_fuentes`, `siniestro_gastos` ni `siniestro_informes`, así que podía borrar un listado, un comprobante de gasto o un informe reales.
+- **Seed (`scripts/validador-ejemplo.ts`, lo llama `sembrarCartera()`):**
+  - suma San Cristóbal (gracia 15/15) y Rivadavia (30 la 1.ª, 10 las siguientes) a las 4 compañías con pólizas: son las 6 del Validador;
+  - las pólizas de cada una son las de `carteraDeEjemplo()` (las que devuelven los conectores simulados), con un asegurado por póliza (29 nuevos; el matching de comprobantes junta en un cobro las cuotas del mismo asegurado que vencen el mismo día) y las cuotas que vencen entre 120 días atrás y 45 adelante: 264, más las 53 de antes;
+  - lo pagado hace más de 21 días queda pagado (origen portal; en Sancor, listado). Lo pagado después queda abierto, así "Ejecutar validación" lo confirma;
+  - Federación Patronal ya tiene canceladas las cuotas que informa anuladas (Canceladas no arranca vacía); el resto de la anulación, y la de las demás, la descubre la validación;
+  - la Vida de Rivadavia no está en la cartera: sus pagos quedan "no identificados";
+  - **listado 1:** Sancor, CSV, procesado con su plantilla (coinciden, uno a revisar por monto, uno no identificado y la fila de totales);
+  - **listado 2:** La Segunda, CSV de formato nuevo, esperando que se confirmen las columnas;
+  - **5 comprobantes sueltos:** uno exacto, uno en USD, uno con dos cobros posibles, uno a una cuenta que no es de la compañía y uno que la IA no pudo leer.
+  - **Aviso:** las fechas de los conectores simulados dependen del mes en curso. Si cambió el mes desde que se sembró, hay que volver a sembrar.
+- **`scripts/evaluar-validador.ts`:** lee un set (`set.json` con la cartera, los listados y los comprobantes esperados). Sin IA mide la lectura de listados con la plantilla o los sinónimos y el matching; con `--ia` (y una base), la extracción con IA. Set de demo en `scripts/evaluacion-validador/demo/`.
+- **E2E:** paso nuevo en `e2e/flujos.mjs` con el criterio 15.
+
+### Hecho en la fase 5
+- **Migración `0028_validador_ejemplos.sql`** (generada con drizzle-kit) y la limpieza de `borrarEjemplosDeCartera()`, con el arreglo de los archivos.
+- **Seed:** `scripts/validador-ejemplo.ts`, conectado en `scripts/cartera-ejemplo.ts`, que además suma San Cristóbal y Rivadavia a `COMPANIAS`, la gracia por compañía y los acuerdos de los ramos nuevos. Las liquidaciones de ejemplo incluyen lo que el Validador dio por pagado en el período, así el Conciliador sigue mostrando solo sus diferencias de siempre.
+  - **La validación ya no deja todo "no identificado":** con la app compilada y `CONECTORES_SIMULADOS=1`, `/api/cron/validador` revisa las 6 compañías, confirma 34 pagos, cancela 22 cuotas y deja 2 casos a revisar (el monto de La Segunda) y 3 no identificados (la Vida de Rivadavia). Las vencidas pasan de 21 a 2: eran cuotas que la compañía ya había cobrado.
+  - Probado contra Postgres 18.6 desde cero: 317 cuotas (36 en USD). El listado de Sancor deja 7 pagadas, 1 a revisar, 1 no identificada y la fila de totales en problemas; el de La Segunda queda para confirmar. Los comprobantes proponen 3 cobros (100, 95 y 95 pts), 3 en USD, 3 con la cuota impaga primero, ninguno y "faltan los datos".
+- **E2E:** paso 13 de `e2e/flujos.mjs` (los siguientes se corrieron un número). **La suite completa pasa por primera vez** ("Todo OK", 23 pasos) contra Postgres 18.6 y la app compilada con `CONECTORES_SIMULADOS=1`, sin IA ni canales.
+  - Para que pase hubo que poner al día selectores viejos (el menú "Asegurados", el PDF de la propuesta, Desempeño, "Cerrar sesión" dentro del menú de la cuenta) y adaptar los pasos que mandan algo: Cobranza, Siniestros y Conciliador ya no tienen envío simulado. Sin WhatsApp o Gmail conectados de verdad, el E2E comprueba que avisan y no sale nada; WhatsApp, que sin el token de Meta no se conecta.
+- **Evaluación:** `scripts/evaluar-validador.ts` (`npm run evaluar:validador -- <carpeta> [--ia]`).
+  - Lee `set.json`: la cartera (con un id por cuota), las cuentas de cada compañía, cada listado con lo que tiene que salir de cada fila (póliza, monto, vencimiento y la cuota) y cada comprobante con lo que tiene que salir (monto, fecha, póliza si la menciona y la cuota). Un `cuotaId` null quiere decir "no es de la cartera".
+  - **Sin IA** mide el código: los listados en Excel o CSV con la plantilla del set (o por sinónimos) y el matching; para los comprobantes usa los `datos` del set. **Con `--ia`** usa las mismas funciones del agente (`ia.ts`) para los PDF, los formatos nuevos y los comprobantes, y queda el costo en `ia_uso`.
+  - Sale con código 1 si no se cumple la meta, si el set no tiene 3 compañías y 20 comprobantes, o si se corrió sin `--ia`.
+  - **Set de demo** en `scripts/evaluacion-validador/demo/`: ficticio, armado con los conectores simulados al 29/10/2026 (Sancor con ";", La Segunda con "," y otros encabezados, Mapfre con tabulador, sin columna de estado y con su plantilla en el set) y 5 comprobantes en PDF de texto. Sin IA: extracción 95,7 %, matching 88,2 %.
+  - Lo único que falla es un caso puesto a propósito: Mapfre pega el ítem a la póliza ("MAP-FL-1222611 / 1") y `leerListado()` no lo separa, así que esas 6 filas no encuentran la póliza. Si aparece en los listados reales, hay que enseñarle a separarlo.
+- **Dos bugs reales que encontró el E2E (arreglados):**
+  - `src/components/Marco.tsx`: al presionar el mouse en cualquier lado se cerraban **todos** los `<details>` abiertos, no solo los menús. Si arriba había una sección abierta (por ejemplo, "Cargar los datos a mano" de un comprobante sin datos), la página subía y el clic se perdía: "Es este cobro: confirmar" no hacía nada. Ahora solo se cierran `.barra-desplegable` y `.desplegable`.
+  - `src/agentes/cotizacion/solicitudes.ts`: crear una cotización desde la ficha de un lead o de un asegurado decía "No hay compañías configuradas para cotizar", porque comparaba "Flota" o "Auto" con "Flotas" o "Automotor". Ahora compara con `ramoCanonico()`.
+
+### Avisos de la fase 5
+- **Datos de prueba que no son de ejemplo:** las corridas y lo que traen los conectores simulados (`validador_corridas` y las fuentes `api` o `portal`) no se borran con los ejemplos. Si se vuelve a sembrar sobre una base donde ya se corrió la validación, quedan casos de pólizas que ya no existen. En producción no pasa (no hay conectores simulados); en una base de prueba, borrarlas a mano o empezar de cero.
+- **"No se pudo enviar el mensaje. Probá de nuevo en un rato."** es lo que ve el productor en Cobranza cuando no tiene WhatsApp ni Gmail conectados. El motivo real ("WhatsApp Business no está conectado") queda solo en el log. Conviene decirlo en pantalla.
+- **`new Date()` al prerenderizar:** `next start` registra errores "Next.js encountered the unstable value `new Date()` while prerendering" en `/asegurados`, `/agentes/validador` y `/agentes/siniestros`. Las páginas se ven bien y el E2E pasa, pero conviene revisarlo (Next 16 con cacheComponents).
+
 ## Próximo paso exacto
-1. **Subir la 4b:** push de `feat/validador-configuracion`, PR contra `main` y merge. No trae migraciones.
-2. **Fase 5 (cierre)**, en una rama nueva desde `main`:
+1. ~~Subir la 4b~~: hecho (PR #31).
+2. ~~Fase 5 (cierre)~~: hecha en `feat/validador-cierre`. Falta el PR y el merge (trae la migración 0028, que solo agrega columnas).
+3. **Cuando se habilite cada conexión** (decisión de Julian del 29/10/2026: las conexiones reales y la IA se habilitan de a una y se prueban; no son bloqueos):
+   - el set real: listados anonimizados de 3 compañías y 20 comprobantes, con su `set.json` como el de `scripts/evaluacion-validador/demo/`. Correr `npm run evaluar:validador -- <carpeta> --ia` y calibrar los pesos del matching con lo que salga;
+   - la IA real (criterios 4 y 12): subir un PDF de listado desconocido en la pantalla y ver que la IA lo transcribe y queda la plantilla al confirmarlo; y con `CONECTORES_SIMULADOS=1`, que el enriquecimiento explique los casos a revisar y escriba el resumen. Necesita una `ANTHROPIC_API_KEY` en un entorno que no sea producción (la de producción está solo en Production).
+
+### Lo que se planeó al empezar la fase 5
+
    - **Seed de demo:**
      - 6 compañías y unas 300 cuotas en ARS y USD, en todos los estados;
      - 2 listados de ejemplo y 5 comprobantes ficticios;

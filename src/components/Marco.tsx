@@ -125,16 +125,20 @@ export function Marco({
   }, [abierto]);
 
   useEffect(() => {
+    // Solo los menús desplegables. Una sección plegable con un formulario no se
+    // cierra sola: si estaba arriba, todo lo de abajo subía al apretar y el clic
+    // caía en otro lado (pasaba con "Es este cobro: confirmar" en el Validador).
+    const MENUS_ABIERTOS = "details.barra-desplegable[open], details.desplegable[open]";
     const cerrarFuera = (evento: PointerEvent) => {
       const destino = evento.target;
       if (!(destino instanceof Node)) return;
-      document.querySelectorAll<HTMLDetailsElement>("details[open]").forEach((detalle) => {
+      document.querySelectorAll<HTMLDetailsElement>(MENUS_ABIERTOS).forEach((detalle) => {
         if (!detalle.contains(destino)) detalle.open = false;
       });
     };
     const cerrarConEscape = (evento: KeyboardEvent) => {
       if (evento.key !== "Escape") return;
-      const abiertas = Array.from(document.querySelectorAll<HTMLDetailsElement>("details[open]"));
+      const abiertas = Array.from(document.querySelectorAll<HTMLDetailsElement>(MENUS_ABIERTOS));
       if (!abiertas.length) return;
       evento.preventDefault();
       evento.stopImmediatePropagation();

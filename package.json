@@ -15,6 +15,7 @@
     "db:limpiar-ejemplos": "tsx scripts/limpiar-ejemplos.ts",
     "db:reclasificar": "tsx scripts/reclasificar.ts",
     "evaluar:siniestros": "tsx scripts/evaluar-siniestros.ts",
+    "evaluar:validador": "tsx --conditions=react-server scripts/evaluar-validador.ts",
     "captura": "tsx scripts/capturar.ts",
     "telefonos": "tsx scripts/telefonos.ts",
     "test:e2e": "node e2e/flujos.mjs",

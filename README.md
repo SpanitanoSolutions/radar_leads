@@ -335,10 +335,11 @@ a mano: `npm run captura`.
 | `npm run db:reclasificar` | Muestra cómo cambian sector, rubro, ramos y score de los leads guardados con las reglas actuales (`-- --aplicar` para guardar) |
 | `npm run telefonos` | Busca el teléfono de hasta 30 empresas pendientes (`-- 3` para probar, `-- 400` para todas) |
 | `npm run test:e2e` | Prueba de punta a punta de los flujos (ver abajo) |
+| `npm run evaluar:validador -- <carpeta> [--ia]` | Mide la extracción y el matching del Validador con un set de prueba (ver "Validador de pagos v2") |
 | `npm run db:generate` | Genera una migración a partir de `src/db/schema.ts` |
 | `npm run db:migrate` | Aplica las migraciones pendientes |
 | `npm run db:preparar` | Migraciones + datos iniciales si la base está vacía (lo corre el build) |
-| `npm run db:seed` | Carga datos iniciales y leads de ejemplo (no pisa la configuración) |
+| `npm run db:seed` | Carga datos iniciales, leads y cartera de ejemplo (no pisa la configuración) |
 | `npm run db:seed -- --reset` | Igual, pero vuelve sectores y zonas a los valores iniciales |
 | `npm run db:limpiar-ejemplos` | Borra los leads de ejemplo (la captura ya lo hace sola) |
 
@@ -354,9 +355,16 @@ npm run test:e2e                                             # en otra terminal
 
 Revisa login → cartera, búsqueda y panel del asegurado, importación CSV en modo
 combinar (con una fila inválida), leads y sectores, solicitud de cotización,
-confirmación de pago, aprobación de cobranza, envío de denuncia y reclamo,
-conexión configurada de WhatsApp, las pantallas principales a 390 px y cierre de
-sesión. El archivo de importación está en `e2e/fixtures/`.
+el Validador (confirmar un pago; y el recorrido de la spec: importar un listado,
+ver los totales, expandir un asegurado, confirmar un comprobante y enviar una
+vencida a Cobranza), aprobación de cobranza, envío de denuncia y reclamo,
+WhatsApp, las pantallas principales a 390 px y cierre de sesión. El archivo de
+importación está en `e2e/fixtures/`.
+
+Cobranza, Siniestros y el Conciliador solo envían con WhatsApp o Gmail
+conectados de verdad: sin eso, el E2E comprueba que avisan y no sale nada. Para
+probar también "Ejecutar validación" con compañías, levantá la app con
+`CONECTORES_SIMULADOS=1`.
 
 ## Estructura
 
@@ -431,6 +439,8 @@ Cuando estén disponibles diez casos anonimizados con resultados esperados, `npm
   - la gracia por compañía × ramo, que marca las compañías sin gracia cargada, y la tolerancia de monto;
   - la programación, con la próxima ejecución real según el cron, que pasa una vez por día a las 08:00;
   - los avisos al productor por WhatsApp o email: un resumen diario o un aviso por evento, solo después de las corridas automáticas. A los asegurados no les escribe: eso sigue siendo un borrador de Cobranza.
+- **Datos de ejemplo (`scripts/validador-ejemplo.ts`):** 6 compañías con las pólizas que devuelven los conectores simulados, unas 300 cuotas en pesos y dólares en todos los estados, un listado de Sancor ya leído, uno de La Segunda esperando que se confirmen las columnas y 5 comprobantes sueltos. Con `CONECTORES_SIMULADOS=1`, "Ejecutar validación" confirma los pagos del último mes, cancela lo anulado y deja unos pocos casos a revisar. Las fechas de los simulados dependen del mes: si cambió el mes desde que sembraste, volvé a correr `npm run db:seed`.
+- **Evaluación (`npm run evaluar:validador -- <carpeta> [--ia]`):** la carpeta trae un `set.json` (la cartera, lo que tiene que salir de cada fila de cada listado y de cada comprobante) y los archivos. Mide que la extracción de monto, fecha y póliza acierte al menos el 95 % y que el matching sugiera la cuota correcta al menos el 90 %. Sin `--ia` mide el código (listados en Excel o CSV y el matching); con `--ia`, también la IA (PDF y comprobantes), y necesita `DATABASE_URL`, `ANTHROPIC_API_KEY` y la IA activa. Hay un set de demo ficticio en `scripts/evaluacion-validador/demo/`; la meta se mide con listados reales anonimizados de 3 compañías y 20 comprobantes.
 - Spec: `docs/specs/validador-v2.md`. Plan: `docs/PLAN-validador-v2.md`. Progreso: `docs/progreso/validador-v2.md`.
 
 ## Specs de producto
