@@ -33,10 +33,14 @@ describe("calcularEstado", () => {
     expect(calcularEstado(cuota(), { hoy: sumarDias(HOY, 1), gracia }).estado).toBe("vencida");
   });
 
-  it("por vencer hasta 7 días antes; más adelante, pendiente", () => {
+  it("por vencer hasta el domingo de la semana calendario; desde el lunes siguiente, pendiente", () => {
     const sin = { diasPrimera: 0, diasSiguientes: 0 };
-    expect(calcularEstado(cuota({ vencimiento: sumarDias(HOY, 7) }), { hoy: HOY, gracia: sin })).toMatchObject({ estado: "por_vencer", diasParaVencer: 7 });
-    expect(calcularEstado(cuota({ vencimiento: sumarDias(HOY, 8) }), { hoy: HOY, gracia: sin })).toMatchObject({ estado: "pendiente", diasParaVencer: 8 });
+    // HOY es jueves 29/10: la semana termina el domingo 1/11.
+    expect(calcularEstado(cuota({ vencimiento: "2026-11-01" }), { hoy: HOY, gracia: sin })).toMatchObject({ estado: "por_vencer", diasParaVencer: 3 });
+    expect(calcularEstado(cuota({ vencimiento: "2026-11-02" }), { hoy: HOY, gracia: sin })).toMatchObject({ estado: "pendiente", diasParaVencer: 4 });
+    // El lunes, toda la semana hasta el domingo está por vencer; el domingo, el lunes que viene ya no.
+    expect(calcularEstado(cuota({ vencimiento: "2026-11-08" }), { hoy: "2026-11-02", gracia: sin }).estado).toBe("por_vencer");
+    expect(calcularEstado(cuota({ vencimiento: "2026-11-02" }), { hoy: "2026-11-01", gracia: sin }).estado).toBe("pendiente");
   });
 
   it("pagada y cancelada ganan sobre el vencimiento, y pagada gana sobre cancelada", () => {

@@ -61,15 +61,23 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes` (necesita sus tipos y
 - `cuotas.estado` no se toca: Cobranza, Inicio y Estadísticas lo siguen leyendo. Sincronizarlo con `estado_validacion` es de la fase 3.
 - No se crea `validador_comprobantes`: en la fase 3 se extiende `comprobantes`, para no duplicar.
 - `credenciales_portal` y `plantillas_importacion` pasan a la fase 2, porque dependen del cifrado y de `conector_mapeos`.
-- `companias.dias_gracia` (plazo de suspensión que usa Cobranza) sigue igual y no es la gracia del Validador.
+- `companias.dias_gracia` (plazo de suspensión que usa Cobranza) sigue igual en la fase 1. Desde el 29/10/2026 está decidido que Cobranza pasa a la gracia del Validador en la fase 3 (ver "Preguntas abiertas").
 - Los pesos del matching (30/25/20/15/10 en listados; 40/25/20/10/5 en comprobantes, con mínimo 40) son constantes exportadas. Se calibran con `scripts/evaluar-validador.ts` y el set real de Julian.
 - Tolerancia de monto por defecto: $ 1 (la misma que `chequearComprobante()`), configurable en `validador_config`.
 
 ## Preguntas abiertas
-Las 5 de la sección 4 del plan: dos "gracias", qué es "Esta semana", la lista de ramos, las canceladas en los otros agentes, y plantillas contra `conector_mapeos`.
+Sección 4 del plan. Julian decidió tres el 29/10/2026:
+- **Cobranza usa la gracia del Validador** (`validador_gracia`), no `companias.dias_gracia`. Se hace en la fase 3. Antes hay que cargar la gracia, porque sin fila es 0 y hoy Cobranza usa 30.
+- **"Esta semana" es la semana calendario**, de lunes a domingo. Ya está hecho: `finDeSemana()` en `src/lib/fechas.ts` y `calcularEstado()`, con tests.
+- **Cobranza lee `estado_validacion`.** Se hace en la fase 3.
+
+Siguen abiertas la lista de ramos (3) y si plantillas y `conector_mapeos` son la misma tabla (5).
+
+## Subido
+El 29/10/2026 se subieron `feat/base-agentes` y `feat/validador-v2` a GitHub, sin PR. Los deploys de preview no migran la base (`scripts/preparar-db.ts`), así que la 0024 y la 0025 recién se aplican al mergear a `main`. Falta confirmar la versión de Postgres de Neon (`SHOW server_version;` en Vercel → Storage → neon-amethyst-drum → Query).
 
 ## Próximo paso exacto
-Repasar con Julian las preguntas abiertas del plan. Después, fase 2:
+Responder la pregunta 5 (plantillas contra `conector_mapeos`). Después, fase 2:
 - Parser determinista de listados XLSX y CSV a `PagoNormalizado`, reusando `leerXlsx` y `celdasCsv` como `src/lib/importacion.ts`.
 - `plantillas_importacion` en la migración `0026`.
 - Test del criterio 3: un listado con formato guardado actualiza las cuotas coincidentes y deja las demás a revisar o no identificadas, sin llamar a la IA.

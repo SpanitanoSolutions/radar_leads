@@ -60,7 +60,7 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes`. Progreso: [progreso/
 - **`estados.ts`:**
   - Orden de prioridad: `pagada` > `cancelada` > `vencida` > `por_vencer` > `pendiente`. Una cuota pagada antes de la anulación sigue pagada.
   - `vencida` cuando pasaron más días que la gracia desde el vencimiento. Con 15 días de gracia, la cuota pasa a vencida el día 16.
-  - `por_vencer` cuando vence dentro de los próximos 7 días o ya venció y sigue en gracia. `pendiente` cuando vence más adelante.
+  - `por_vencer` cuando vence dentro de la semana calendario (de lunes a domingo) o ya venció y sigue en gracia. `pendiente` cuando vence más adelante.
   - Bloques de la vista Cobranza: Esta semana = por vencer, Próximos = pendiente, Vencidos = vencida.
   - Totales con una línea por moneda, cantidad de pagos y de asegurados.
   - `cambioPorInforme()` decide qué hacer con lo que informa la compañía y nunca pisa un dato en conflicto: lo deja "a revisar".
@@ -75,9 +75,14 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes`. Progreso: [progreso/
   - **Comprobante contra los cobros abiertos:** propone candidatos con puntaje y motivos según monto, referencia (póliza o cupón), pagador y compañía de destino. Nunca confirma solo.
 - **`configuracion.ts`:** cascada de `validador_config` campo por campo, con valores por defecto: diaria, 07:00 y 08:00, America/Argentina/Buenos_Aires, tolerancia $ 1, gracia habilitada y notificaciones apagadas.
 
-## 4. Preguntas abiertas
-1. **Dos "gracias".** Cobranza usa `companias.dias_gracia` (30 por defecto) para el "fin de gracia" de sus mensajes. ¿Pasa a leer `validador_gracia` en la fase 3, o son conceptos distintos (gracia para marcar vencida y plazo de suspensión)?
-2. **`por_vencer`.** "Esta semana" se toma como los próximos 7 días corridos más las vencidas en gracia, como hoy en `montosPorPlazo()`. ¿Debería ser la semana calendario?
-3. **Ramos.** La grilla de gracia usa los ramos canónicos de la cartera (`RAMOS_CARTERA`: Auto, Flota, Hogar…), no la lista de la sección 3 de la spec (Automotor, Combinado familiar…). ¿Se unifican?
-4. **Canceladas y los otros agentes.** ¿`cuotas.estado` suma `cancelada` para que Cobranza deje de perseguirlas, o Cobranza lee `estado_validacion`? Se decide en la fase 3.
-5. **Plantillas de importación.** ¿`plantillas_importacion` (Validador) y `conector_mapeos` (base común) son la misma tabla?
+## 4. Preguntas abiertas y decisiones
+1. **Dos "gracias". Decidido el 29/10/2026: Cobranza pasa a usar la gracia del Validador.**
+   - En la fase 3, Cobranza calcula el "fin de gracia" con `resolverGracia()` y `diasDeGracia()` (1.ª cuota o siguientes, por ramo) en vez de `companias.dias_gracia`, que queda sin uso.
+   - **Cuidado:** hoy Cobranza usa 30 días si la compañía no tiene dato; con la gracia nueva, sin fila la gracia es 0 y sus pasos se adelantan. Antes de cambiar Cobranza hay que cargar `validador_gracia`: copiar `companias.dias_gracia` con ramo `*` o pedirla en Configuración. A decidir al empezar la fase 3.
+2. **`por_vencer`. Decidido el 29/10/2026: semana calendario, de lunes a domingo.** Hecho en `calcularEstado()` con `finDeSemana()` de `src/lib/fechas.ts`. `montosPorPlazo()` del v1 sigue con 7 días corridos hasta que la fase de UI lo reemplace.
+3. **Ramos (abierta).** La grilla de gracia usa los ramos canónicos de la cartera (`RAMOS_CARTERA`: Auto, Flota, Hogar…), no la lista de la sección 3 de la spec (Automotor, Combinado familiar…). ¿Se unifican?
+4. **Canceladas y los otros agentes. Decidido el 29/10/2026: Cobranza lee `estado_validacion`.**
+   - En la fase 3, Cobranza deja de perseguir lo que el Validador marca `pagada` o `cancelada`, y su cron deja de pasar a `vencida` las cuotas con vencimiento anterior a hoy (`src/agentes/cobranza/index.ts`).
+   - Propuesta: si `estado_validacion` está en `null` (la cuota todavía no se validó), Cobranza lo calcula con `calcularEstado()`.
+   - `cuotas.estado` se sigue sincronizando para Inicio, el Resumen general y Estadísticas.
+5. **Plantillas de importación (abierta).** ¿`plantillas_importacion` (Validador) y `conector_mapeos` (base común) son la misma tabla? Hay que responderla antes de la fase 2.

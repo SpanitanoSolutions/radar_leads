@@ -1,14 +1,13 @@
 import type { EstadoValidacion, OrigenConfirmacion } from "@/db/schema";
 import type { EstadoCompaniaCuota, MedioPago, Moneda } from "@/lib/conectores/tipos";
-import { diasEntre, sumarDias } from "@/lib/fechas";
+import { diasEntre, finDeSemana, sumarDias } from "@/lib/fechas";
 import { diasDeGracia, type Gracia } from "./gracia";
 
 // Cálculo del estado de cada cuota (sección 6, paso 4, de
 // docs/specs/validador-v2.md): pendiente, por vencer, vencida (después de la
 // gracia), pagada o cancelada. Puro y determinista: la IA nunca decide esto.
-
-/** "Esta semana": lo que vence en los próximos 7 días (o ya venció y sigue en gracia). */
-export const DIAS_POR_VENCER = 7;
+// "Esta semana" (por vencer) es la semana calendario, de lunes a domingo: lo que
+// vence hasta el domingo, más lo que ya venció y sigue en gracia.
 
 export type CuotaParaEstado = { numero: number; vencimiento: string; pagada: boolean; cancelada: boolean };
 
@@ -36,7 +35,7 @@ export function calcularEstado(cuota: CuotaParaEstado, contexto: { hoy: string; 
   if (cuota.pagada) return { ...base, estado: "pagada", enGracia: false };
   if (cuota.cancelada) return { ...base, estado: "cancelada", enGracia: false };
   if (vencida) return { ...base, estado: "vencida" };
-  if (diasParaVencer <= DIAS_POR_VENCER) return { ...base, estado: "por_vencer" };
+  if (cuota.vencimiento <= finDeSemana(contexto.hoy)) return { ...base, estado: "por_vencer" };
   return { ...base, estado: "pendiente" };
 }
 
