@@ -1,11 +1,14 @@
 # Progreso — Validador de pagos v2
 
 Spec: [validador-v2.md](../specs/validador-v2.md). Plan: [PLAN-validador-v2.md](../PLAN-validador-v2.md).
-Ramas: las fases 1 a 3 se hicieron en `feat/validador-v2` (sobre `feat/base-agentes`); las dos ya están en `main` (PR #27 y #28). La fase 4a está en `feat/validador-pantalla`, que sale de `main`.
+Ramas:
+- Las fases 1 a 3 se hicieron en `feat/validador-v2` (sobre `feat/base-agentes`), mergeadas a `main` con los PR #27 y #28.
+- La 4a se hizo en `feat/validador-pantalla`, mergeada con el PR #30 y en producción.
+- La 4b está en `feat/validador-configuracion`, que sale de `main`, sin PR.
 
 ## Estado
-**Fases 1, 2, 3 y 4a hechas** (29/10/2026). Falta la 4b (Configuración y notificaciones) y el cierre (fase 5).
-- `npm test`: pasan 450 de 455 (23 nuevos en la 4a). Los 5 que fallan (`catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`) son los mismos de antes.
+**Fases 1 a 4b hechas** (29/10/2026). Falta el cierre (fase 5).
+- `npm test`: pasan 465 de 470 (14 nuevos en la 4b). Los 5 que fallan (`catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`) son los mismos de antes.
 - `npm run lint`: sin errores (las 3 advertencias viejas, en archivos que no se tocaron).
 - `npm run build`: OK.
 
@@ -13,15 +16,19 @@ Ramas: las fases 1 a 3 se hicieron en `feat/validador-v2` (sobre `feat/base-agen
 |---|---|
 | 1. Modelo de datos y reglas (estados, gracia, matching) | Hecha |
 | 2. Fuentes (listados, plantillas, credenciales y conectores) | Hecha |
-| 3. Corrida y comprobantes | Hecha (sin notificaciones: pasan a la 4b) |
-| 4a. Pantalla principal (`/agentes/validador`) | Hecha (commit `209ca7f`, rama `feat/validador-pantalla`, sin subir ni PR) |
-| 4b. Configuración (4 pestañas) y notificaciones | Pendiente |
+| 3. Corrida y comprobantes | Hecha (las notificaciones se hicieron en la 4b) |
+| 4a. Pantalla principal (`/agentes/validador`) | Hecha y en producción (PR #30) |
+| 4b. Configuración (4 pestañas) y notificaciones | Hecha (commit `c51bbbb`, rama `feat/validador-configuracion`, sin subir ni PR) |
 | 5. Seed, evaluación, E2E y PR | Pendiente (el README ya está actualizado) |
 
 ## Cambios desde la sesión anterior (29/10/2026)
 - `feat/base-agentes` y `feat/validador-v2` están mergeadas a `main` (PR #27 y #28). Las migraciones de la 0024 a la 0027 ya se aplicaron en producción.
 - En Vercel (producción) están cargadas `CREDENCIALES_PORTAL_KEY` y `COTIZACION_CREDENTIALS_KEY`, con el mismo valor.
-- La fase 4 se partió en dos: la **4a** es la pantalla principal (hecha) y la **4b** es la Configuración, con sus 4 pestañas y las notificaciones.
+- La fase 4 se partió en dos: la **4a** es la pantalla principal y la **4b** es la Configuración, con sus 4 pestañas y las notificaciones.
+- **IA prendida en producción** (29/10/2026):
+  - `ANTHROPIC_API_KEY` está cargada solo en Production y se hizo el redeploy.
+  - En `ia_configuracion` hay una sola fila: agente `*`, operación `*`, activa y con tope de USD 20 por mes. Se insertó a mano desde el SQL Editor de Neon, porque no hay pantalla para eso.
+  - La búsqueda de teléfonos de Captación no arranca con la clave sola: desde el PR #29 necesita además `TELEFONOS_IA=1`, que no está cargada. Julian va a rehacer ese agente.
 
 ### Criterios de aceptación (sección 8 de la spec)
 | Criterio | Estado |
@@ -33,11 +40,11 @@ Ramas: las fases 1 a 3 se hicieron en `feat/validador-v2` (sobre `feat/base-agen
 | 6. Totales por moneda | Hecho (fase 1) |
 | 7. "Ejecutar validación" crea una corrida en Actividad | Hecho: la pantalla muestra el progreso y Actividad lista las corridas con su estado y sus errores (probado con la app compilada) |
 | 8. El cron respeta frecuencia, hora, zona y agente activo | Hecho: `programacion.test.ts` y prueba del endpoint |
-| 9. Credenciales nunca en texto plano | Hecho en el modelo (`cifrado.test.ts`); la UI es la 4b |
+| 9. Credenciales nunca en texto plano | Hecho: modelo (`cifrado.test.ts`) y pantalla (4b). Probado contra Postgres: en la base solo queda el secreto cifrado, y editar sin contraseña conserva la anterior |
 | 10. "Enviar a Cobranza" | Hecho (4a): deja el borrador del paso que corresponde y nunca lo envía, aunque el paso sea automático (probado contra Postgres) |
-| 11. Sin IA funciona y se ocultan los controles | Hecho en la pantalla principal: sin IA no se ofrece PDF ni la lectura de comprobantes con IA. Falta la Configuración (4b) |
+| 11. Sin IA funciona y se ocultan los controles | Hecho: en la pantalla principal, sin IA no se ofrece PDF ni la lectura de comprobantes con IA; en la Configuración, los textos del enriquecimiento y del resumen no nombran la IA |
 | 12. Conectores simulados: corrida, excepciones explicadas y resumen | Corrida y resumen, sí. La IA explica las excepciones en el enriquecimiento; falta probarlo con la IA real |
-| 13. Si un conector falla, vuelve a manual y avisa | En código (error en la corrida, Actividad y `conector_salud`); probado solo con los tests de canales |
+| 13. Si un conector falla, vuelve a manual y avisa | En código: error en la corrida, Actividad y `conector_salud`. Desde la 4b, el evento "Errores de la corrida" avisa al productor por WhatsApp o email. El armado del aviso está probado contra Postgres; el envío real no, porque Gmail no estaba conectado. La falla del conector, solo con los tests de canales |
 | 14. Set de prueba de Julian (95 % y 90 %) | Fase 5 |
 | 15. E2E | Fase 5 |
 
@@ -206,7 +213,7 @@ Para repetirla: los pasos de "Cómo repetir la prueba" de la fase 1, con `postgr
 - **La cartera todavía no tiene `org_id`:** el Validador trabaja con alcance de plataforma (`ALCANCE_CARTERA`).
 
 ## Pendientes y avisos
-- **Notificaciones** (WhatsApp y email): pasan a la 4b, con su pantalla de Configuración.
+- **Notificaciones** (WhatsApp y email): hechas en la 4b.
 - **"La IA normaliza la salida de cada conector":** los simulados ya devuelven el esquema normalizado. Con una compañía real, la normalización va dentro de su implementación, con `conector_mapeos`.
 - **Pagos repetidos:** cada corrida guarda lo que informó cada conector en su período, así que el mismo pago aparece en varias corridas. Resuelto en la 4a: la pantalla muestra solo la última fuente de cada compañía (ver el aviso de la 4a).
 - **Seed (fase 5):** las pólizas de los conectores simulados no son las del seed, así que hoy todo lo que traen queda "no identificado". El seed de demo tiene que alinearlas.
@@ -218,7 +225,7 @@ Para repetirla: los pasos de "Cómo repetir la prueba" de la fase 1, con `postgr
   - Tests en `csv.test.ts` e `importacion.test.ts`.
 
 ## Hecho (fase 4a, 29/10/2026): la pantalla principal
-Rama `feat/validador-pantalla`, commit `209ca7f`.
+Rama `feat/validador-pantalla`, commit `209ca7f`. Mergeada a `main` con el PR #30 y en producción.
 
 ### Decisiones de Julian (29/10/2026)
 - **Cinco pestañas:** Pendientes · Por revisar · Pagadas · Canceladas · Renovaciones.
@@ -229,7 +236,7 @@ Rama `feat/validador-pantalla`, commit `209ca7f`.
 ### Lo que hay
 - **Inicio:**
   - las 4 tarjetas (monitoreadas = pendientes + vencidas; pagos confirmados hoy; pendientes; vencidas);
-  - los botones Configuración (todavía va a `/configuracion`: la del Validador es la 4b), Actividad, Importar listado y Ejecutar validación;
+  - los botones Configuración (desde la 4b, va a `/agentes/validador/configuracion`), Actividad, Importar listado y Ejecutar validación;
   - el aviso de conexiones de siempre.
 - **Ejecutar validación con progreso:** se ve la barra de cada corrida en curso (`validador_corridas.progreso`). La pantalla consulta `/agentes/validador/progreso` cada 2 segundos y, al terminar, se vuelve a armar. Mientras corre, el botón queda deshabilitado.
 - **Actividad:** las últimas 20 corridas con etapa, origen, estado, duración, compañías, cuotas actualizadas, resumen y errores por compañía. Debajo, la bitácora.
@@ -329,17 +336,75 @@ Para repetirla:
   - Si molesta, la alternativa es mostrar todos los casos sin resolver y juntar los que son el mismo pago.
 - **Seed (fase 5):** sigue igual. Los conectores simulados traen pólizas que no están en el seed, y la validación deja unos 96 pagos no identificados.
 
-## Próximo paso exacto
-Fase 4b: la Configuración del Validador en `/agentes/validador/configuracion` (sección 5.6 de la spec), con 4 pestañas. Va en una rama nueva desde `main` si ya se mergeó `feat/validador-pantalla`; si no, desde `feat/validador-pantalla`.
-1. **Credenciales:**
-   - la lista de compañías con su contador y un punto verde o naranja;
-   - el detalle con la tabla de credenciales (etiqueta, estado, último uso, creada), y agregar, editar y borrar con `guardarCredencial()`, `listarCredenciales()`, `cambiarEstadoCredencial()` y `borrarCredencial()` de `src/lib/conectores/credenciales.ts`;
-   - la plantilla de importación de cada compañía (`conector_mapeos`, operación `importar_listado`).
-2. **General:** el interruptor de la gracia, pestañas por ramo y la grilla compañía × (1.ª cuota, siguientes) sobre `validador_gracia`. Hay que marcar las compañías sin fila, porque para ellas la gracia es 0.
-3. **Programación:** frecuencia, hora, zona y hora de enriquecimiento (`validador_config`). La última ejecución y su estado salen de `validador_corridas`, y la próxima, de `proximaEjecucion()`.
-4. **Notificaciones:**
-   - WhatsApp y Email, cada uno con su interruptor y sus destinatarios;
-   - los eventos (pagos confirmados, por vencer, vencidas, errores) y el modo (resumen o evento por evento), según `NotificacionesValidador`;
-   - el envío, en el paso 8 de `correrEnriquecimiento()`. Lo que va al asegurado, siempre como borrador.
+## Hecho (fase 4b, 29/10/2026): Configuración y notificaciones
+Rama `feat/validador-configuracion` (sale de `main` con la 4a ya mergeada), commit `c51bbbb`. Sin subir ni PR.
 
-Además: que el botón Configuración de la pantalla lleve a la ruta nueva, y ocultar ahí también los controles de IA cuando no hay IA.
+### Lo que hay (`/agentes/validador/configuracion`, 4 pestañas)
+- **Credenciales:**
+  - la lista de compañías (las conocidas, las del catálogo y las de la cartera; hoy 21) con su cantidad de credenciales y un punto verde (alguna activa) o naranja (ninguna);
+  - el detalle: tipo, "Credenciales 1 (1 activa)", el identificador del proveedor (`sancor`) y si hay conector o es importación manual, más la salud del conector si la hay;
+  - la tabla de credenciales (etiqueta, usuario, estado, último uso, creada) con agregar, editar (en una fila debajo; sin contraseña conserva la anterior) y borrar (con confirmación). Usa `guardarCredencial()` y `borrarCredencial()`. Si falta la clave de cifrado, lo dice y no guarda nada;
+  - la plantilla de importación de la compañía: versión, si la propuso la IA o se armó a mano, las columnas y "Dejar de usar esta plantilla". Esto último la desconfirma (no la borra), así que el próximo listado se vuelve a confirmar.
+- **General:**
+  - el interruptor "Habilitar períodos de gracia" (`validador_config.gracia_habilitada`);
+  - las pestañas por ramo: "Todos los ramos" más los de `RAMOS_CARTERA`;
+  - la grilla compañía × (1.ª cuota, siguientes). Muestra lo heredado de "Todos los ramos", marca "Sin gracia cargada" y avisa cuántas compañías no tienen gracia;
+  - con los dos valores vacíos se borra lo cargado (en un ramo, vuelve a heredar);
+  - se puede agregar otra compañía;
+  - la tolerancia de monto, aparte.
+- **Programación:**
+  - frecuencia, hora de ejecución, hora de enriquecimiento (tiene que ser después) y zona horaria;
+  - la última ejecución de cada etapa, con su estado y sus errores;
+  - la próxima ejecución **real**: `proximaPasada()` la calcula sobre las pasadas del cron (`PASADAS_CRON_UTC`, que un test compara con `vercel.json`). Con frecuencia diaria y una hora posterior a las 08:00, avisa que no va a correr;
+  - si el agente está inactivo, lo dice.
+- **Notificaciones:**
+  - WhatsApp y Email, cada uno con su interruptor, sus destinatarios (validados) y el aviso de si la conexión está hecha;
+  - qué avisar: pagos confirmados, cuotas que vencen esta semana, vencidas y errores;
+  - cómo: resumen diario o evento por evento;
+  - "Mandar un aviso de prueba".
+
+### Decisiones
+- **Avisos** (`src/lib/validador/notificaciones.ts` y `src/agentes/validador/notificaciones.ts`):
+  - van al productor, a los destinatarios que carga, por las conexiones de WhatsApp y Gmail. A los asegurados no se les escribe: eso sigue siendo un borrador de Cobranza;
+  - solo salen después de las corridas **automáticas**, no de las que se piden a mano;
+  - **resumen diario:** un aviso después del enriquecimiento con el resumen del día, más una línea por cada evento elegido, contado sobre el día (pagos registrados hoy, cuotas por vencer y vencidas, errores de las corridas de hoy);
+  - **evento por evento:** después de la validación, un aviso por cada evento elegido que tenga novedades;
+  - lo que salió y lo que no queda en Actividad; un aviso que falla no frena la corrida.
+- **Alcance:** todo se guarda con el alcance de la cartera (plataforma), como el resto del Validador.
+
+### Arreglos que también tocan la 4a
+- `FormConError` envía desde `onSubmit` dentro de una transición: con `<form action>`, React 19 vaciaba los campos al terminar aunque la acción devolviera un error, y el productor perdía lo cargado.
+- Los formularios y los filtros se rearman al cambiar de ramo o de pestaña. Antes, al pasar de "Todos los ramos" a "Auto", los campos se quedaban con los valores anteriores y guardar los copiaba al ramo. En el Validador, el buscador mostraba un texto que ya no filtraba.
+- "Cuotas vencidas" de la campanita va a `?bloque=vencidos`.
+
+### Prueba contra Postgres 18.6 (29/10/2026)
+Base de ejemplo y app compilada con `CONECTORES_SIMULADOS=1`, una `CREDENCIALES_PORTAL_KEY` de prueba y sin IA. El recorrido con Playwright de la Configuración pasó 13 pasos:
+1. El botón Configuración lleva a la ruta nueva.
+2. Agregar una credencial: en la base solo queda el secreto cifrado, y el punto se pone verde.
+3. Editarla sin contraseña conserva la anterior. Pasarla a vencida deja el punto naranja.
+4. Borrarla, con confirmación.
+5. Después de confirmar un listado de Sancor, la plantilla se ve con sus columnas y se puede dejar de usar.
+6. Gracia en "Todos los ramos": cambiar Sancor a 15/5, quitar Mapfre (queda "Sin gracia cargada" y el aviso) y agregar Allianz.
+7. Gracia en "Auto": muestra lo heredado y los campos arrancan vacíos. Con un solo valor da error y conserva lo cargado. Guarda 7/0 y el interruptor.
+8. La tolerancia guarda 10,50.
+9. Programación: rechaza el enriquecimiento antes de la validación y avisa "no va a correr" con las 10:00 diarias.
+10. Notificaciones: rechaza un destinatario mal escrito y guarda la configuración.
+11. El aviso de prueba queda en Actividad. Sin Gmail autorizado, queda como no enviado.
+12. El cron con "evento por evento" arma "Validador: cuotas que vencen esta semana"; con "resumen", "Validador de pagos: resumen del día".
+13. No hay desborde a 390 px en las 4 pestañas.
+
+Además:
+- el recorrido de 18 pasos de la 4a volvió a pasar sobre una base limpia;
+- se comprobó que el buscador queda vacío al cambiar de pestaña.
+
+## Próximo paso exacto
+1. **Subir la 4b:** push de `feat/validador-configuracion`, PR contra `main` y merge. No trae migraciones.
+2. **Fase 5 (cierre)**, en una rama nueva desde `main`:
+   - **Seed de demo:**
+     - 6 compañías y unas 300 cuotas en ARS y USD, en todos los estados;
+     - 2 listados de ejemplo y 5 comprobantes ficticios;
+     - pólizas alineadas con las de los conectores simulados, así la validación no deja todo "no identificado".
+   - **`scripts/evaluar-validador.ts`:** con el set real de Julian (listados anonimizados de 3 compañías y 20 comprobantes), medir que la extracción de monto, fecha y póliza acierte al menos el 95 % y que el matching sugiera la cuota correcta al menos el 90 %. **Hace falta que Julian pase el set.** Calibrar los pesos del matching con eso.
+   - **E2E** del criterio 15: importar un listado → ver los totales → expandir un asegurado → confirmar un comprobante → cuota pagada → enviar una vencida a Cobranza. Sumarlo a `e2e/flujos.mjs`.
+   - **Con la IA real**, ya prendida en producción: probar los criterios 4 (un PDF desconocido) y 12 (excepciones explicadas y resumen).
+   - **El PR final** y cerrar este progreso.
