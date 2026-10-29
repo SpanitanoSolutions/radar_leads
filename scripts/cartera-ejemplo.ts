@@ -1317,6 +1317,11 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
       )
       .onConflictDoNothing();
     await tx.insert(schema.companias).values(COMPANIAS).onConflictDoNothing();
+    // Gracia del Validador (la usa también Cobranza): los 30 días de siempre, para todos los ramos.
+    await tx
+      .insert(schema.validadorGracia)
+      .values(COMPANIAS.map((c) => ({ compania: c.nombre, ramo: "*", diasPrimera: 30, diasSiguientes: 30 })))
+      .onConflictDoNothing();
     const conectada = (clave: string, tipo: string, datos: Record<string, string | boolean>, compania?: string) => ({
       clave,
       tipo,

@@ -2,9 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { db, schema } from "@/db";
 import { confirmarCobro, cuotasDelCobro, pausarSeguimiento } from "@/agentes/cobros";
 import { prepararMensaje } from "@/agentes/cobranza";
+import { ALCANCE_CARTERA } from "@/agentes/validador/cartera";
+import { correrEnriquecimiento, correrValidacion, iniciarCorrida } from "@/agentes/validador/corrida";
 import { registrarComprobante, rechazarComprobantes, revisarComprobantes } from "@/agentes/validador";
 import { requerirSesion } from "@/lib/auth";
 import { obtenerComprobantes, obtenerCuotas } from "@/lib/datos-agentes";
@@ -46,6 +49,7 @@ export async function confirmarPago(formData: FormData) {
   await confirmarCobro(cabezaId, {
     medio: conComprobante ? (comprobante.medio ?? "Comprobante") : "Marcado como pagado por vos",
     conProblemas: conComprobante && problemasDe(comprobante.chequeos) > 0,
+    origen: conComprobante ? "comprobante" : "manual",
   });
   refrescar();
   volver(formData, "pago-confirmado");
@@ -130,9 +134,22 @@ export async function cargarComprobante(formData: FormData) {
   volver(formData, "comprobante-cargado");
 }
 
+/**
+ * "Ejecutar validación": revisa los comprobantes y arranca una corrida
+ * (validación y enriquecimiento) en segundo plano. Queda en Actividad.
+ */
 export async function revisarAhora() {
   await requerirSesion();
   await revisarComprobantes();
+  const { id, nueva } = await iniciarCorrida("manual", "validacion", ALCANCE_CARTERA);
+  if (nueva) {
+    after(async () => {
+      await correrValidacion(id, "manual", ALCANCE_CARTERA);
+      const enriquecimiento = await iniciarCorrida("manual", "enriquecimiento", ALCANCE_CARTERA);
+      if (enriquecimiento.nueva) await correrEnriquecimiento(enriquecimiento.id, "manual", ALCANCE_CARTERA);
+      revalidatePath("/agentes/validador");
+    });
+  }
   refrescar();
-  redirect("/agentes/validador?aviso=revisados");
+  redirect(`/agentes/validador?aviso=${nueva ? "validacion-iniciada" : "validacion-en-curso"}`);
 }

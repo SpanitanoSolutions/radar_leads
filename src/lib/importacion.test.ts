@@ -11,6 +11,7 @@ import {
   leerDocumento,
   leerFecha,
   leerMonto,
+  leerArchivoTabla,
   leerMontoSinComa,
   leerTablaCsv,
   resumirCartera,
@@ -18,6 +19,7 @@ import {
   validarCartera,
 } from "./importacion";
 import { pesosConCentavos } from "./formato";
+import { escribirXlsx } from "./xlsx-escribir";
 
 const CSV = [
   "Asegurado;CUIT_DNI;Ramo;Cia;Poliza;Patente;Fin Vigencia;Prima;Tel;Mail;Cod Productor",
@@ -55,6 +57,32 @@ describe("lectura del archivo", () => {
     expect(t.encabezados).toEqual(["Asegurado", "DNI", "Ramo", "Vence"]);
     expect(t.filaInicial).toBe(3);
     expect(validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA), { compania: "Sancor" }).filas[0].fila).toBe(3);
+  });
+
+  it("cuenta las líneas en blanco: los avisos dicen la fila que se ve en Excel", async () => {
+    const t = await leerTablaCsv(
+      ["", "Cartera al 28/10/2026", "", "Asegurado;DNI;Ramo;Vence", "Gómez Lucía;31455872;Auto;08/11/2026", "", "", "Pérez Ana;30111222;Auto;31/02/2026", "", ""].join("\r\n"),
+    );
+    expect(t.filaInicial).toBe(5);
+    // Las vacías del medio se conservan; las del final, no.
+    expect(t.filas).toHaveLength(4);
+    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA), { compania: "Sancor" });
+    expect(v.totalFilas).toBe(2);
+    expect(v.filas.map((f) => f.fila)).toEqual([5, 8]);
+    expect(v.problemas.find((p) => p.mensaje.includes("31/02/2026"))?.fila).toBe(8);
+  });
+
+  it("en un Excel que empieza más abajo también numera como Excel", async () => {
+    const bytes = escribirXlsx([[], [], ["Asegurado", "DNI", "Ramo", "Vence"], ["Gómez Lucía", "31455872", "Auto", "08/11/2026"], [], ["Pérez Ana", "30111222", "Auto", "31/02/2026"]]);
+    const t = await leerArchivoTabla({ name: "cartera.xlsx", arrayBuffer: async () => bytes.slice().buffer });
+    expect(t.filaInicial).toBe(4);
+    const v = validarCartera(t, sugerirMapeo(t.encabezados, CAMPOS_CARTERA), { compania: "Sancor" });
+    expect(v.filas.map((f) => f.fila)).toEqual([4, 6]);
+    expect(v.problemas.find((p) => p.mensaje.includes("31/02/2026"))?.fila).toBe(6);
+  });
+
+  it("un archivo con el encabezado y solo líneas en blanco queda sin filas", async () => {
+    expect((await leerTablaCsv("Asegurado;DNI;Ramo\n\n\n")).filas).toEqual([]);
   });
 });
 

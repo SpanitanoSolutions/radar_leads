@@ -153,7 +153,7 @@ export default async function Validador({
         </Link>
         <form action={revisarAhora}>
           <button type="submit" className="boton boton-primario">
-            Revisar comprobantes ahora
+            Ejecutar validación
           </button>
         </form>
       </EncabezadoAgente>

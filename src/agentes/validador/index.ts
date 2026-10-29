@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { agruparCobros, chequearComprobante, normalizarOperacion, type ComprobanteLeido } from "@/lib/validador";
 import { obtenerCuentasCompanias, obtenerCuotas } from "@/lib/datos-agentes";
@@ -74,14 +74,15 @@ export async function registrarComprobante(
 }
 
 /**
- * "Revisar comprobantes ahora": vuelve a correr los chequeos de los que
+ * Parte de "Ejecutar validación": vuelve a correr los chequeos de los que
  * esperan revisión (por si cambió algo, como un número de operación repetido)
  * y trae los nuevos de las conexiones (hoy simuladas: no traen nada).
  */
 export async function revisarComprobantes(): Promise<number> {
-  const pendientes = await db.select().from(schema.comprobantes).where(eq(schema.comprobantes.estado, "por_revisar"));
+  // Los subidos sueltos (sin cobro elegido) los propone el Validador v2 (comprobantes.ts).
+  const pendientes = await db.select().from(schema.comprobantes).where(and(eq(schema.comprobantes.estado, "por_revisar"), isNotNull(schema.comprobantes.cuotaId)));
   for (const c of pendientes) {
-    const chequeos = await chequear(c.cuotaId, c, c.id);
+    const chequeos = await chequear(c.cuotaId!, c, c.id);
     await db.update(schema.comprobantes).set({ chequeos }).where(eq(schema.comprobantes.id, c.id));
   }
   await db.insert(schema.actividadAgentes).values({

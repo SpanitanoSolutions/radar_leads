@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNull, lt, lte, gte, or } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, lte, gte, or, sql } from "drizzle-orm";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import { diaEnArgentina, sumarDias } from "@/lib/fechas";
@@ -21,7 +21,7 @@ export async function obtenerDatosDashboard() {
       .from(schema.cuotas)
       .innerJoin(schema.polizas, eq(schema.polizas.id, schema.cuotas.polizaId))
       .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
-      .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl), lt(schema.cuotas.vencimiento, hoy), or(eq(schema.cuotas.estado, "pendiente"), eq(schema.cuotas.estado, "vencida"))))
+      .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl), lt(schema.cuotas.vencimiento, hoy), or(eq(schema.cuotas.estado, "pendiente"), eq(schema.cuotas.estado, "vencida")), sql`coalesce(${schema.cuotas.estadoValidacion}, '') <> 'cancelada'`))
       .orderBy(schema.cuotas.vencimiento)
       .limit(5),
     db.select({ id: schema.comprobantes.id }).from(schema.comprobantes).where(eq(schema.comprobantes.estado, "por_revisar")),

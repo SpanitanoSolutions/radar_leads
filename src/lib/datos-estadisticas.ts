@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 
@@ -32,7 +32,8 @@ export async function obtenerDatosEstadisticas() {
       .from(schema.cuotas)
       .innerJoin(schema.polizas, eq(schema.polizas.id, schema.cuotas.polizaId))
       .innerJoin(schema.asegurados, eq(schema.asegurados.id, schema.polizas.aseguradoId))
-      .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl))),
+      // Las que canceló la compañía no son deuda ni cobranza.
+      .where(and(isNull(schema.polizas.bajaEl), isNull(schema.asegurados.bajaEl), sql`coalesce(${schema.cuotas.estadoValidacion}, '') <> 'cancelada'`)),
     db.select().from(schema.acuerdosComision),
     db.select({ compania: schema.liquidacionesComision.compania, periodo: schema.liquidacionesComision.periodo, montoLiquidado: schema.liquidacionesComision.montoLiquidado, depositado: schema.liquidacionesComision.depositado, depositadoEl: schema.liquidacionesComision.depositadoEl }).from(schema.liquidacionesComision),
     db

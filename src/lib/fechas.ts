@@ -84,3 +84,9 @@ export function diaDeLaSemana(iso: string): string {
   ];
   return `${nombre} ${diaYMes(iso)}`;
 }
+
+/** Domingo de la semana de lunes a domingo: "2026-10-29" (jueves) → "2026-11-01". */
+export function finDeSemana(iso: string): string {
+  const dia = new Date(`${iso}T12:00:00Z`).getUTCDay();
+  return sumarDias(iso, dia === 0 ? 0 : 7 - dia);
+}

@@ -51,7 +51,7 @@ export function AsistenteLiquidacion({ periodo }: { periodo: string }) {
       {tabla && (
         <>
           <input type="hidden" name="mapeo" value={JSON.stringify(mapeo)} />
-          <p className="texto-suave">Relacioná cada columna con el dato correspondiente. {tabla.filas.length} filas en el archivo.</p>
+          <p className="texto-suave">Relacioná cada columna con el dato correspondiente. {tabla.filas.filter((f) => f.some((c) => c.trim())).length} filas en el archivo.</p>
           <TablaMapeo
             tabla={tabla}
             campos={CAMPOS_LIQUIDACION}

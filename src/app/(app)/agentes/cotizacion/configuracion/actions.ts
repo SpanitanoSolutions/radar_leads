@@ -151,6 +151,8 @@ export async function importarAseguradorasCotizacion(formData: FormData) {
   } catch {
     redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
   }
+  // El encabezado es la primera fila con datos (un Excel puede empezar más abajo).
+  while (filas.length && !filas[0].some((celda) => celda.trim())) filas.shift();
   if (filas.length < 2) redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
   const encabezados = filas[0].map((valor) => normalizar(valor));
   const indice = (...nombres: string[]) => encabezados.findIndex((encabezado) => nombres.includes(encabezado));

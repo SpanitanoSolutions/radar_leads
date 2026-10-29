@@ -294,16 +294,27 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 Si cambias `SESSION_SECRET`, todas las sesiones abiertas se cierran.
 
-### Captura diaria (Vercel Cron)
+### Tareas programadas (Vercel Cron)
 
-`vercel.json` programa cuatro ejecuciones por día, en hora argentina:
+`vercel.json` programa estas ejecuciones, en hora argentina:
 
-| Hora | Endpoint |
-|---|---|
-| 05:00 | `/api/cron/captura/licitaciones` |
-| 06:00 | `/api/cron/captura/boletin-oficial` |
-| 07:00 | `/api/cron/telefonos` |
-| 08:00 | `/api/cron/resumen` |
+| Hora | Endpoint | Qué hace |
+|---|---|---|
+| 05:00 | `/api/cron/captura/licitaciones` | Captura de licitaciones |
+| 06:00 | `/api/cron/captura/boletin-oficial` | Captura del Boletín Oficial |
+| 07:00 | `/api/cron/telefonos` | Busca teléfonos de empresas nuevas |
+| 08:00 | `/api/cron/resumen` | Resumen del día |
+| 08:00 | `/api/cron/validador` | Validador de pagos: validación y enriquecimiento, según su Programación |
+| 09:00 | `/api/cron/cobranza` | Estados con la gracia del Validador y borradores de cobranza |
+| 10:00 (lun. a vie.) | `/api/cron/cotizacion` | Seguimientos de cotización |
+| 11:00 | `/api/cron/ia-trabajos` | Retoma la cola de trabajos de IA |
+
+El Validador corre cada etapa una vez por período (día, semana o mes), desde la
+hora configurada en su Programación (por defecto, 07:00 la validación y 08:00 el
+enriquecimiento) y solo con el agente activo. Como el cron pasa una vez por día
+a las 08:00, una hora configurada más tarde recién corre en la pasada del día
+siguiente; si el plan de Vercel lo permite, conviene llevar ese cron a cada hora
+(`0 * * * *`): el endpoint ya decide solo si le toca.
 
 Vercel las llama con `Authorization: Bearer <CRON_SECRET>`. Sin esa clave el
 endpoint responde 401. En el plan Hobby, Vercel puede correrlas en cualquier
@@ -403,7 +414,18 @@ Cuando estén disponibles diez casos anonimizados con resultados esperados, `npm
 - **IA (`src/lib/ia/`):** los agentes llaman a `ejecutarIA()`, que elige el modelo según la tarea (Haiku 5.5 para extraer, Sonnet 5.5 para explicar y reintentar), valida con zod, aplica la cuota y registra cada intento en `ia_uso`. La IA queda apagada hasta que haya una fila activa en `ia_configuracion` y esté `ANTHROPIC_API_KEY`.
 - **Cola (`ia_trabajos`):** `encolarTrabajo()` + `despachadorTrabajos.despachar()` procesan en segundo plano. `/api/cron/ia-trabajos` retoma lo pendiente.
 - **Compañías (`src/lib/conectores/`):** `ejecutarEnCompania()` prueba API → portal → archivo, aplica los permisos y audita en `conector_llamadas`. Con `CONECTORES_SIMULADOS=1` (nunca en producción) cada compañía responde con `SimuladaApi` y `SimuladaPortal`.
+- **Credenciales de portales (`credenciales_portal`):** el secreto se cifra con AES-256-GCM y `CREDENCIALES_PORTAL_KEY` (si falta, se usa `COTIZACION_CREDENTIALS_KEY`). Nunca se muestra ni va a logs; solo se descifra para pasárselo a un conector.
+- **Mapeos (`conector_mapeos`):** lo aprendido por compañía × ramo × operación, con versión. El listado de cobranza del Validador es la operación `importar_listado`.
 - Spec: `docs/specs/conectores.md`. Progreso: `docs/progreso/base-comun.md`.
+
+## Validador de pagos v2
+
+- **Listados de cobranza:** el productor sube el Excel, CSV o PDF de cada compañía. Con un formato conocido (su plantilla en `conector_mapeos`) se lee sin IA y se actualizan las cuotas que coinciden; las demás quedan "a revisar" o "no identificadas". Un formato nuevo se propone con IA (o por sinónimos, sin IA) y el productor lo confirma una vez. Un PDF necesita la IA para transcribir la tabla.
+- **Reglas puras con tests (`src/lib/validador/`):** lectura de listados, matching, estados con la gracia por compañía × ramo, programación y resumen de cada corrida.
+- **Corrida:** el cron o "Ejecutar validación" consultan los conectores, cruzan, aplican los cambios y recalculan los estados. Cada corrida queda en `validador_corridas` y en Actividad.
+- **Comprobantes:** la IA los lee, el matching propone el cobro con su puntaje y el productor confirma. Nunca se marcan pagados solos.
+- **Cobranza** usa la gracia del Validador (`validador_gracia`) y no persigue las cuotas pagadas o canceladas por la compañía.
+- Spec: `docs/specs/validador-v2.md`. Plan: `docs/PLAN-validador-v2.md`. Progreso: `docs/progreso/validador-v2.md`.
 
 ## Specs de producto
 - Las specs de agentes están en docs/specs/. Leé solo la que corresponde a la tarea.

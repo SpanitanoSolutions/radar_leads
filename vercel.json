@@ -7,6 +7,7 @@
     { "path": "/api/cron/resumen", "schedule": "0 11 * * *" },
     { "path": "/api/cron/cobranza", "schedule": "0 12 * * *" },
     { "path": "/api/cron/cotizacion", "schedule": "0 13 * * 1-5" },
-    { "path": "/api/cron/ia-trabajos", "schedule": "0 14 * * *" }
+    { "path": "/api/cron/ia-trabajos", "schedule": "0 14 * * *" },
+    { "path": "/api/cron/validador", "schedule": "0 11 * * *" }
   ]
 }

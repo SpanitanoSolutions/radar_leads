@@ -65,7 +65,7 @@ Hecha (29/10/2026). `npm test`: 338 de 343 pasan. Los 5 que fallan (`catalogo.te
 - Pasar Cotización (`src/lib/ia/cotizacion.ts`) a `ejecutarIA()` para que registre en `ia_uso`.
 - Siniestros: registrar su manejador `siniestros:analizar_documento` en `MANEJADORES` y encolar en `pendiente` cuando la IA esté configurada.
 - Una UI o un seed que cargue filas en `ia_configuracion`: sin filas, la IA queda apagada.
-- La migración 0024 se aplica en el próximo deploy de producción (`preparar-db`). No se probó contra Postgres porque no hay base local.
+- La migración 0024 se aplica en el próximo deploy de producción (`preparar-db`). El 29/10/2026 se probó la cadena 0000 a 0024, con los datos de ejemplo, contra un Postgres 17 en Docker (ver [validador-v2.md](validador-v2.md)).
 
 ## Próximo paso exacto
-Elegir el primer agente que usa la base (el Validador v2 según su spec) y escribir su `docs/PLAN-validador-v2.md` sobre `ejecutarIA()`, la cola y `ejecutarEnCompania()`.
+Hecho: el Validador v2 es el primer agente sobre la base. Plan en `docs/PLAN-validador-v2.md` y progreso en [validador-v2.md](validador-v2.md).

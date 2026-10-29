@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filasCsv } from "./csv";
+import { celdasCsv, filasCsv } from "./csv";
 
 async function leer(pedazos: string[], separador?: string) {
   const filas: Record<string, string>[] = [];
@@ -30,6 +30,19 @@ describe("filasCsv", () => {
       expect(await leer([CSV.slice(0, corte), CSV.slice(corte)])).toEqual(ESPERADO);
     }
     expect(await leer(CSV.split(""))).toEqual(ESPERADO);
+  });
+
+  it("con conservarVacias, las líneas en blanco llegan como filas vacías, aunque el archivo llegue cortado", async () => {
+    const texto = "a;b\r\n\r\nc;d\n\n";
+    const leerCeldas = async (pedazos: string[], opciones?: { conservarVacias: boolean }) => {
+      const filas: string[][] = [];
+      for await (const f of celdasCsv(pedazos, ";", opciones)) filas.push(f);
+      return filas;
+    };
+    for (let corte = 1; corte < texto.length; corte++) {
+      expect(await leerCeldas([texto.slice(0, corte), texto.slice(corte)], { conservarVacias: true })).toEqual([["a", "b"], [], ["c", "d"], []]);
+    }
+    expect(await leerCeldas([texto])).toEqual([["a", "b"], ["c", "d"]]);
   });
 
   it("acepta otro separador", async () => {
