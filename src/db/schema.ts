@@ -1027,6 +1027,48 @@ export const configuracionAgentes = pgTable("configuracion_agentes", {
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Auditoría de cada llamada a un conector de compañía (src/lib/conectores).
+ * Sin datos personales ni texto libre: operación, canal, duración y código de error.
+ */
+export const conectorLlamadas = pgTable("conector_llamadas", {
+  id: serial("id").primaryKey(),
+  compania: text("compania").notNull(),
+  /** api | portal | archivo */
+  canal: text("canal").notNull(),
+  agente: text("agente").notNull(),
+  operacion: text("operacion").notNull(),
+  /** ok | error */
+  resultado: text("resultado").notNull(),
+  codigoError: text("codigo_error"),
+  duracionMs: integer("duracion_ms").notNull(),
+  costoIaUsd: numeric("costo_ia_usd", { precision: 12, scale: 6, mode: "number" }),
+  entidad: text("entidad"),
+  entidadId: integer("entidad_id"),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("conector_llamadas_compania_fecha_idx").on(t.compania, t.creadoEl),
+  index("conector_llamadas_entidad_idx").on(t.agente, t.entidad, t.entidadId),
+]);
+
+/** Salud de cada canal por compañía: la usa el orden automático de canales. */
+export const conectorSalud = pgTable("conector_salud", {
+  id: serial("id").primaryKey(),
+  compania: text("compania").notNull(),
+  canal: text("canal").notNull(),
+  ultimoExitoEl: timestamp("ultimo_exito_el", { withTimezone: true }),
+  ultimoErrorEl: timestamp("ultimo_error_el", { withTimezone: true }),
+  codigoUltimoError: text("codigo_ultimo_error"),
+  credencialVencida: boolean("credencial_vencida").notNull().default(false),
+  portalCambiado: boolean("portal_cambiado").notNull().default(false),
+  latenciaMs: integer("latencia_ms"),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("conector_salud_canal_idx").on(t.compania, t.canal, t.orgId, t.producerId)]);
+
 export type Sector = typeof sectores.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type NuevoLead = typeof leads.$inferInsert;

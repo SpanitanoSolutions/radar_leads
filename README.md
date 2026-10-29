@@ -397,3 +397,16 @@ En `/agentes/siniestros/configuracion` se definen requisitos bloqueantes/opciona
 Los proveedores/modelos y el scheduler de trabajos se conectarán más adelante. El registro de `src/lib/ia/registro.ts`, las tablas `ia_trabajos`, `ia_uso` e `ia_configuracion` y los estados de análisis dejan la integración desacoplada; los adjuntos nuevos quedan en “IA pendiente de configurar” y el flujo manual sigue disponible. Los informes médicos están fuera de alcance. El plan aprobado está en `docs/PLAN-siniestros-v2.md`; las migraciones nuevas van de `0018` a `0023` e incluyen el traspaso seguro del checklist anterior y campos multi-organización opcionales.
 
 Cuando estén disponibles diez casos anonimizados con resultados esperados, `npm run evaluar:siniestros -- <archivo-json>` calcula métricas agregadas de clasificación y extracción sin mostrar valores de expedientes. Cada caso usa `clasificacionEsperada`, `clasificacionObtenida`, `camposEsperados` y `camposObtenidos`; el archivo no debe incluir nombres, documentos ni contenido real.
+
+## Base común de agentes
+
+- **IA (`src/lib/ia/`):** los agentes llaman a `ejecutarIA()`, que elige el modelo según la tarea (Haiku 5.5 para extraer, Sonnet 5.5 para explicar y reintentar), valida con zod, aplica la cuota y registra cada intento en `ia_uso`. La IA queda apagada hasta que haya una fila activa en `ia_configuracion` y esté `ANTHROPIC_API_KEY`.
+- **Cola (`ia_trabajos`):** `encolarTrabajo()` + `despachadorTrabajos.despachar()` procesan en segundo plano. `/api/cron/ia-trabajos` retoma lo pendiente.
+- **Compañías (`src/lib/conectores/`):** `ejecutarEnCompania()` prueba API → portal → archivo, aplica los permisos y audita en `conector_llamadas`. Con `CONECTORES_SIMULADOS=1` (nunca en producción) cada compañía responde con `SimuladaApi` y `SimuladaPortal`.
+- Spec: `docs/specs/conectores.md`. Progreso: `docs/progreso/base-comun.md`.
+
+## Specs de producto
+- Las specs de agentes están en docs/specs/. Leé solo la que corresponde a la tarea.
+- docs/specs/conectores.md manda sobre las demás en todo lo relativo a compañías.
+- Progreso de cada spec: docs/progreso/<spec>.md (estado, hecho, próximo paso exacto).
+- Una fase por sesión. Al terminar: tests, lint, build, commit y actualizar el progreso.
