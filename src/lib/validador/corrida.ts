@@ -5,6 +5,9 @@ import { sumarDias } from "@/lib/fechas";
 // período se le pide a cada compañía, cómo terminó y el resumen para el
 // productor. El resumen sin IA siempre existe; la IA solo lo mejora.
 
+/** Una corrida en curso desde hace más que esto se considera caída. */
+export const MINUTOS_CAIDA = 15;
+
 /** Desde una semana antes de la última corrida buena (o 60 días sin corridas) hasta dentro de un mes. */
 export function periodoDeConsulta(hoy: string, ultimaBuena: string | null): { desde: string; hasta: string } {
   const desde = ultimaBuena ? sumarDias(ultimaBuena, -7) : sumarDias(hoy, -60);

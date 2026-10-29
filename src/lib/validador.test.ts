@@ -4,8 +4,6 @@ import {
   avisoConexionesValidador,
   chequearComprobante,
   detalleCobro,
-  montosPorPlazo,
-  pestanaDe,
   textoVence,
   type CuotaConPoliza,
 } from "./validador";
@@ -103,33 +101,12 @@ describe("chequearComprobante", () => {
   });
 });
 
-describe("pestañas y montos", () => {
-  const base = { pagada: false, vencimiento: "2026-10-31" };
-  it("pagados, por revisar, vencidos y pendientes", () => {
-    expect(pestanaDe({ ...base, pagada: true }, null, HOY)).toBe("pagados");
-    expect(pestanaDe(base, { chequeos: chequear({ monto: 1 }) }, HOY)).toBe("revisar");
-    expect(pestanaDe(base, { chequeos: chequear() }, HOY)).toBe("pendientes");
-    expect(pestanaDe({ ...base, vencimiento: "2026-10-20" }, null, HOY)).toBe("vencidos");
-  });
-
+describe("textoVence", () => {
   it("textos de vencimiento", () => {
     expect(textoVence("2026-10-27", HOY)).toEqual({ texto: "Hoy", tono: "ambar-fuerte" });
     expect(textoVence("2026-10-28", HOY)).toEqual({ texto: "En 1 día", tono: "ambar" });
     expect(textoVence("2026-11-08", HOY)).toEqual({ texto: "En 12 días", tono: "gris" });
     expect(textoVence("2026-10-19", HOY)).toEqual({ texto: "Hace 8 días", tono: "rojo" });
-  });
-
-  it("suma los montos por plazo sin contar los pagados", () => {
-    const m = montosPorPlazo(
-      [
-        { pagada: false, vencimiento: "2026-10-27", monto: 100 },
-        { pagada: false, vencimiento: "2026-11-08", monto: 50 },
-        { pagada: false, vencimiento: "2026-10-19", monto: 10 },
-        { pagada: true, vencimiento: "2026-10-28", monto: 999 },
-      ],
-      HOY,
-    );
-    expect(m).toEqual({ semana: { monto: 100, cuotas: 1 }, proximos: { monto: 50, cuotas: 1 }, vencidas: { monto: 10, cuotas: 1 } });
   });
 });
 

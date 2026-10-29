@@ -1,14 +1,14 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Aviso } from "@/components/Aviso";
-import { IconoAtras, IconoChevron, IconoMas, IconoPuntos, IconoSiguiente, IconoSubir } from "@/components/iconos";
+import { IconoChevron, IconoMas, IconoPuntos, IconoSubir } from "@/components/iconos";
+import { Paginas } from "@/components/Paginas";
 import {
   alertasDe,
   COOKIE_POR_PAGINA,
   filtrarAsegurados,
   hayFiltros,
   leerFiltrosAsegurados,
-  numerosDePagina,
   paginar,
   porPaginaValido,
   resumirAsegurado,
@@ -168,56 +168,7 @@ export default async function Asegurados({
           <span className="tabular">
             {visibles.length ? `${pagina.desde}–${pagina.hasta} de ${visibles.length}` : "0"} asegurados
           </span>
-          {pagina.paginas > 1 && (
-            <nav aria-label="Páginas" className="paginas">
-              {pagina.pagina > 1 ? (
-                <Link
-                  href={urlAsegurados(filtros, { pagina: pagina.pagina - 1 })}
-                  scroll={false}
-                  className="pagina-flecha"
-                  aria-label="Página anterior"
-                >
-                  <IconoAtras />
-                </Link>
-              ) : (
-                <span className="pagina-flecha" aria-hidden="true">
-                  <IconoAtras />
-                </span>
-              )}
-              {numerosDePagina(pagina.pagina, pagina.paginas).map((n, i) =>
-                n === "…" ? (
-                  <span key={`salto-${i}`} className="pagina-salto" aria-hidden="true">
-                    …
-                  </span>
-                ) : (
-                  <Link
-                    key={n}
-                    href={urlAsegurados(filtros, { pagina: n })}
-                    scroll={false}
-                    className="pagina-numero"
-                    aria-label={`Página ${n}`}
-                    aria-current={n === pagina.pagina ? "page" : undefined}
-                  >
-                    {n}
-                  </Link>
-                ),
-              )}
-              {pagina.pagina < pagina.paginas ? (
-                <Link
-                  href={urlAsegurados(filtros, { pagina: pagina.pagina + 1 })}
-                  scroll={false}
-                  className="pagina-flecha"
-                  aria-label="Página siguiente"
-                >
-                  <IconoSiguiente />
-                </Link>
-              ) : (
-                <span className="pagina-flecha" aria-hidden="true">
-                  <IconoSiguiente />
-                </span>
-              )}
-            </nav>
-          )}
+          <Paginas pagina={pagina.pagina} paginas={pagina.paginas} href={(n) => urlAsegurados(filtros, { pagina: n })} />
           <FilasPorPagina filtros={filtros} primeraFila={pagina.desde} />
         </div>
       </section>

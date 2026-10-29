@@ -8,6 +8,7 @@ import { diaEnArgentina, sumarDias } from "@/lib/fechas";
 import type { Moneda } from "@/lib/conectores/tipos";
 import { cobrosParaComprobante, companiaDeDestino, comprobanteParaMatch, verificarExtraccion, type ComprobanteExtraido } from "@/lib/validador/comprobantes";
 import { proponerCobros } from "@/lib/validador/matching";
+import { VENTANA } from "@/lib/validador/pantalla";
 import { confirmarCobro } from "../cobros";
 import { configValidador, type AlcanceValidador } from "./cartera";
 import type { ArchivoSubido } from "./fuentes";
@@ -35,7 +36,7 @@ export async function subirComprobante(archivo: ArchivoSubido, canal: CanalCompr
   return { id, conIA };
 }
 
-/** Las cuotas impagas de los últimos cuatro meses y los próximos dos, agrupadas en cobros. */
+/** Las cuotas impagas que sigue el Validador (las mismas que muestra la pantalla), agrupadas en cobros. */
 async function cobrosAbiertos(hoy: string) {
   const { cuotas, polizas, asegurados } = schema;
   const filas = await db
@@ -57,8 +58,8 @@ async function cobrosAbiertos(hoy: string) {
     .where(and(
       ne(cuotas.estado, "pagada"),
       or(isNull(cuotas.estadoValidacion), ne(cuotas.estadoValidacion, "cancelada")),
-      gte(cuotas.vencimiento, sumarDias(hoy, -120)),
-      lte(cuotas.vencimiento, sumarDias(hoy, 60)),
+      gte(cuotas.vencimiento, sumarDias(hoy, -VENTANA.diasAtras)),
+      lte(cuotas.vencimiento, sumarDias(hoy, VENTANA.diasAdelante)),
       isNull(asegurados.bajaEl),
     ));
   return cobrosParaComprobante(filas.map((f) => ({ ...f, moneda: f.moneda as Moneda })));

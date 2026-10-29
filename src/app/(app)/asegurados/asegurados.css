@@ -164,17 +164,6 @@
 .tabla-asegurados tr.fila-marcada td {
   background: var(--acento-suave);
 }
-.nombre-asegurado {
-  color: var(--texto);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-}
-.nombre-asegurado:hover {
-  color: var(--acento-texto);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
 .mas-items {
   font-size: 11.5px;
   font-weight: 600;
@@ -182,60 +171,10 @@
 }
 
 /* Paginación: flechas, números y filas por página */
-.paginas {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.pagina-numero,
-.pagina-flecha,
-.pagina-salto {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 6px;
-  border-radius: var(--radio-chico);
-  color: var(--gris-texto);
-  font-size: 12.5px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  text-decoration: none;
-}
-.pagina-flecha svg {
-  width: 14px;
-  height: 14px;
-}
-a.pagina-numero:hover,
-a.pagina-flecha:hover {
-  background: var(--gris-suave);
-  color: var(--texto);
-}
-.pagina-numero[aria-current="page"] {
-  background: var(--acento);
-  color: var(--acento-contraste);
-  font-weight: 600;
-}
-span.pagina-flecha {
-  color: var(--borde-campo);
-}
-.pagina-salto {
-  min-width: 18px;
-  padding: 0;
-  color: var(--etiqueta);
-}
 .por-pagina {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-@media (pointer: coarse) {
-  .pagina-numero,
-  .pagina-flecha {
-    min-width: 40px;
-    height: 40px;
-  }
 }
 
 /* Panel del asegurado */

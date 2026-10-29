@@ -63,10 +63,10 @@ function Boton({ accion, fila, volver, primero }: { accion: Accion; fila: FilaCo
   );
 }
 
-function FormComprobante({ fila, volver }: { fila: FilaCobro; volver: string }) {
+export function FormComprobante({ fila, volver, abierto }: { fila: Pick<FilaCobro, "id">; volver: string; abierto?: boolean }) {
   const id = (n: string) => `comp-${fila.id}-${n}`;
   return (
-    <details className="cargar-comprobante">
+    <details className="cargar-comprobante" open={abierto}>
       <summary className="boton-texto">Cargar un comprobante a mano</summary>
       <form action={cargarComprobante} className="form-grilla form-comprobante">
         <input type="hidden" name="cuotaId" value={fila.id} />
@@ -122,8 +122,8 @@ function FormComprobante({ fila, volver }: { fila: FilaCobro; volver: string }) 
   );
 }
 
-export function TablaCobros({ filas, abierta, volver }: { filas: FilaCobro[]; abierta: number | null; volver: string }) {
-  const [abiertas, setAbiertas] = useState<Set<number>>(new Set(abierta ? [abierta] : []));
+export function TablaCobros({ filas, abiertas: iniciales, volver }: { filas: FilaCobro[]; abiertas: number[]; volver: string }) {
+  const [abiertas, setAbiertas] = useState<Set<number>>(new Set(iniciales));
   const alternar = (id: number) =>
     setAbiertas((a) => {
       const n = new Set(a);

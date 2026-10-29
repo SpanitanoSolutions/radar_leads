@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { Aviso } from "@/components/Aviso";
-import { contactoDe, esVigente, tonoDias } from "@/lib/asegurados";
+import { contactoDe, tonoDias } from "@/lib/asegurados";
 import { obtenerCuenta } from "@/lib/datos";
 import { obtenerAsegurados, obtenerAvisosPendientes } from "@/lib/datos-cartera";
 import { diaEnArgentina, diaYMes, fechaCorta } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { conFirma } from "@/lib/plantillas";
-import { agruparPorSemana } from "@/lib/vencimientos";
+import { agruparPorSemana, polizasPorVencer } from "@/lib/vencimientos";
 import { BotonAvisar } from "../asegurados/BotonAvisar";
 import { aprobarMensaje, omitirMensaje } from "../mensajes/actions";
 import "../asegurados/asegurados.css";
@@ -27,16 +27,10 @@ export default async function Vencimientos({
   const [asegurados, avisos, cuenta] = await Promise.all([obtenerAsegurados(), obtenerAvisosPendientes(), obtenerCuenta()]);
   const conAviso = new Set(avisos.map((a) => a.aseguradoId));
 
-  const items = asegurados.flatMap((a) =>
-    a.polizas
-      .filter((p) => p.vigenciaHasta && esVigente(p, hoy))
-      .map((p) => ({
-        vence: p.vigenciaHasta!,
-        poliza: p,
-        asegurado: a,
-        contactable: Boolean(contactoDe(a).telefono || contactoDe(a).email),
-      })),
-  );
+  const items = polizasPorVencer(asegurados, hoy).map((i) => ({
+    ...i,
+    contactable: Boolean(contactoDe(i.asegurado).telefono || contactoDe(i.asegurado).email),
+  }));
   const semanas = agruparPorSemana(items, hoy, dias);
   const total = semanas.reduce((n, s) => n + s.items.length, 0);
   const volver = `/vencimientos?dias=${dias}`;
