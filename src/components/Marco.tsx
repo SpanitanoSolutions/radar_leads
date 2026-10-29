@@ -182,30 +182,21 @@ export function Marco({
           <span className="barra-producto">Administración de seguros</span>
         </Link>
         <span className="barra-separador" aria-hidden="true" />
-        <details className="barra-desplegable barra-equipo">
-          <summary className="barra-equipo-resumen" aria-label={`Abrir opciones de ${nombreEquipo}`}>
-            {cuenta.logoEmpresa ? (
-              <Image
-                src="/api/logo-empresa"
-                alt=""
-                width={36}
-                height={36}
-                unoptimized
-                className="barra-logo-empresa"
-              />
-            ) : (
-              <span className="barra-equipo-iniciales" aria-hidden="true">{iniciales(nombreEquipo)}</span>
-            )}
-            <span className="barra-equipo-nombre">{nombreEquipo}</span>
-            <IconoChevron />
-          </summary>
-          <div className="barra-menu-panel barra-equipo-panel">
-            <p className="barra-menu-encabezado">{nombreEquipo}</p>
-            <Link href="/configuracion?tab=equipo#mi-equipo" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Mi equipo</Link>
-            <Link href="/configuracion?tab=equipo#cuenta-logo-titulo" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Logo y datos de la agrupación</Link>
-            <Link href="/configuracion" onClick={(evento) => evento.currentTarget.closest("details")?.removeAttribute("open")}>Configuración general</Link>
-          </div>
-        </details>
+        <div className="barra-equipo">
+          {cuenta.logoEmpresa ? (
+            <Image
+              src="/api/logo-empresa"
+              alt=""
+              width={36}
+              height={36}
+              unoptimized
+              className="barra-logo-empresa"
+            />
+          ) : (
+            <span className="barra-equipo-iniciales" aria-hidden="true">{iniciales(nombreEquipo)}</span>
+          )}
+          <span className="barra-equipo-nombre">{nombreEquipo}</span>
+        </div>
         <form action="/buscar" method="get" className="barra-busqueda" role="search">
           <IconoBuscar />
           <label htmlFor="buscar-global" className="visualmente-oculto">Buscar cliente, póliza o siniestro</label>

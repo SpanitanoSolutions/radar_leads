@@ -207,21 +207,19 @@ a:hover {
 .barra-desplegable > summary::-webkit-details-marker {
   display: none;
 }
-.barra-equipo-resumen {
+.barra-equipo {
+  flex: none;
   min-width: 0;
   min-height: 38px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 3px 7px;
-  border-radius: var(--radio);
   color: var(--texto);
 }
-.barra-equipo-resumen:hover,
 .barra-perfil-resumen:hover {
   background: var(--gris-suave);
 }
-.barra-equipo-resumen > svg,
 .barra-perfil-resumen > svg {
   width: 16px;
   height: 16px;
@@ -269,10 +267,6 @@ a:hover {
   border-radius: var(--radio);
   background: var(--tarjeta);
   box-shadow: var(--sombra-flotante);
-}
-.barra-equipo-panel {
-  right: auto;
-  left: 0;
 }
 .barra-menu-panel > a,
 .barra-menu-salir,
@@ -770,14 +764,10 @@ a:hover {
   .barra-equipo-nombre {
     display: none;
   }
-  .barra-equipo-resumen {
+  .barra-equipo {
     min-height: 34px;
     gap: 3px;
     padding: 2px;
-  }
-  .barra-equipo-resumen > svg {
-    width: 14px;
-    height: 14px;
   }
   .barra-logo-empresa,
   .barra-equipo-iniciales {
