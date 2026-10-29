@@ -1,21 +1,27 @@
 # Progreso — Validador de pagos v2
 
 Spec: [validador-v2.md](../specs/validador-v2.md). Plan: [PLAN-validador-v2.md](../PLAN-validador-v2.md).
-Rama: `feat/validador-v2`, que sale de `feat/base-agentes` (necesita sus tipos y tablas).
+Ramas: las fases 1 a 3 se hicieron en `feat/validador-v2` (sobre `feat/base-agentes`); las dos ya están en `main` (PR #27 y #28). La fase 4a está en `feat/validador-pantalla`, que sale de `main`.
 
 ## Estado
-**Fases 1, 2 y 3 hechas** (29/10/2026). Falta la UI (fase 4) y el cierre (fase 5).
-- `npm test`: pasan 429 de 434 (38 nuevos en esta sesión). Los 5 que fallan (`catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`) ya fallaban antes de la base común.
-- `npm run lint`: sin errores (3 advertencias viejas en archivos que no se tocaron).
+**Fases 1, 2, 3 y 4a hechas** (29/10/2026). Falta la 4b (Configuración y notificaciones) y el cierre (fase 5).
+- `npm test`: pasan 450 de 455 (23 nuevos en la 4a). Los 5 que fallan (`catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`) son los mismos de antes.
+- `npm run lint`: sin errores (las 3 advertencias viejas, en archivos que no se tocaron).
 - `npm run build`: OK.
 
 | Fase | Estado |
 |---|---|
 | 1. Modelo de datos y reglas (estados, gracia, matching) | Hecha |
 | 2. Fuentes (listados, plantillas, credenciales y conectores) | Hecha |
-| 3. Corrida y comprobantes | Hecha (sin notificaciones: pasan a la fase 4) |
-| 4. UI | Pendiente |
+| 3. Corrida y comprobantes | Hecha (sin notificaciones: pasan a la 4b) |
+| 4a. Pantalla principal (`/agentes/validador`) | Hecha (commit `209ca7f`, rama `feat/validador-pantalla`, sin subir ni PR) |
+| 4b. Configuración (4 pestañas) y notificaciones | Pendiente |
 | 5. Seed, evaluación, E2E y PR | Pendiente (el README ya está actualizado) |
+
+## Cambios desde la sesión anterior (29/10/2026)
+- `feat/base-agentes` y `feat/validador-v2` están mergeadas a `main` (PR #27 y #28). Las migraciones de la 0024 a la 0027 ya se aplicaron en producción.
+- En Vercel (producción) están cargadas `CREDENCIALES_PORTAL_KEY` y `COTIZACION_CREDENTIALS_KEY`, con el mismo valor.
+- La fase 4 se partió en dos: la **4a** es la pantalla principal (hecha) y la **4b** es la Configuración, con sus 4 pestañas y las notificaciones.
 
 ### Criterios de aceptación (sección 8 de la spec)
 | Criterio | Estado |
@@ -25,11 +31,11 @@ Rama: `feat/validador-v2`, que sale de `feat/base-agentes` (necesita sus tipos y
 | 4. PDF desconocido: la IA lo extrae y queda la plantilla | En código (`manejarExtraerListado()` y `confirmarMapeo()`); falta probarlo con la IA real y un PDF real |
 | 5. Comprobante: propone la cuota con su puntaje y no la marca pagada | Hecho: `comprobantes.test.ts` y prueba contra Postgres (sin IA) |
 | 6. Totales por moneda | Hecho (fase 1) |
-| 7. "Ejecutar validación" crea una corrida en Actividad | Hecho con el botón actual del Validador; la pantalla nueva es la fase 4 |
+| 7. "Ejecutar validación" crea una corrida en Actividad | Hecho: la pantalla muestra el progreso y Actividad lista las corridas con su estado y sus errores (probado con la app compilada) |
 | 8. El cron respeta frecuencia, hora, zona y agente activo | Hecho: `programacion.test.ts` y prueba del endpoint |
-| 9. Credenciales nunca en texto plano | Hecho en el modelo (`cifrado.test.ts`); la UI es la fase 4 |
-| 10. "Enviar a Cobranza" | Fase 4 |
-| 11. Sin IA funciona y se ocultan los controles | El servidor, sí; ocultar los controles es la fase 4 |
+| 9. Credenciales nunca en texto plano | Hecho en el modelo (`cifrado.test.ts`); la UI es la 4b |
+| 10. "Enviar a Cobranza" | Hecho (4a): deja el borrador del paso que corresponde y nunca lo envía, aunque el paso sea automático (probado contra Postgres) |
+| 11. Sin IA funciona y se ocultan los controles | Hecho en la pantalla principal: sin IA no se ofrece PDF ni la lectura de comprobantes con IA. Falta la Configuración (4b) |
 | 12. Conectores simulados: corrida, excepciones explicadas y resumen | Corrida y resumen, sí. La IA explica las excepciones en el enriquecimiento; falta probarlo con la IA real |
 | 13. Si un conector falla, vuelve a manual y avisa | En código (error en la corrida, Actividad y `conector_salud`); probado solo con los tests de canales |
 | 14. Set de prueba de Julian (95 % y 90 %) | Fase 5 |
@@ -200,9 +206,9 @@ Para repetirla: los pasos de "Cómo repetir la prueba" de la fase 1, con `postgr
 - **La cartera todavía no tiene `org_id`:** el Validador trabaja con alcance de plataforma (`ALCANCE_CARTERA`).
 
 ## Pendientes y avisos
-- **Notificaciones** (WhatsApp y email): pasan a la fase 4, con su pantalla de Configuración.
+- **Notificaciones** (WhatsApp y email): pasan a la 4b, con su pantalla de Configuración.
 - **"La IA normaliza la salida de cada conector":** los simulados ya devuelven el esquema normalizado. Con una compañía real, la normalización va dentro de su implementación, con `conector_mapeos`.
-- **Pagos repetidos:** cada corrida guarda lo que informó cada conector en su período, así que el mismo pago aparece en varias corridas. La UI tiene que mostrar la última fuente de cada compañía.
+- **Pagos repetidos:** cada corrida guarda lo que informó cada conector en su período, así que el mismo pago aparece en varias corridas. Resuelto en la 4a: la pantalla muestra solo la última fuente de cada compañía (ver el aviso de la 4a).
 - **Seed (fase 5):** las pólizas de los conectores simulados no son las del seed, así que hoy todo lo que traen queda "no identificado". El seed de demo tiene que alinearlas.
 - **PDF largo:** un listado de 20 páginas puede superar los 16.000 tokens de salida de Haiku. Si pasa con el set real, hay que partirlo por páginas.
 - **Cotización** sigue guardando sus credenciales en `conexiones.datos`. Pasarlas a `credenciales_portal` es un trabajo aparte.
@@ -211,11 +217,129 @@ Para repetirla: los pasos de "Cómo repetir la prueba" de la fase 1, con `postgr
   - `ubicarEncabezado()` busca desde la primera fila con datos, y `armarTabla()` saca solo las vacías del final.
   - Tests en `csv.test.ts` e `importacion.test.ts`.
 
+## Hecho (fase 4a, 29/10/2026): la pantalla principal
+Rama `feat/validador-pantalla`, commit `209ca7f`.
+
+### Decisiones de Julian (29/10/2026)
+- **Cinco pestañas:** Pendientes · Por revisar · Pagadas · Canceladas · Renovaciones.
+  - "Por revisar" junta todo lo que espera una decisión: la revisión de comprobantes de siempre (`TablaCobros`, sin cambios de comportamiento), los casos de los listados, los comprobantes sueltos y los listados.
+  - La pestaña "Vencidos" anterior es ahora el bloque Vencidos de Pendientes. `?tab=vencidos` lleva ahí y `?tab=pagados` redirige a `?tab=pagadas`.
+- **Renovadas:** una póliza vigente cuya vigencia empezó en el plazo elegido (30, 60 o 90 días) y que continúa otra. Puede ser otra póliza del mismo asegurado, ramo y compañía que terminó ese día (5 días de margen, aunque esté dada de baja), o la misma póliza con la vigencia corrida por una reimportación (se creó en UNIQO antes de su vigencia actual).
+
+### Lo que hay
+- **Inicio:**
+  - las 4 tarjetas (monitoreadas = pendientes + vencidas; pagos confirmados hoy; pendientes; vencidas);
+  - los botones Configuración (todavía va a `/configuracion`: la del Validador es la 4b), Actividad, Importar listado y Ejecutar validación;
+  - el aviso de conexiones de siempre.
+- **Ejecutar validación con progreso:** se ve la barra de cada corrida en curso (`validador_corridas.progreso`). La pantalla consulta `/agentes/validador/progreso` cada 2 segundos y, al terminar, se vuelve a armar. Mientras corre, el botón queda deshabilitado.
+- **Actividad:** las últimas 20 corridas con etapa, origen, estado, duración, compañías, cuotas actualizadas, resumen y errores por compañía. Debajo, la bitácora.
+- **Pendientes:**
+  - **Cobranza:** los tres bloques con `totalesPorBloque()` (una línea por moneda, pagos y asegurados). Cada bloque filtra la lista.
+  - La lista va agrupada por asegurado, de a 10 por página ("Mostrando 1–10 de 12 asegurados").
+  - Al expandir un asegurado se ve una sub-tabla por cuota: póliza, cuota n/N, ítem, endoso, cupón, monto, vencimiento, medio, estado con punto de color y última revisión.
+  - Debajo de cada cuota están sus acciones: marcar pagada (fecha, medio y comprobante opcional), adjuntar comprobante (el formulario de siempre), ver póliza y Enviar a Cobranza. Si el asegurado no tiene contacto, en lugar de Enviar a Cobranza aparece "Completar contacto".
+  - **Calendario:** el mes en semanas de lunes a domingo, con lo que vence cada día por moneda. Tocar un día abre la Tabla de ese día.
+  - **Tabla:** columnas planas, ordenables por el encabezado, de a 50 por página.
+- **Pagadas:** vistas Resumen y Tabla. Este mes y Anteriores filtran la lista. La lista por asegurado muestra la fecha del último pago y, al expandir, el origen de la confirmación.
+- **Canceladas:** la tabla de la spec, de la más reciente a la más vieja.
+- **Renovaciones:**
+  - tarjetas Por renovar y Renovadas (prima y cantidad), con plazos de 30, 60 y 90 días, la lista y el estado vacío "No hay pólizas por renovar";
+  - para avisar al asegurado, lleva a Vencimientos;
+  - la lista de por renovar sale de `polizasPorVencer()`, que ahora está en `src/lib/vencimientos.ts` y también la usa `/vencimientos`.
+- **Filtros y exportar** (Pendientes, Pagadas y Canceladas):
+  - buscar por asegurado, póliza o cupón;
+  - compañía (por su nombre canónico), ramo, medio de pago y rango de fechas (vencimiento, pago o cancelación, según la pestaña);
+  - Exportar baja un CSV con los mismos filtros, bloque, período y orden que la pantalla;
+  - **no hay filtro por productor:** la cartera todavía no tiene productor ni `org_id`.
+- **Por revisar:**
+  - **Comprobantes recibidos:** la revisión de siempre, con todas las filas abiertas. Primero van los que están bien.
+  - **Casos de los listados:**
+    - qué informó la compañía, el motivo y la explicación de la IA si la hay, con la acción que sugiere;
+    - las cuotas candidatas con puntaje y motivos, con la sugerida por la IA marcada;
+    - según lo informado: "Marcar pagada esta cuota", "Cancelar esta cuota" o "Enviar a Cobranza". Siempre está "Dejar como está";
+    - aplicar usa `guardarProceso()`, el mismo camino que la corrida: no pisa una cuota pagada ni una cancelada. Está en `src/agentes/validador/casos.ts`.
+  - **Pagos no identificados:** en una lista plegable, con su fila y su motivo, y "Descartar".
+  - **Comprobantes sin asignar:**
+    - subir (con IA queda leyéndose; sin IA, para cargar a mano);
+    - completar o corregir los datos (`completarComprobante()`);
+    - ver los cobros propuestos con su puntaje y confirmar con "Es este cobro: confirmar" (`confirmarComprobante()`), o descartar.
+  - **Listados de las compañías:**
+    - subir con `importarListado()`;
+    - debajo, los últimos 8 listados con su estado y lo que encontró cada uno (coincidieron, a revisar, no identificadas);
+    - si es un formato nuevo, se confirman o corrigen las columnas propuestas (`confirmarMapeoElegido()` → `confirmarMapeo()`);
+    - los problemas de cada fila se ven con su número ("Fila 6: No tiene vencimiento.").
+- **Solo la última fuente de cada compañía:** los casos y los no identificados salen de la última fuente procesada de cada compañía (`ultimasFuentes()`). Así, el mismo pago no aparece una vez por corrida.
+- **Sin IA:** el listado acepta solo Excel o CSV y los textos son los de la carga manual (`iaDisponible()` → `estadoIA()`).
+- **Con IA:** después de subir un PDF, un formato nuevo o un comprobante, la cola del Validador se procesa enseguida en segundo plano (`after()`), sin esperar al enriquecimiento.
+
+### Código
+- **Puro, con tests:**
+  - `src/lib/validador/pantalla.ts`: estado con la gracia, tarjetas, filtros, lista por asegurado, calendario, orden, Pagadas, `ultimasFuentes()` y el paso de Cobranza;
+  - en `src/lib/vencimientos.ts`, `polizasPorVencer()` y `polizasRenovadas()`.
+- **Lecturas:** `src/lib/datos-validador.ts`.
+  - Las impagas de los últimos 120 días y los próximos 60 (`VENTANA`, la misma que usan los comprobantes para proponer cobros).
+  - Las pagadas y las canceladas de los últimos 12 meses.
+  - El estado se calcula al mostrar, con la gracia, así que no depende de que el cron haya corrido ese día.
+- **Agente:**
+  - `casos.ts` (nuevo);
+  - en `fuentes.ts`, `tablaParaConfirmar()` y `confirmarMapeoElegido()`;
+  - en Cobranza, `prepararMensaje(…, { soloBorrador })`;
+  - `confirmarCobro(…, { fechaPago })`.
+- **Pantalla:**
+  - nuevos: `Pestanas.tsx`, `Revisar.tsx`, `Actividad.tsx`, `ListaAsegurados.tsx`, `Formularios.tsx`, `vista.ts`, `validador.css` y `progreso/route.ts`;
+  - reescritos: `page.tsx` y `exportar/route.ts`;
+  - `TablaCobros.tsx` solo cambió para abrir varias filas a la vez y exportar su formulario de comprobante.
+- **Compartido:**
+  - `src/components/Paginas.tsx`: la paginación que tenía Asegurados, que ahora también la usa;
+  - el tipo fecha en `Filtros`, que además vuelve a la página 1 al cambiar un filtro;
+  - `.nombre-asegurado` y la paginación pasaron a `globals.css`.
+- **Se quitó:** `pestanaDe()` y `montosPorPlazo()` de `src/lib/validador.ts`, con sus tests. Eran las pestañas y los montos de la pantalla anterior y quedaron sin uso.
+- **E2E:** `e2e/flujos.mjs` ahora va a `?tab=pagadas` y busca `tbody.grupo-asegurado`. La suite completa no se corrió; su paso del Validador sí, dentro de la prueba de abajo.
+
+### Prueba contra Postgres 18.6 (29/10/2026)
+Docker descartable (`postgres:18.6`), `db:preparar` con los datos de ejemplo y la app compilada (`next start`) con `CONECTORES_SIMULADOS=1` y sin `ANTHROPIC_API_KEY`. Un recorrido con Playwright (fuera del repo) pasó estos 18 pasos:
+1. Inicio: 4 tarjetas, 5 pestañas, Cobranza con los 3 bloques y la paginación.
+2. Al expandir un asegurado, la sub-tabla tiene todas sus columnas.
+3. El calendario muestra 7 días con cuotas.
+4. La tabla se ordena por monto descendente.
+5. El CSV sale con el mismo orden.
+6. "Ejecutar validación" muestra la barra de progreso, y Actividad, las 2 corridas (validación y enriquecimiento) en OK.
+7. Un CSV de Sancor de formato nuevo queda para confirmar, con la propuesta por sinónimos correcta. Al confirmar, se guarda la plantilla y se lee. La fila de totales queda como "Fila 6: No tiene vencimiento."
+8. El pago con otro monto queda como caso a revisar. "Marcar pagada esta cuota" la deja pagada, con origen listado.
+9. La póliza desconocida aparece entre los no identificados.
+10. Un comprobante suelto sin IA se completa a mano y propone el cobro correcto (80 pts). Al confirmarlo, la cuota queda pagada con origen comprobante.
+11. El paso del E2E: "Confirmar pago" en Por revisar, y Acosta aparece en Pagadas (`?tab=pagados` redirige).
+12. En Pagadas, al expandir se ve el origen.
+13. "Enviar a Cobranza", con el paso 1 marcado como automático, deja un borrador nuevo y no lo envía. Si el cobro ya tenía el borrador de ese paso, devuelve ese y no duplica.
+14. "Marcar pagada" con Rapipago deja la cuota pagada, con origen manual y la fecha de pago.
+15. Canceladas muestra su tabla.
+16. Renovaciones: 16 pólizas por renovar en 60 días. Con una póliza a la que se le corrió la vigencia, aparece 1 renovada.
+17. Sin IA no se ofrece PDF.
+18. No hay desborde horizontal a 390 px en 6 vistas.
+
+Para repetirla:
+1. Los pasos de "Cómo repetir la prueba" de la fase 1, con `postgres:18.6`.
+2. `npm run build`.
+3. `next start` con `DATABASE_URL`, `CONECTORES_SIMULADOS=1`, `APP_PASSWORD` y `SESSION_SECRET`.
+
+### Avisos de la 4a
+- **Última fuente por compañía:** si una compañía tiene listado y conector, la fuente más nueva tapa a la anterior.
+  - Un caso de un listado que nadie resolvió deja de verse cuando después corre el conector de esa compañía, aunque no informe ese pago. No se borra: queda en la base.
+  - Hoy los conectores simulados no consultan Sancor, así que en la prueba no se vio.
+  - Si molesta, la alternativa es mostrar todos los casos sin resolver y juntar los que son el mismo pago.
+- **Seed (fase 5):** sigue igual. Los conectores simulados traen pólizas que no están en el seed, y la validación deja unos 96 pagos no identificados.
+
 ## Próximo paso exacto
-Fase 4, la UI de `/agentes/validador` (sección 5 de la spec), sobre lo que ya existe en `src/agentes/validador/`:
-- Inicio con las 4 tarjetas, "Ejecutar validación" con progreso (`validador_corridas.progreso`) y Actividad con las corridas y sus errores.
-- Pestañas Pendientes (vistas Cobranza, Calendario y Tabla, con `totalesPorBloque()`), Pagadas, Canceladas y Renovaciones.
-- Importar un listado y confirmar el mapeo (`importarListado()` y `confirmarMapeo()`), y los casos a revisar con la explicación de la IA.
-- Comprobantes sueltos: subir, completar, confirmar o descartar.
-- Configuración en 4 pestañas: credenciales (`src/lib/conectores/credenciales.ts`) con la plantilla de cada compañía, gracia (marcando las compañías sin fila), programación (`proximaEjecucion()`) y notificaciones.
-- "Enviar a Cobranza" y ocultar los controles de IA cuando no hay IA.
+Fase 4b: la Configuración del Validador en `/agentes/validador/configuracion` (sección 5.6 de la spec), con 4 pestañas. Va en una rama nueva desde `main` si ya se mergeó `feat/validador-pantalla`; si no, desde `feat/validador-pantalla`.
+1. **Credenciales:**
+   - la lista de compañías con su contador y un punto verde o naranja;
+   - el detalle con la tabla de credenciales (etiqueta, estado, último uso, creada), y agregar, editar y borrar con `guardarCredencial()`, `listarCredenciales()`, `cambiarEstadoCredencial()` y `borrarCredencial()` de `src/lib/conectores/credenciales.ts`;
+   - la plantilla de importación de cada compañía (`conector_mapeos`, operación `importar_listado`).
+2. **General:** el interruptor de la gracia, pestañas por ramo y la grilla compañía × (1.ª cuota, siguientes) sobre `validador_gracia`. Hay que marcar las compañías sin fila, porque para ellas la gracia es 0.
+3. **Programación:** frecuencia, hora, zona y hora de enriquecimiento (`validador_config`). La última ejecución y su estado salen de `validador_corridas`, y la próxima, de `proximaEjecucion()`.
+4. **Notificaciones:**
+   - WhatsApp y Email, cada uno con su interruptor y sus destinatarios;
+   - los eventos (pagos confirmados, por vencer, vencidas, errores) y el modo (resumen o evento por evento), según `NotificacionesValidador`;
+   - el envío, en el paso 8 de `correrEnriquecimiento()`. Lo que va al asegurado, siempre como borrador.
+
+Además: que el botón Configuración de la pantalla lleve a la ruta nueva, y ocultar ahí también los controles de IA cuando no hay IA.
