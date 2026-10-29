@@ -68,4 +68,4 @@ Hecha (29/10/2026). `npm test`: 338 de 343 pasan. Los 5 que fallan (`catalogo.te
 - La migración 0024 se aplica en el próximo deploy de producción (`preparar-db`). No se probó contra Postgres porque no hay base local.
 
 ## Próximo paso exacto
-Elegir el primer agente que usa la base (el Validador v2 según su spec) y escribir su `docs/PLAN-validador-v2.md` sobre `ejecutarIA()`, la cola y `ejecutarEnCompania()`.
+Hecho: el Validador v2 es el primer agente sobre la base. Plan en `docs/PLAN-validador-v2.md` y progreso en [validador-v2.md](validador-v2.md).

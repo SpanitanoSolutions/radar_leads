@@ -17,3 +17,10 @@ const PESOS_CENTAVOS = new Intl.NumberFormat("es-AR", { style: "currency", curre
 export function pesosConCentavos(valor: number): string {
   return PESOS_CENTAVOS.format(valor);
 }
+
+const DOLARES_CENTAVOS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+
+/** 1915.61 → "$ 1.915,61"; en dólares, "US$ 1.915,61". */
+export function importe(valor: number, moneda: "ARS" | "USD"): string {
+  return moneda === "USD" ? DOLARES_CENTAVOS.format(valor) : PESOS_CENTAVOS.format(valor);
+}

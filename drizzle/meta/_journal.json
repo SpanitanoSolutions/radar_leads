@@ -176,6 +176,13 @@
       "when": 1793270016556,
       "tag": "0024_conectores",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793271043719,
+      "tag": "0025_validador_v2",
+      "breakpoints": true
     }
   ]
 }

@@ -11,8 +11,10 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { Moneda, PagoNormalizado } from "../lib/conectores/tipos";
 
 export const prioridadEnum = pgEnum("prioridad", ["alta", "media", "baja"]);
 export const estadoEnum = pgEnum("estado_lead", [
@@ -337,9 +339,28 @@ export const cuotas = pgTable(
     pagadaEl: timestamp("pagada_el", { withTimezone: true }),
     /** "Débito automático", "Transferencia", "Comprobante por email"… */
     medioPago: text("medio_pago"),
+    // Validador v2 (docs/specs/validador-v2.md).
+    /** Ítem o unidad de la póliza; en flotas, un vehículo por ítem. */
+    item: text("item"),
+    endoso: text("endoso"),
+    /** Número de cupón de pago que informa la compañía. */
+    cupon: text("cupon"),
+    moneda: text("moneda").$type<Moneda>().notNull().default("ARS"),
+    /** Lo que decidió la última validación. Null: todavía no se validó. */
+    estadoValidacion: text("estado_validacion").$type<EstadoValidacion>(),
+    /** Día en que pagó el asegurado (pagada_el es cuándo se registró). */
+    fechaPago: date("fecha_pago", { mode: "string" }),
+    origenConfirmacion: text("origen_confirmacion").$type<OrigenConfirmacion>(),
+    ultimaRevision: timestamp("ultima_revision", { withTimezone: true }),
+    canceladaEl: date("cancelada_el", { mode: "string" }),
+    motivoCancelacion: text("motivo_cancelacion"),
   },
-  (t) => [uniqueIndex("cuotas_poliza_numero_idx").on(t.polizaId, t.numero), index("cuotas_vence_idx").on(t.vencimiento)],
+  // En flotas, cada ítem (y cada endoso) tiene su propia cuota n de N.
+  (t) => [unique("cuotas_poliza_cuota_uq").on(t.polizaId, t.numero, t.item, t.endoso).nullsNotDistinct(), index("cuotas_vence_idx").on(t.vencimiento)],
 );
+
+export type EstadoValidacion = "pendiente" | "por_vencer" | "vencida" | "pagada" | "cancelada";
+export type OrigenConfirmacion = "listado" | "comprobante" | "portal" | "manual";
 
 /** Archivos subidos (comprobantes, documentos de la ficha, documentación de siniestros). */
 export const archivos = pgTable("archivos", {
@@ -1069,6 +1090,120 @@ export const conectorSalud = pgTable("conector_salud", {
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("conector_salud_canal_idx").on(t.compania, t.canal, t.orgId, t.producerId)]);
 
+// ---------- Validador de pagos v2 (docs/specs/validador-v2.md) ----------
+
+/**
+ * Días después del vencimiento antes de marcar una cuota como vencida, por
+ * compañía × ramo. Ramo "*": todos los ramos de la compañía. Se resuelve en
+ * cascada plataforma → organización → productor (src/lib/validador/gracia.ts).
+ */
+export const validadorGracia = pgTable("validador_gracia", {
+  id: serial("id").primaryKey(),
+  compania: text("compania").notNull(),
+  ramo: text("ramo").notNull(),
+  diasPrimera: integer("dias_primera").notNull(),
+  diasSiguientes: integer("dias_siguientes").notNull(),
+  habilitado: boolean("habilitado").notNull().default(true),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique("validador_gracia_alcance_uq").on(t.compania, t.ramo, t.orgId, t.producerId).nullsNotDistinct()]);
+
+export type NotificacionesValidador = {
+  whatsapp?: { activo: boolean; destinatarios: string[] };
+  email?: { activo: boolean; destinatarios: string[] };
+  eventos?: ("pagos_confirmados" | "por_vencer" | "vencidas" | "errores")[];
+  modo?: "resumen" | "evento";
+};
+
+/**
+ * Programación, tolerancia y avisos del Validador. Cada campo en null hereda
+ * del nivel de arriba (plataforma → organización → productor); los valores
+ * por defecto están en src/lib/validador/configuracion.ts.
+ */
+export const validadorConfig = pgTable("validador_config", {
+  id: serial("id").primaryKey(),
+  /** diaria | semanal | mensual */
+  frecuencia: text("frecuencia"),
+  /** "07:00" */
+  horaEjecucion: text("hora_ejecucion"),
+  horaEnriquecimiento: text("hora_enriquecimiento"),
+  zonaHoraria: text("zona_horaria"),
+  /** Diferencia de monto que se acepta como coincidencia, en la moneda de la cuota. */
+  toleranciaMonto: numeric("tolerancia_monto", { precision: 14, scale: 2, mode: "number" }),
+  graciaHabilitada: boolean("gracia_habilitada"),
+  notificaciones: jsonb("notificaciones").$type<NotificacionesValidador>(),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique("validador_config_alcance_uq").on(t.orgId, t.producerId).nullsNotDistinct()]);
+
+export type ErrorCorridaValidador = { compania: string | null; codigo: string; mensaje: string };
+
+/** Cada ejecución del Validador (cron o "Ejecutar validación"): alimenta Actividad. */
+export const validadorCorridas = pgTable("validador_corridas", {
+  id: serial("id").primaryKey(),
+  /** cron | manual */
+  origen: text("origen").notNull(),
+  /** en_curso | ok | con_errores */
+  estado: text("estado").notNull().default("en_curso"),
+  iniciadaEl: timestamp("iniciada_el", { withTimezone: true }).notNull().defaultNow(),
+  terminadaEl: timestamp("terminada_el", { withTimezone: true }),
+  companiasProcesadas: integer("companias_procesadas").notNull().default(0),
+  cuotasActualizadas: integer("cuotas_actualizadas").notNull().default(0),
+  errores: jsonb("errores").$type<ErrorCorridaValidador[]>().notNull().default([]),
+  costoIaUsd: numeric("costo_ia_usd", { precision: 12, scale: 6, mode: "number" }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+}, (t) => [index("validador_corridas_fecha_idx").on(t.orgId, t.iniciadaEl)]);
+
+/** Un listado importado o lo que devolvió un conector para una compañía y un período. */
+export const validadorFuentes = pgTable("validador_fuentes", {
+  id: serial("id").primaryKey(),
+  corridaId: integer("corrida_id").references(() => validadorCorridas.id, { onDelete: "set null" }),
+  compania: text("compania").notNull(),
+  /** api | portal | archivo */
+  tipo: text("tipo").notNull(),
+  periodoDesde: date("periodo_desde", { mode: "string" }),
+  periodoHasta: date("periodo_hasta", { mode: "string" }),
+  /** xlsx | csv | pdf | conector */
+  formato: text("formato").notNull(),
+  archivoId: integer("archivo_id").references(() => archivos.id, { onDelete: "set null" }),
+  /** pendiente | procesando | procesada | error */
+  estado: text("estado").notNull().default("pendiente"),
+  filasExtraidas: integer("filas_extraidas").notNull().default(0),
+  errorSeguro: text("error_seguro"),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("validador_fuentes_estado_idx").on(t.estado, t.creadoEl)]);
+
+export type CandidatoPago = { cuotaId: number; puntaje: number; motivos: string[] };
+
+/** Cada fila normalizada de una fuente, con su match contra la cartera. */
+export const validadorPagosDetectados = pgTable("validador_pagos_detectados", {
+  id: serial("id").primaryKey(),
+  fuenteId: integer("fuente_id").notNull().references(() => validadorFuentes.id, { onDelete: "cascade" }),
+  corridaId: integer("corrida_id").references(() => validadorCorridas.id, { onDelete: "set null" }),
+  datos: jsonb("datos").$type<PagoNormalizado>().notNull(),
+  cuotaId: integer("cuota_id").references(() => cuotas.id, { onDelete: "set null" }),
+  puntaje: integer("puntaje").notNull().default(0),
+  /** confirmado | a_revisar | no_identificado */
+  estado: text("estado").notNull(),
+  candidatos: jsonb("candidatos").$type<CandidatoPago[]>().notNull().default([]),
+  /** Lo que se decidió hacer con la cuota (src/lib/validador/estados.ts → cambioPorInforme). */
+  cambio: text("cambio"),
+  motivo: text("motivo"),
+  revisadoEl: timestamp("revisado_el", { withTimezone: true }),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("validador_pagos_fuente_idx").on(t.fuenteId),
+  index("validador_pagos_estado_idx").on(t.estado, t.creadoEl),
+  index("validador_pagos_cuota_idx").on(t.cuotaId),
+]);
+
 export type Sector = typeof sectores.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type NuevoLead = typeof leads.$inferInsert;
@@ -1092,3 +1227,8 @@ export type Compania = typeof companias.$inferSelect;
 export type Conexion = typeof conexiones.$inferSelect;
 export type ConfiguracionAgente = typeof configuracionAgentes.$inferSelect;
 export type Importacion = typeof importaciones.$inferSelect;
+export type ValidadorGracia = typeof validadorGracia.$inferSelect;
+export type ValidadorConfig = typeof validadorConfig.$inferSelect;
+export type ValidadorCorrida = typeof validadorCorridas.$inferSelect;
+export type ValidadorFuente = typeof validadorFuentes.$inferSelect;
+export type ValidadorPagoDetectado = typeof validadorPagosDetectados.$inferSelect;
