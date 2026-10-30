@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 import { nuevaSolicitud } from "../actions";
 
 type Contacto = { id: number; nombre: string };
-type Aseguradora = { id: number; nombre: string; ramos: string[]; canal: string };
+type Aseguradora = { id: number; nombre: string; ramos: string[] };
 type TipoContacto = "asegurado" | "lead";
 type OpcionContacto = Contacto & { tipo: TipoContacto };
 
@@ -32,12 +32,6 @@ function normalizar(texto: string): string {
 
 function coincideConRamo(aseguradora: Aseguradora, ramo: string): boolean {
   return aseguradora.ramos.length === 0 || aseguradora.ramos.includes(ramo);
-}
-
-function nombreCanal(canal: string): string {
-  if (canal === "portal") return "Portal";
-  if (canal === "ambos") return "Correo y portal";
-  return "Correo";
 }
 
 function BotonCrear({ bloqueado }: { bloqueado: boolean }) {
@@ -338,7 +332,7 @@ export default function FormularioNuevaSolicitud({
                   <label key={aseguradora.id} className={`cotizacion-aseguradora-opcion${marcada ? " seleccionada" : ""}`}>
                     <input type="checkbox" name="companias" value={aseguradora.nombre} checked={marcada} onChange={() => alternarCompania(aseguradora.nombre)} />
                     <span className="cotizacion-aseguradora-check" aria-hidden="true">{marcada ? "✓" : ""}</span>
-                    <span className="cotizacion-aseguradora-detalle"><strong>{aseguradora.nombre}</strong><small>{nombreCanal(aseguradora.canal)}</small></span>
+                    <span className="cotizacion-aseguradora-detalle"><strong>{aseguradora.nombre}</strong></span>
                   </label>
                 );
               })}

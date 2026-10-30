@@ -276,6 +276,33 @@ if (await verificarWhatsApp.count()) {
   ok("configuración: WhatsApp conectado con Meta");
 }
 
+// 17b. Conexiones con las compañías: se llega desde Configuración, se guarda el orden de canales
+// de Sancor (solo el portal), un orden con lugares repetidos se rechaza, y vuelve al automático.
+await page.goto(BASE + "/configuracion");
+await page.getByRole("link", { name: /Administrar las conexiones con las compañías/ }).click();
+await page.getByRole("heading", { name: "Conexiones con las compañías", level: 1 }).waitFor();
+await page.getByRole("navigation", { name: "Compañías" }).getByRole("link", { name: /^Sancor/ }).click();
+await page.getByRole("heading", { name: "Sancor", level: 2 }).waitFor();
+const ordenSancor = page.locator("form.cias-orden");
+await ordenSancor.getByLabel("En este orden").check();
+await ordenSancor.getByLabel("Conexión directa", { exact: true }).selectOption("1");
+await ordenSancor.getByLabel("Portal de productores", { exact: true }).selectOption("1");
+await ordenSancor.getByRole("button", { name: "Guardar el orden" }).click();
+await ordenSancor.getByRole("alert").getByText("Cada canal tiene que ir en un lugar distinto.").waitFor();
+await ordenSancor.getByLabel("Conexión directa", { exact: true }).selectOption("");
+await ordenSancor.getByLabel("Archivo", { exact: true }).selectOption("");
+await ordenSancor.getByRole("button", { name: "Guardar el orden" }).click();
+await page.waitForURL(/aviso=canales-guardados/);
+await page.getByText("Hoy: Portal de productores. Los demás no se usan.").waitFor();
+await page.locator("form.cias-orden").getByLabel("Automático").check();
+await page.locator("form.cias-orden").getByRole("button", { name: "Guardar el orden" }).click();
+await page.waitForURL(/aviso=canales-guardados/);
+await page.getByText(/^Hoy: Automático/).waitFor();
+await page.goto(BASE + "/agentes/validador/configuracion?tab=credenciales&cia=Mapfre");
+await page.waitForURL(/\/configuracion\/companias\?agente=validador&cia=Mapfre/);
+await page.getByRole("heading", { name: "Plantilla de los listados del Validador" }).waitFor();
+ok("conexiones con las compañías: orden de canales guardado y las credenciales del Validador llevan acá");
+
 // 18. Vista de teléfono sin scroll horizontal de página
 await page.setViewportSize({ width: 390, height: 844 });
 for (const ruta of [
@@ -289,6 +316,7 @@ for (const ruta of [
   "/agentes/cobranza",
   "/agentes/siniestros",
   "/agentes/conciliador",
+  "/configuracion/companias",
 ]) {
   await page.goto(BASE + ruta);
   const desborde = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -7,8 +7,8 @@ export async function GET(request: Request) {
   await requerirSesion();
   const aseguradoras = await db.select().from(schema.cotizacionAseguradoras).orderBy(schema.cotizacionAseguradoras.nombre);
   const filas = [
-    ["Aseguradora", "Ramos", "Canal", "Contactos", "Código de productor", "Activa"],
-    ...aseguradoras.map((item) => [item.nombre, item.ramos.join(", "), item.canal, item.contactos.map((contacto) => `${contacto.nombre} <${contacto.email}>`).join("; "), item.codigoProductor ?? "", item.activa ? "Sí" : "No"]),
+    ["Aseguradora", "Ramos", "Contactos", "Código de productor", "Activa"],
+    ...aseguradoras.map((item) => [item.nombre, item.ramos.join(", "), item.contactos.map((contacto) => `${contacto.nombre} <${contacto.email}>`).join("; "), item.codigoProductor ?? "", item.activa ? "Sí" : "No"]),
   ];
   if (new URL(request.url).searchParams.get("formato") === "xlsx") return new Response(Buffer.from(escribirXlsx(filas)), {
     headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": "attachment; filename=aseguradoras-cotizacion.xlsx", "Cache-Control": "private, no-store" },

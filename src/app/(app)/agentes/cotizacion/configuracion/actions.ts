@@ -6,8 +6,6 @@ import { db, schema } from "@/db";
 import { guardarInterruptorIACotizacion } from "@/agentes/cotizacion/ia";
 import { requerirSesion } from "@/lib/auth";
 import { interpretarEstrategiaSeguimiento } from "@/lib/cotizacion";
-import { ALCANCE_CREDENCIALES } from "@/lib/cotizacion/credenciales";
-import { guardarCredencial, listarCredenciales } from "@/lib/conectores/credenciales";
 import { leerXlsx } from "@/lib/xlsx";
 import { celdasCsv } from "@/fuentes/csv";
 import { normalizar } from "@/fuentes/clasificacion";
@@ -64,18 +62,22 @@ export async function guardarConfiguracionCotizacion(formData: FormData) {
   redirect("/agentes/cotizacion/configuracion?aviso=guardado");
 }
 
+/**
+ * Agrega o edita una aseguradora por su nombre. El canal viejo (`canal`) ya no
+ * decide nada: cómo se conecta cada compañía está en Configuración → Conexiones
+ * con las compañías. Una nueva queda con "correo" y al editar no se toca.
+ */
 export async function guardarAseguradoraCotizacion(formData: FormData) {
   await requerirSesion();
   const nombre = texto(formData, "nombre", 120);
-  const canal = texto(formData, "canal");
   const ramos = texto(formData, "ramos", 500).split(",").map((ramo) => ramo.trim()).filter(Boolean);
   const email = texto(formData, "email", 254);
-  if (!nombre || !["correo", "portal", "ambos"].includes(canal) || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+  if (!nombre || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
     redirect("/agentes/cotizacion/configuracion?aviso=aseguradora-invalida");
   }
   const contactos = email ? [{ nombre: texto(formData, "contacto", 120), email, rol: texto(formData, "rol", 80) }] : [];
   await db.insert(schema.cotizacionAseguradoras).values({
-    nombre, canal: canal as "correo" | "portal" | "ambos", ramos, contactos,
+    nombre, canal: "correo", ramos, contactos,
     codigoProductor: texto(formData, "codigoProductor", 100) || null,
     asunto: texto(formData, "asunto", 300) || null,
     instrucciones: texto(formData, "instrucciones", 1000) || null,
@@ -84,7 +86,7 @@ export async function guardarAseguradoraCotizacion(formData: FormData) {
   }).onConflictDoUpdate({
     target: schema.cotizacionAseguradoras.nombre,
     set: {
-      canal: canal as "correo" | "portal" | "ambos", ramos, contactos,
+      ramos, contactos,
       codigoProductor: texto(formData, "codigoProductor", 100) || null,
       asunto: texto(formData, "asunto", 300) || null,
       instrucciones: texto(formData, "instrucciones", 1000) || null,
@@ -111,29 +113,6 @@ export async function guardarPaqueteCotizacion(formData: FormData) {
   }).onConflictDoNothing();
   revalidatePath("/agentes/cotizacion/configuracion");
   redirect("/agentes/cotizacion/configuracion?aviso=paquete-guardado");
-}
-
-/**
- * La clave del portal de una compañía va a credenciales_portal, la misma que usa el Validador.
- * Si la compañía ya tiene una, se le cambian el usuario y la clave; si no, se crea.
- */
-export async function guardarCredencialPortal(formData: FormData) {
-  await requerirSesion();
-  const compania = texto(formData, "compania", 120);
-  const usuario = texto(formData, "usuario", 200);
-  const clavePortal = texto(formData, "clavePortal", 1000);
-  if (!compania || !usuario || !clavePortal) redirect("/agentes/cotizacion/configuracion?aviso=credencial-invalida");
-  let guardada = false;
-  try {
-    const [actual] = await listarCredenciales(ALCANCE_CREDENCIALES, compania);
-    await guardarCredencial({ id: actual?.id, compania, etiqueta: actual?.etiqueta ?? "Principal", usuario, secreto: clavePortal }, ALCANCE_CREDENCIALES);
-    guardada = true;
-  } catch {
-    // Sin clave de cifrado en el servidor no se guarda nada; se avisa abajo, fuera del try.
-  }
-  if (!guardada) redirect("/agentes/cotizacion/configuracion?aviso=clave-cifrado-faltante");
-  revalidatePath("/agentes/cotizacion/configuracion");
-  redirect("/agentes/cotizacion/configuracion?aviso=credencial-guardada");
 }
 
 export async function importarAseguradorasCotizacion(formData: FormData) {
@@ -163,23 +142,22 @@ export async function importarAseguradorasCotizacion(formData: FormData) {
   const indice = (...nombres: string[]) => encabezados.findIndex((encabezado) => nombres.includes(encabezado));
   const colNombre = indice("aseguradora", "compania", "nombre");
   const colRamos = indice("ramos", "ramo");
-  const colCanal = indice("canal");
   if (colNombre < 0 || colRamos < 0) redirect("/agentes/cotizacion/configuracion?aviso=encabezados-catalogo-invalidos");
+  // Una columna Canal (de un archivo viejo) se ignora: cómo se conecta cada compañía está en Conexiones con las compañías.
   const filasValidas = filas.slice(1).map((fila) => ({
     nombre: (fila[colNombre] ?? "").trim().slice(0, 120),
     ramos: (fila[colRamos] ?? "").split(/[;,|]/).map((ramo) => ramo.trim()).filter(Boolean),
-    canalTexto: colCanal < 0 ? "correo" : normalizar(fila[colCanal] ?? "correo"),
   })).filter((fila) => fila.nombre);
-  if (!filasValidas.length || filasValidas.some((fila) => !fila.ramos.length || !["correo", "portal", "ambos"].includes(fila.canalTexto))) {
+  if (!filasValidas.length || filasValidas.some((fila) => !fila.ramos.length)) {
     redirect("/agentes/cotizacion/configuracion?aviso=datos-catalogo-invalidos");
   }
   await db.transaction(async (tx) => {
     for (const aseguradora of filasValidas) {
       await tx.insert(schema.cotizacionAseguradoras).values({
-        nombre: aseguradora.nombre, ramos: aseguradora.ramos, canal: aseguradora.canalTexto as "correo" | "portal" | "ambos", activa: true,
+        nombre: aseguradora.nombre, ramos: aseguradora.ramos, canal: "correo", activa: true,
       }).onConflictDoUpdate({
         target: schema.cotizacionAseguradoras.nombre,
-        set: { ramos: aseguradora.ramos, canal: aseguradora.canalTexto as "correo" | "portal" | "ambos", activa: true, actualizadoEl: new Date() },
+        set: { ramos: aseguradora.ramos, activa: true, actualizadoEl: new Date() },
       });
     }
   });

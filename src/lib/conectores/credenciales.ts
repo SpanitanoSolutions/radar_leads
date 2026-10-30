@@ -3,6 +3,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db, schema } from "@/db";
 import { cifrar, claveCredenciales, descifrar } from "@/lib/cifrado";
+import { companiaCanonica } from "@/lib/importacion";
 import type { CredencialConector } from "./tipos";
 
 // Credenciales de los portales de las compañías (credenciales_portal),
@@ -78,13 +79,16 @@ export async function listarCredenciales(alcance: AlcanceCredencial, compania?: 
 
 /**
  * La credencial activa de una compañía, descifrada, para pasársela a un
- * conector. Registra el uso. Sin credencial activa devuelve null.
+ * conector. Registra el uso. Sin credencial activa devuelve null. La compañía
+ * se compara por su nombre canónico: una clave guardada como "Seguros
+ * Rivadavia" sirve para "Rivadavia".
  */
 export async function credencialParaConector(compania: string, alcance: AlcanceCredencial): Promise<CredencialConector | null> {
-  const [fila] = await db.select().from(c)
-    .where(and(eq(c.compania, compania), eq(c.estado, "activa"), delAlcance(alcance)))
-    .orderBy(desc(c.ultimoUsoEl), desc(c.creadoEl))
-    .limit(1);
+  const buscada = companiaCanonica(compania);
+  const activas = await db.select().from(c)
+    .where(and(eq(c.estado, "activa"), delAlcance(alcance)))
+    .orderBy(desc(c.ultimoUsoEl), desc(c.creadoEl));
+  const fila = activas.find((f) => companiaCanonica(f.compania) === buscada);
   if (!fila) return null;
   const { clave, nombre } = claveCredenciales();
   const secreto = descifrar(fila.secretoCifrado, clave, nombre);

@@ -4,6 +4,9 @@ import { IconoConexion } from "@/components/IconoConexion";
 import { PanelLateral } from "@/components/PanelLateral";
 import { CONEXIONES, GRUPOS_CONEXIONES, vistaConexion } from "@/conexiones/catalogo";
 import { whatsapp } from "@/conexiones/whatsapp";
+import { ALCANCE_CONEXIONES } from "@/lib/conectores/companias";
+import { listarCredenciales } from "@/lib/conectores/credenciales";
+import { simulacionHabilitada } from "@/lib/conectores/registro";
 import { obtenerConexiones, obtenerCuenta } from "@/lib/datos";
 import { ContenidoConexion, ContenidoWhatsApp, FormCuenta } from "./Paneles";
 import "./configuracion.css";
@@ -26,7 +29,13 @@ export default async function Configuracion({
 }) {
   const sp = await searchParams;
   const pestana = PESTANAS.find((p) => p.id === sp.tab)?.id ?? "conexiones";
-  const [filas, cuenta, estadoWa] = await Promise.all([obtenerConexiones(), obtenerCuenta(), whatsapp.estado()]);
+  const [filas, cuenta, estadoWa, credenciales] = await Promise.all([
+    obtenerConexiones(),
+    obtenerCuenta(),
+    whatsapp.estado(),
+    listarCredenciales(ALCANCE_CONEXIONES),
+  ]);
+  const claves = credenciales.filter((c) => c.estado === "activa").length;
   const fila = (clave: string) => {
     const original = filas.find((f) => f.clave === clave);
     if (!original) return undefined;
@@ -77,7 +86,7 @@ export default async function Configuracion({
       {pestana === "conexiones" && (
         <>
           <p className="nota-info">
-            Las conexiones OAuth de Google y Mercado Pago y WhatsApp Cloud API requieren credenciales oficiales en el servidor. Los portales de aseguradoras y los bancos necesitan sus APIs y autorizaciones comerciales.
+            Las conexiones OAuth de Google y Mercado Pago y WhatsApp Cloud API requieren credenciales oficiales en el servidor. Las compañías de seguros y los bancos necesitan sus APIs y autorizaciones comerciales.
           </p>
 
           {!waConectado && (
@@ -108,12 +117,42 @@ export default async function Configuracion({
                 </h2>
                 <p className="texto-suave">{g.detalle}</p>
               </div>
+              {g.id === "companias" && (
+                <div className="conexion">
+                  <div className="conexion-icono" aria-hidden="true">
+                    <IconoConexion tipo="portal" />
+                  </div>
+                  <div className="conexion-texto">
+                    <div className="titulo-fila">
+                      <span className="celda-fuerte">Conexiones con las compañías</span>
+                      <span className={`pastilla ${simulacionHabilitada() ? "pastilla-ambar" : "pastilla-gris"}`}>
+                        {simulacionHabilitada() ? "Simuladas para probar" : "Por correo o carga manual"}
+                      </span>
+                    </div>
+                    <div className="texto-suave">
+                      Por qué canal se conecta cada compañía, el usuario y la clave de su portal, y si la conexión anda.{" "}
+                      {claves ? `Tenés ${claves === 1 ? "1 usuario y clave guardado" : `${claves} usuarios y claves guardados`}.` : "Todavía no guardaste usuarios ni claves de portales."}
+                    </div>
+                    <div className="conexion-usan">
+                      <span className="nota-pie">Lo usan:</span>
+                      {["Cotización", "Validador de pagos", "Siniestros"].map((u) => (
+                        <span key={u} className="etiqueta-ramo">
+                          {u}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <Link href="/configuracion/companias" className="boton boton-mediano" id="conexion-companias">
+                    Administrar<span className="visualmente-oculto"> las conexiones con las compañías</span>
+                  </Link>
+                </div>
+              )}
               {CONEXIONES.filter((c) => c.grupo === g.id).map((c) => {
                 const v = vistaConexion(c, fila(c.clave));
                 return (
                   <div key={c.clave} className="conexion">
                     <div className={`conexion-icono ${v.estado === "conectado" ? "conexion-icono-activa" : ""}`} aria-hidden="true">
-                      <IconoConexion tipo={c.tipo} compania={c.compania} />
+                      <IconoConexion tipo={c.tipo} />
                     </div>
                     <div className="conexion-texto">
                       <div className="titulo-fila">
@@ -140,7 +179,7 @@ export default async function Configuracion({
                         ))}
                       </div>
                     </div>
-                    {c.tipo === "portal" || c.tipo === "banco" ? (
+                    {c.tipo === "banco" ? (
                       <span className="boton boton-mediano" aria-disabled="true">{v.boton}</span>
                     ) : (
                       <Link
@@ -187,7 +226,6 @@ export default async function Configuracion({
             <ContenidoConexion
               conexion={panel}
               conectada={fila(panel.clave)?.estado === "conectado"}
-              porEmail={vistaConexion(panel, fila(panel.clave)).estado === "por_email"}
               datos={Object.fromEntries(Object.entries(fila(panel.clave)?.datos ?? {}).map(([k, v]) => [k, String(v ?? "")]))}
             />
           )}

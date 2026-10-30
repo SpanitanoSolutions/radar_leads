@@ -1,7 +1,60 @@
 # Progreso — Agente de Cotización v2
 
 Spec: [cotizacion-v2.md](../specs/cotizacion-v2.md). Manda en todo lo de compañías: [conectores.md](../specs/conectores.md). Plan anterior: [PLAN-cotizacion-v2.md](../PLAN-cotizacion-v2.md).
-Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`) y `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`).
+Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`), `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`; PR #34, mergeado) y `feat/cotizacion-v2-conexiones` (fase 3, sale de `main` en `0fecc26`).
+
+## Fase 3 — Configuración → Conexiones con las compañías (30/10/2026, cerrada)
+Rama `feat/cotizacion-v2-conexiones`, sin PR. Una pantalla nueva, `/configuracion/companias`, común a los 3 agentes (`?agente=cotizacion|validador|siniestros` muestra solo lo de ese agente).
+
+| Paso | Qué | Estado | Archivos |
+|---|---|---|---|
+| 1 | Lógica pura: capacidades por agente, nombres de canales, leer el orden del formulario, estado de cada canal y la lista de compañías | Hecho, 18 tests | `src/lib/conectores/vista.ts` (+ test) |
+| 2 | Datos y acciones: guardar el orden en `conector_companias`, credenciales, "Probar conexión" (que ahora atrapa lo que lance el conector y tiene tope de tiempo) | Hecho, 2 tests | `src/lib/conectores/companias.ts`, `ejecutar.ts` (+ test), `canales.ts`, `src/app/(app)/configuracion/companias/actions.ts`; los formularios genéricos del Validador pasan a `src/components/Formularios.tsx` |
+| 3 | La pantalla | Hecho y probado | `src/app/(app)/configuracion/companias/` (`page.tsx`, `Secciones.tsx`, `actions.ts`, `companias.css`); `credencialParaConector()` busca por nombre canónico |
+| 4 | Los agentes enlazan a la pantalla: Credenciales del Validador (la plantilla de importación se muda), Portales de Cotización (y el `canal` viejo deja de verse, también en "Nueva solicitud"), Siniestros y Configuración → Conexiones | Hecho y probado | configuración de los 3 agentes, `nueva/` de Cotización, `src/app/(app)/configuracion/` (`page.tsx`, `Paneles.tsx`, `actions.ts`), `src/conexiones/catalogo.ts` (+ test), `estado.ts`; se borraron `src/conexiones/portal.ts` y `src/lib/cotizacion/credenciales.ts` |
+| 5 | `ejecutarEnCompania()` usa el nombre canónico de la compañía | Hecho, 1 test | `src/lib/conectores/ejecutar.ts` (+ test) |
+| 6 | Pruebas: tests, lint, build, E2E y recorrido con la app compilada | Hecho (ver "Prueba de la fase 3") | `e2e/flujos.mjs` (paso 17b y la pantalla en el control de 390 px) |
+
+**Decisiones de la implementación (revisables):**
+- La pantalla vive en `/configuracion/companias`. En Configuración → Conexiones, el grupo "Compañías de seguros" pasa a ser una sola fila que lleva ahí (antes eran 22 filas con "Integración pendiente" que no hacían nada).
+- Las compañías se identifican por su nombre canónico (`companiaCanonica()`: "Seguros Rivadavia" → "Rivadavia"), en la pantalla y en `ejecutarEnCompania()`, para que los 3 agentes compartan la misma fila de canales, credenciales y salud.
+- La plantilla de importación del Validador (el canal archivo) se muda a la pantalla común, en la parte del Validador.
+- "Probar conexión" del portal pide una credencial activa; la de la conexión directa usa la credencial si hay.
+- El punto de cada compañía en la lista dice cómo anda su conexión automática para el agente elegido (gris: sin conexión o solo correo; verde: anda; ámbar: un canal falló o está fuera de uso; rojo: no anda ninguno). La spec del Validador pedía verde o naranja según hubiera credencial activa: la cantidad de credenciales sigue al lado del nombre.
+- `credencialParaConector()` también compara por nombre canónico: una clave guardada como "Seguros Rivadavia" sirve para "Rivadavia".
+
+**Qué hay en la pantalla** (por compañía):
+- **Cómo se conecta:** cada canal con conector (conexión directa, portal, archivo), su lugar en el orden o "No se usa por el orden elegido", la salud de `conector_salud` en palabras ("Anda bien", "Falló la última vez", "Rechazó la clave: los agentes no lo usan", "El portal cambió…"), último éxito, último error con su motivo, tiempo de respuesta y **Probar conexión**. Debajo, qué puede hacer cada agente, por qué canal y cuándo lo hace solo (automático, al aprobar la solicitud, o con tu aprobación caso por caso). Sin conectores (como en producción) dice qué hace cada agente mientras tanto.
+- **Orden de los canales:** automático (sin fila), uno propio (cada canal con su lugar o "No usar") o solo correo o carga manual (lista vacía). Lugares repetidos o ninguno elegido se rechazan sin guardar. Vale para los tres agentes.
+- **Usuario y clave del portal:** la tabla de `credenciales_portal` con agregar, editar y borrar (lo que antes estaba en el Validador).
+- **Correo para cotizar** (Cotización): a qué correo va el pedido si no hay conexión automática, o que falta el contacto.
+- **Plantilla de los listados del Validador:** la que estaba en su pestaña Credenciales.
+- Arriba, los filtros por agente. "Probar conexión" deja el resultado en el aviso (`?prueba=canal:resultado`).
+
+**Lo que se mudó o se sacó:**
+- Validador: la pestaña Credenciales pasa a ser el enlace "Compañías y credenciales ↗" y la pestaña por defecto es General. `?tab=credenciales&cia=…` redirige a la pantalla común.
+- Cotización: la sección Portales pasa a ser un enlace. La columna y el selector de `canal` de las aseguradoras, y su texto en "Nueva solicitud", ya no se muestran. Guardar o importar una aseguradora no lo pisa (una nueva queda con "correo"); el CSV exportado ya no lo trae y una columna Canal al importar se ignora.
+- Configuración → Conexiones: el grupo "Compañías de seguros" es una fila con el resumen ("Simuladas para probar" o "Por correo o carga manual", y cuántas claves hay) y "Administrar". Se sacaron del catálogo las 22 compañías con "Integración pendiente", `companiasCotizables()` (no la usaba nadie) y el adaptador `src/conexiones/portal.ts`.
+- `probarConexion()` tiene el tope de tiempo del canal y, si el conector lanza, cuenta como no disponible (con su código si es un `ErrorConector`) y lo audita igual.
+
+### Prueba de la fase 3 (30/10/2026)
+- `npm test`: pasan 578 de 581. Los 3 que fallan son de antes (en `catalogo.test.ts` la cuenta bancaria, `menu.test.ts` y `siniestros.test.ts`); los otros 2 de antes eran de las filas de portal del catálogo, que ya no existen. La fase suma 21 tests.
+- `npm run lint`: sin errores (las 3 advertencias viejas). `npm run build`: OK.
+- `npm run test:e2e`: **pasa entero** (24 pasos, con el 17b nuevo) contra Postgres 18.6 en Docker recién sembrado, con la app compilada, `CONECTORES_SIMULADOS=1` y sin `ANTHROPIC_API_KEY`.
+- **Recorrido con la app compilada** (Playwright fuera del repo, sobre la misma base después del E2E, con `CONECTORES_SIMULADOS_FORZAR=Sancor=ok;Mapfre=falla`):
+  - Configuración → Conexiones muestra la fila "Conexiones con las compañías" ("Simuladas para probar") y ya no hay "Integración pendiente". "Administrar" lleva a la pantalla, con 21 compañías.
+  - Sancor: los dos canales "Sin uso todavía" y las 12 capacidades. Probar la conexión directa: "respondió bien" y queda "Anda bien". El portal sin credencial pide cargarla. Con la credencial cargada responde bien.
+  - Con la contraseña `vencida` (la simulación la rechaza): "rechazó el usuario y la clave", el portal queda fuera de uso y la compañía en "Revisá la conexión". Con otra contraseña y otra prueba vuelve a "Anda bien" (`credencial_vencida` vuelve a `false`).
+  - Mapfre (portal caído): "no estaba disponible" y "Falló la última vez" con el motivo.
+  - Rivadavia, abierta como "Seguros Rivadavia", queda en solo correo, y la parte de Cotización muestra sus dos aseguradoras. Sancor queda solo por portal. Los lugares repetidos se rechazan (E2E).
+  - Con `?agente=` cada agente ve solo sus capacidades: el Validador, la plantilla y no el correo; Cotización, el correo y "Al aprobar la solicitud"; Siniestros, "Con tu aprobación, caso por caso".
+  - Los enlaces del Validador, Cotización y Siniestros llevan a la pantalla. Cotización ya no muestra Canal ni Portales, y guardar La Segunda con su correo anda.
+  - Sin desborde horizontal a 390 px.
+  - **De punta a punta con Cotización:** la solicitud 1045 (Flota, desde un lead, con las 8 aseguradoras) y "Aprobar y cotizar": Sancor cotizó **solo por portal** (`intentos`: portal); **Rivadavia y Seguros Rivadavia no probaron ningún canal** (`intentos = []`, queda el correo), las dos por la fila de "Rivadavia"; las demás, por conexión directa.
+  - En la base: `conector_companias` con Rivadavia `{}` y Sancor `{portal}`; cada prueba en `conector_llamadas` (agente `configuracion`, operación `probarConexion`); `conector_salud` al día. Las contraseñas no aparecen en el volcado de la base ni en el log del servidor, y el log no tiene errores de esta pantalla.
+- Después de la última corrida cambiaron dos textos (el tiempo de respuesta en ms por debajo de 1 s y "Volver a la configuración del Validador de pagos"); `tsc` y lint OK.
+
+**Para repetirla:** como en "Prueba contra Postgres 18.6" (más abajo), con `CONECTORES_SIMULADOS=1` en el build y en `next start`, y `CONECTORES_SIMULADOS_FORZAR=Sancor=ok;Mapfre=falla` para el recorrido.
 
 ## Fase 2 — Alinear con la base común (30/10/2026, cerrada)
 Rama `feat/cotizacion-v2-base-comun`, sin PR. Las tres partes (2a IA, 2b credenciales y 2c conectores) están hechas y probadas con la app compilada; ver "Cierre de la Fase 2" en la 2c.
@@ -474,7 +527,7 @@ Docker descartable (`postgres:18.6`), `db:preparar` desde cero con los datos de 
 
 **Migraciones:** esta sesión no agrega ninguna. Las del plan se prueban sobre una base con los datos de `main` antes de mergear, como en el Validador (con `db:preparar` desde un worktree de `main` primero).
 
-## Plan propuesto (fases 1 y 2 hechas el 30/10/2026)
+## Plan propuesto (fases 1 a 3 hechas el 30/10/2026)
 Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6, commit y este progreso al día. Las migraciones solo agregan y se prueban antes sobre una base con los datos de `main`. Nada se envía de verdad: conectores simulados, correos como borradores y, sin `ANTHROPIC_API_KEY`, el agente funciona igual.
 
 | Fase | Qué | Sesiones | Criterios |
@@ -525,7 +578,7 @@ Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6
   `canal` (`correo`, `portal` o `ambos`) queda, pero ya no decide nada.
 - **Para probarlo:** `CONECTORES_SIMULADOS_FORZAR` (por ejemplo, `Federación Patronal=falla;Rivadavia=dato`), para que los criterios 12 y 13 no dependan del azar.
 
-### Fase 3 — Configuración → Conexiones (común a los 3 agentes)
+### Fase 3 — Configuración → Conexiones (común a los 3 agentes) — hecha, ver arriba
 - Por compañía: canales en orden (o "solo correo o carga manual"), credenciales de `credenciales_portal`, capacidades del conector, "Probar conexión" (`probarConexion()`) y la salud (`conector_salud`: último éxito, último error y latencia).
 - Cada agente ve solo lo suyo: Cotización, cotizar y coberturas; el Validador, cobranza y cancelaciones; Siniestros, lo de siniestros.
 - La pestaña Credenciales del Validador y la sección Portales de Cotización pasan a ser un enlace a esta pantalla.
@@ -587,11 +640,14 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-**La Fase 2 está cerrada** (rama `feat/cotizacion-v2-base-comun`, sin PR). Siguiente: la **Fase 3, la pantalla común Configuración → Conexiones** (ver el plan, "Fase 3"), común a los 3 agentes:
-1. por compañía: el orden de canales de `conector_companias` (o "solo correo o carga manual"), las credenciales de `credenciales_portal`, las capacidades del conector, "Probar conexión" (`probarConexion()`) y la salud (`conector_salud`: último éxito, último error y latencia);
-2. cada agente ve solo lo suyo: Cotización, cotizar y coberturas; el Validador, cobranza y cancelaciones; Siniestros, lo de siniestros;
-3. la pestaña Credenciales del Validador y la sección Portales de Cotización pasan a ser un enlace a esta pantalla, y el `canal` viejo de las aseguradoras (`correo`, `portal`, `ambos`) deja de mostrarse en la Configuración de Cotización.
+**La Fase 3 está cerrada** (rama `feat/cotizacion-v2-conexiones`, sin PR; sale de `main` con el PR #34). Siguiente: la **Fase 4, lo que falta de las pantallas** (ver el plan, "Fase 4"), en orden:
+1. checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud;
+2. detalle: en Contactos, el próximo seguimiento, Copiar y Excel; en el panel, "Requiere atención" con detalle, los seguimientos activos y los archivos por compañía; en Agente, la línea de tiempo y el borrador al ejecutivo;
+3. comparativo con las filas de la spec y la vista compacta o detallada;
+4. ABM de Tipos de seguro y "Sugerir con IA" para la estrategia;
+5. la bitácora con `cotizacion_eventos` y filtros, y las métricas medidas desde que salió el envío;
+6. la propuesta con el logo de la cuenta y con acentos.
 
-Hoy `conector_companias` solo se carga por SQL (como en la prueba de la 2c).
+Antes, Julian decide si se abre el PR de la fase 3 (la rama no tiene migraciones).
 
-Pendientes que no son de esta fase: Julian desactiva Rivadavia duplicada desde la Configuración, y apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.
+Pendientes que no son de esta fase: Julian desactiva Rivadavia duplicada desde la Configuración de Cotización (desde la fase 3 las dos comparten la fila de canales de "Rivadavia"), y apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.

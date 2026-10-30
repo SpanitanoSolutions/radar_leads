@@ -85,7 +85,7 @@ export function efectoEnSalud(intento: IntentoCanal): "exito" | "falla" | null {
   return "falla";
 }
 
-function conTiempoMaximo<T>(promesa: Promise<T>, ms: number): Promise<T> {
+export function conTiempoMaximo<T>(promesa: Promise<T>, ms: number): Promise<T> {
   let temporizador: ReturnType<typeof setTimeout> | undefined;
   const limite = new Promise<never>((_, rechazar) => {
     temporizador = setTimeout(() => rechazar(new ErrorConector("timeout", "La compañía no respondió a tiempo.")), ms);

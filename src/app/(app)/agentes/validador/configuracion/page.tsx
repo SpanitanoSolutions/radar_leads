@@ -1,25 +1,18 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Aviso } from "@/components/Aviso";
 import { ALCANCE_CARTERA, configValidador } from "@/agentes/validador/cartera";
 import { ultimaCorridaCron } from "@/agentes/validador/corrida";
 import { iaDisponible, OPERACIONES_IA } from "@/agentes/validador/ia";
 import { canalesConectados } from "@/agentes/validador/notificaciones";
-import { listarCredenciales } from "@/lib/conectores/credenciales";
-import { registroConectores } from "@/lib/conectores/registro";
 import { agenteConfigurado } from "@/lib/datos-agentes";
-import {
-  obtenerFilasGracia,
-  obtenerNombresCompanias,
-  obtenerPlantillasListado,
-  obtenerSaludConectores,
-  obtenerUltimasCorridas,
-} from "@/lib/datos-validador";
-import { COMPANIAS, companiaCanonica } from "@/lib/importacion";
+import { obtenerFilasGracia, obtenerNombresCompanias, obtenerUltimasCorridas } from "@/lib/datos-validador";
+import { COMPANIAS } from "@/lib/importacion";
 import { RAMOS_CARTERA } from "@/lib/ramos";
 import { grillaDeGracia, TODOS_LOS_RAMOS } from "@/lib/validador/gracia";
 import { leerNotificaciones } from "@/lib/validador/notificaciones";
 import { PASADAS_CRON_UTC, proximaPasada } from "@/lib/validador/programacion";
-import { PestanaCredenciales, PestanaGeneral, PestanaNotificaciones, PestanaProgramacion, type CompaniaCredenciales, type InfoEtapa } from "./Secciones";
+import { PestanaGeneral, PestanaNotificaciones, PestanaProgramacion, type InfoEtapa } from "./Secciones";
 import "../../agentes.css";
 import "../validador.css";
 
@@ -27,7 +20,6 @@ import "../validador.css";
 export const instant = false;
 
 const PESTANAS = [
-  { id: "credenciales", texto: "Credenciales" },
   { id: "general", texto: "General" },
   { id: "programacion", texto: "Programación" },
   { id: "notificaciones", texto: "Notificaciones" },
@@ -38,36 +30,12 @@ const unico = (valor: string | string[] | undefined) => (typeof valor === "strin
 
 export default async function ConfiguracionValidador({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const pestana: Pestana = PESTANAS.find((p) => p.id === sp.tab)?.id ?? "credenciales";
+  // Las credenciales y la plantilla de los listados se mudaron a la pantalla común.
+  if (sp.tab === "credenciales") redirect(`/configuracion/companias?${new URLSearchParams({ agente: "validador", ...(unico(sp.cia) ? { cia: unico(sp.cia) } : {}) })}`);
+  const pestana: Pestana = PESTANAS.find((p) => p.id === sp.tab)?.id ?? "general";
   const alcance = ALCANCE_CARTERA;
 
   async function contenido() {
-    if (pestana === "credenciales") {
-      const [nombres, todas, plantillas, salud] = await Promise.all([
-        obtenerNombresCompanias(),
-        listarCredenciales(alcance),
-        obtenerPlantillasListado(),
-        obtenerSaludConectores(),
-      ]);
-      const lista = [...new Set([...COMPANIAS, ...nombres, ...todas.map((c) => companiaCanonica(c.compania))])].sort((a, b) => a.localeCompare(b, "es"));
-      const companias: CompaniaCredenciales[] = lista.map((nombre) => {
-        const suyas = todas.filter((c) => companiaCanonica(c.compania) === nombre);
-        return { nombre, total: suyas.length, activas: suyas.filter((c) => c.estado === "activa").length };
-      });
-      const pedida = companiaCanonica(unico(sp.cia));
-      const seleccionada = lista.includes(pedida) ? pedida : (companias.find((c) => c.total)?.nombre ?? lista[0]);
-      return (
-        <PestanaCredenciales
-          companias={companias}
-          seleccionada={seleccionada}
-          credenciales={todas.filter((c) => companiaCanonica(c.compania) === seleccionada)}
-          plantillas={plantillas.filter((p) => companiaCanonica(p.compania) === seleccionada && p.orgId === alcance.orgId && p.producerId === alcance.producerId)}
-          salud={salud.filter((s) => companiaCanonica(s.compania) === seleccionada)}
-          conectores={registroConectores.conectoresPara(seleccionada).length}
-          editando={Number(unico(sp.editar)) || null}
-        />
-      );
-    }
     if (pestana === "general") {
       const ramo = RAMOS_CARTERA.find((r) => r.id === sp.ramo)?.id ?? TODOS_LOS_RAMOS;
       const [filas, nombres, config] = await Promise.all([obtenerFilasGracia(), obtenerNombresCompanias(), configValidador(alcance)]);
@@ -110,7 +78,7 @@ export default async function ConfiguracionValidador({ searchParams }: { searchP
             ← Volver al Validador
           </Link>
           <h1 className="titulo">Configuración del Validador</h1>
-          <p className="subtitulo descripcion-agente">Credenciales de los portales, períodos de gracia, cuándo corre la validación automática y a quién avisarle.</p>
+          <p className="subtitulo descripcion-agente">Períodos de gracia, cuándo corre la validación automática y a quién avisarle.</p>
         </div>
       </header>
 
@@ -122,6 +90,9 @@ export default async function ConfiguracionValidador({ searchParams }: { searchP
             {p.texto}
           </Link>
         ))}
+        <Link href="/configuracion/companias?agente=validador" className="pestana">
+          Compañías y credenciales ↗
+        </Link>
       </nav>
 
       {await contenido()}

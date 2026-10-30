@@ -3,20 +3,17 @@ import { connection } from "next/server";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { estadoIACotizacion } from "@/agentes/cotizacion/ia";
-import { listarCredenciales } from "@/lib/conectores/credenciales";
-import { ALCANCE_CREDENCIALES } from "@/lib/cotizacion/credenciales";
-import { guardarAseguradoraCotizacion, guardarConfiguracionCotizacion, guardarPaqueteCotizacion, guardarCredencialPortal, importarAseguradorasCotizacion, guardarFeatureCotizacionIA } from "./actions";
+import { guardarAseguradoraCotizacion, guardarConfiguracionCotizacion, guardarPaqueteCotizacion, importarAseguradorasCotizacion, guardarFeatureCotizacionIA } from "./actions";
 import "../../agentes.css";
 
 export default async function ConfiguracionCotizacion({ searchParams }: { searchParams: Promise<{ aviso?: string }> }) {
   await connection();
-  const [{ aviso }, aseguradoras, paquetes, configuraciones, credenciales, estadoIA] = await Promise.all([
+  const [{ aviso }, aseguradoras, paquetes, configuraciones, estadoIA] = await Promise.all([
     searchParams,
     db.select().from(schema.cotizacionAseguradoras).orderBy(schema.cotizacionAseguradoras.nombre),
     db.select({ paquete: schema.cotizacionPaquetes, aseguradora: schema.cotizacionAseguradoras.nombre })
       .from(schema.cotizacionPaquetes).innerJoin(schema.cotizacionAseguradoras, eq(schema.cotizacionAseguradoras.id, schema.cotizacionPaquetes.aseguradoraId)),
     db.select().from(schema.cotizacionConfig).limit(1),
-    listarCredenciales(ALCANCE_CREDENCIALES),
     estadoIACotizacion(),
   ]);
   const config = configuraciones[0];
@@ -24,16 +21,13 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
     guardado: "Guardaste la configuración.",
     "estrategia-invalida": "La estrategia debe indicar una frecuencia en días hábiles o una regla por ramo.",
     "configuracion-invalida": "Revisá el intervalo y el máximo de seguimientos.",
-    "aseguradora-invalida": "Revisá el nombre, el canal y el correo de contacto.",
+    "aseguradora-invalida": "Revisá el nombre y el correo de contacto.",
     "aseguradora-guardada": "Guardaste la aseguradora.",
     "paquete-invalido": "Revisá los datos del paquete.",
     "paquete-guardado": "Guardaste el paquete.",
-    "clave-cifrado-faltante": "No se guardó la clave: falta configurar la clave de cifrado en el servidor (CREDENCIALES_PORTAL_KEY).",
-    "credencial-invalida": "Completá la compañía, el usuario y la clave.",
-    "credencial-guardada": "Guardamos la clave cifrada. El portal sigue simulado.",
     "archivo-catalogo-invalido": "Subí un CSV o Excel de hasta 5 MB con aseguradora y ramo.",
     "encabezados-catalogo-invalidos": "El archivo debe tener columnas Aseguradora y Ramos.",
-    "datos-catalogo-invalidos": "Revisá que cada fila tenga nombre, ramos y un canal válido (correo, portal o ambos).",
+    "datos-catalogo-invalidos": "Revisá que cada fila tenga nombre y ramos.",
     "importacion-catalogo-ok": "Importamos las aseguradoras.",
     "ia-sin-clave": "La IA quedó desactivada: configurá ANTHROPIC_API_KEY en el servidor.",
     "ia-guardada": "Actualizaste el uso de IA de Cotización.",
@@ -46,17 +40,16 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
       {aviso && <p className="cotizacion-aviso" role="status">{nombresAviso[aviso] ?? "Se guardaron los cambios."}</p>}
 
       <section className="tarjeta cotizacion-ajuste-seccion">
-        <h2>Aseguradoras</h2><p>El correo y los portales se mantienen simulados. Cada borrador requiere tu aprobación.</p>
+        <h2>Aseguradoras</h2><p>A quién le pide cotizaciones el agente y a qué correo. Cada correo espera tu aprobación. Cómo se conecta con cada compañía (conexión directa, portal o solo correo) está en <Link href="/configuracion/companias?agente=cotizacion">Conexiones con las compañías</Link>.</p>
         <div className="cotizacion-botones-borrador"><Link className="boton" href="/agentes/cotizacion/configuracion/exportar">Exportar CSV</Link><Link className="boton" href="/agentes/cotizacion/configuracion/exportar?formato=xlsx">Exportar Excel</Link></div>
         <form action={importarAseguradorasCotizacion} className="cotizacion-ajuste-form"><label>Importar aseguradoras (CSV o Excel)<input type="file" name="archivoAseguradoras" accept=".csv,.xlsx" required /></label><button className="boton">Importar catálogo</button></form>
-        <div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Ramos</th><th>Canal</th><th>Contacto</th><th>Activa</th></tr></thead>
-          <tbody>{aseguradoras.map((aseguradora) => <tr key={aseguradora.id}><td>{aseguradora.nombre}</td><td>{aseguradora.ramos.join(", ")}</td><td>{aseguradora.canal}</td><td>{aseguradora.contactos.map((contacto) => contacto.email).join(", ") || "Sin contacto"}</td><td>{aseguradora.activa ? "Sí" : "No"}</td></tr>)}</tbody>
+        <div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Ramos</th><th>Contacto</th><th>Activa</th></tr></thead>
+          <tbody>{aseguradoras.map((aseguradora) => <tr key={aseguradora.id}><td>{aseguradora.nombre}</td><td>{aseguradora.ramos.join(", ")}</td><td>{aseguradora.contactos.map((contacto) => contacto.email).join(", ") || "Sin contacto"}</td><td>{aseguradora.activa ? "Sí" : "No"}</td></tr>)}</tbody>
         </table></div>
         <form action={guardarAseguradoraCotizacion} className="cotizacion-ajuste-form">
           <h3>Agregar o editar aseguradora</h3>
           <label>Nombre<input name="nombre" required maxLength={120} /></label>
           <label>Ramos separados por coma<input name="ramos" defaultValue="Automotor, Flotas" /></label>
-          <label>Canal<select name="canal"><option value="correo">Correo</option><option value="portal">Portal simulado</option><option value="ambos">Correo y portal</option></select></label>
           <label>Nombre del contacto<input name="contacto" maxLength={120} /></label>
           <label>Correo<input name="email" type="email" maxLength={254} /></label>
           <label>Rol del contacto<input name="rol" maxLength={80} /></label>
@@ -114,19 +107,9 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
       </section>
 
       <section className="tarjeta cotizacion-ajuste-seccion">
-        <h2>Portales</h2><p>Guardar la clave no conecta el portal todavía: las conexiones con las compañías siguen simuladas. La clave se guarda cifrada y es la misma que usa el Validador.</p>
-        {aseguradoras.filter((aseguradora) => aseguradora.canal !== "correo").map((aseguradora) => {
-          const credencial = credenciales.find((item) => item.compania === aseguradora.nombre);
-          return <div key={aseguradora.id} className="cotizacion-portal-credencial">
-            <p><strong>{aseguradora.nombre}</strong> · {credencial ? `clave guardada para ${credencial.usuario}${credencial.estado === "activa" ? "" : credencial.estado === "vencida" ? " (vencida)" : " (desactivada)"}` : "sin clave"} · conexión simulada</p>
-            <form action={guardarCredencialPortal} className="cotizacion-ajuste-form">
-              <input type="hidden" name="compania" value={aseguradora.nombre} />
-              <label>Usuario<input name="usuario" autoComplete="off" maxLength={200} required /></label>
-              <label>Clave<input name="clavePortal" type="password" autoComplete="new-password" maxLength={1000} required /></label>
-              <button className="boton">{credencial ? "Cambiar usuario y clave" : "Guardar cifrada"}</button>
-            </form>
-          </div>;
-        })}
+        <h2>Conexiones con las compañías</h2>
+        <p>El orden de los canales de cada compañía, el usuario y la clave de su portal, y si la conexión anda, están en una pantalla común a los tres agentes. Las claves se guardan cifradas y son las mismas que usa el Validador.</p>
+        <div className="cotizacion-botones-borrador"><Link className="boton" href="/configuracion/companias?agente=cotizacion">Ir a Conexiones con las compañías</Link></div>
       </section>
     </main>
   );
