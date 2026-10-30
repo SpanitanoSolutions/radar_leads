@@ -6,7 +6,7 @@ import { mejorResultadoConfirmado, porcentajeCerrados, validarCotizacionContraSo
 import { estadoIACotizacion, lecturasDePdfs, obtenerBorradoresIA } from "@/agentes/cotizacion/ia";
 import { enviosCotizando } from "@/agentes/cotizacion/cotizar";
 import { correosSinEnviar } from "@/agentes/cotizacion/correo";
-import { datoPedido, elegibleParaCotizar, estadoEnvioVisible, etiquetaCanal, EVENTO_AUTORIZACION } from "@/lib/cotizacion/orquestador";
+import { datoPedido, elegibleParaCotizar, estadoEnvioVisible, EVENTO_AUTORIZACION } from "@/lib/cotizacion/orquestador";
 import { aprobarEnvioCotizacion, aprobarPropuestaCotizacion, aprobarYCotizarSolicitud, cargarArchivoCotizacion, reenviarCorreoCotizacionAccion, cargarResultadoCotizacion, confirmarResultadoCotizacionAccion, generarPropuestaCotizacion, marcarSolicitudCompletada, omitirBorradorCotizacion, responderDatoCotizacion, simularRespuestaCotizacion, chatearCotizacionIA, redactarCorreoConIA, extraerPdfConIA } from "../actions";
 import { ActualizarMientrasLee } from "./ActualizarMientrasLee";
 import "../../agentes.css";
@@ -90,22 +90,23 @@ export default async function DetalleCotizacion({ params, searchParams }: {
               </div>
               {!autorizada && !cerrada && porCotizar > 0 && <form action={aprobarYCotizarSolicitud}><input type="hidden" name="solicitudId" value={id} /><button className="boton boton-primario">Aprobar y cotizar</button></form>}
             </div>
-            <div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Paquete</th><th>Folio</th><th>Estado</th><th>Canal</th><th>Seguimientos</th><th>Última actividad</th><th>Borrador</th></tr></thead><tbody>
+            <div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Estado</th><th>Borrador</th><th>Folio</th><th>Paquete</th><th>Seguimientos</th><th>Última actividad</th></tr></thead><tbody>
               {envios.map((envio) => {
                 const enCurso = cotizando.has(envio.id);
                 const visible = estadoEnvioVisible(envio, { cotizando: enCurso, resultado: resultadoPorEnvio.get(envio.id) });
                 const dato = cerrada ? null : datoPedido(envio);
                 return <tr key={envio.id}>
-                  <td>{envio.compania}</td><td>{envio.paqueteId == null ? "Sin paquete" : nombrePaquete.get(envio.paqueteId) ?? "Sin paquete"}</td><td>{envio.folio ?? envio.numeroCompania ?? "—"}</td>
+                  <td>{envio.compania}</td>
                   <td>{visible.texto}{visible.detalle && <small><br />{visible.detalle}</small>}
                     {dato && <form action={responderDatoCotizacion} className="cotizacion-dato"><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="solicitudId" value={id} /><label>Tu respuesta para {envio.compania}<input name="respuesta" required maxLength={200} /></label><button className="boton boton-primario">Responder y volver a cotizar</button></form>}
                   </td>
-                  <td>{etiquetaCanal(envio.canalUsado)}</td><td>{envio.cantidadSeguimientos}</td><td>{envio.ultimaActividad.toLocaleString("es-AR")}</td>
                   <td>{enCurso ? <span className="texto-suave">Esperá la cotización automática</span>
                     : envio.estadoBorrador === "pendiente" ? <div className="cotizacion-botones-borrador"><form action={aprobarEnvioCotizacion}><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="volverDetalle" value="on" /><button className="boton boton-primario">Aprobar</button></form><form action={omitirBorradorCotizacion}><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="volverDetalle" value="on" /><button className="boton">Omitir</button></form>{estadoIA.habilitada && <form action={redactarCorreoConIA}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Mejorar con IA</button></form>}</div>
                     : envio.estadoBorrador === "aprobado" && sinEnviar.has(envio.id) ? <div className="cotizacion-botones-borrador"><span>Aprobado · sin enviar</span><form action={reenviarCorreoCotizacionAccion}><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="volverDetalle" value="on" /><button className="boton">Enviar ahora</button></form></div>
                     : envio.estadoBorrador === "aprobado" ? "Aprobado y enviado"
                     : envio.canalUsado && envio.canalUsado !== "correo" ? "No hace falta" : "Omitido"}</td>
+                  <td>{envio.folio ?? envio.numeroCompania ?? "—"}</td><td>{envio.paqueteId == null ? "Sin paquete" : nombrePaquete.get(envio.paqueteId) ?? "Sin paquete"}</td>
+                  <td>{envio.cantidadSeguimientos}</td><td>{envio.ultimaActividad.toLocaleString("es-AR")}</td>
                 </tr>;
               })}
             </tbody></table></div>

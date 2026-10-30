@@ -105,7 +105,7 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
   });
 
   await db.update(schema.solicitudesCotizacion).set({ nota: `${companias.length} borradores listos para revisar. Todavía no se envió nada.`, actualizadoEl: new Date() }).where(eq(schema.solicitudesCotizacion.id, creada.id));
-  if (config?.cotizarAutomaticamente && await autorizarCotizacion(creada.id, "automatica")) await despacharCotizaciones();
+  if (config?.cotizarAutomaticamente) await despacharCotizaciones(await autorizarCotizacion(creada.id, "automatica") ?? 0);
   return creada.numero;
 }
 

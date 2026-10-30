@@ -22,13 +22,6 @@ export const NOMBRE_CANAL: Record<TipoConector | "correo", string> = {
   correo: "correo",
 };
 
-/** Para la columna Canal: "Conexión directa", "Portal", "Correo" o "—". */
-export function etiquetaCanal(canal: string | null): string {
-  if (!canal || !(canal in NOMBRE_CANAL)) return "—";
-  const nombre = NOMBRE_CANAL[canal as TipoConector | "correo"];
-  return nombre[0].toUpperCase() + nombre.slice(1);
-}
-
 /** "La conexión directa de Sancor", "El portal de Rivadavia". */
 export function canalDe(canal: TipoConector, compania: string): string {
   const articulo = canal === "api" ? "La" : "El";

@@ -209,6 +209,14 @@ describe("registro", () => {
     expect((await mismaApi.consultarCotizacion!(pedido.numero)).estado).toBe("cotizada");
   });
 
+  it("dos registros con las mismas instancias (como las acciones y el cron) ven la misma cotización en dos pasos", async () => {
+    const compartidas = new Map();
+    const deLaAccion = crearRegistroSimulado({ api: { modo: "dos_pasos", hoy } }, compartidas);
+    const delCron = crearRegistroSimulado({ api: { modo: "dos_pasos", hoy } }, compartidas);
+    const pedido = await deLaAccion.conectoresPara("Sancor")[0].cotizar!({ referencia: "S", ramo: "Auto", tipo: "nueva", riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS", vigenciaDesde: null }, []);
+    expect((await delCron.conectoresPara("Sancor")[0].consultarCotizacion!(pedido.numero)).estado).toBe("cotizada");
+  });
+
   it("CONECTORES_SIMULADOS_FORZAR: lo forzado por compañía, sin distinguir acentos ni mayúsculas", () => {
     const forzados = leerForzados("Federación Patronal=falla; rivadavia = dato,dos_pasos;Sancor=ok;Mapfre=volar;=falla;La Segunda");
     expect([...forzados.entries()]).toEqual([

@@ -3,8 +3,8 @@
 Spec: [cotizacion-v2.md](../specs/cotizacion-v2.md). Manda en todo lo de compañías: [conectores.md](../specs/conectores.md). Plan anterior: [PLAN-cotizacion-v2.md](../PLAN-cotizacion-v2.md).
 Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`) y `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`).
 
-## Fase 2 — Alinear con la base común (en curso, desde el 30/10/2026)
-Rama `feat/cotizacion-v2-base-comun`.
+## Fase 2 — Alinear con la base común (30/10/2026, cerrada)
+Rama `feat/cotizacion-v2-base-comun`, sin PR. Las tres partes (2a IA, 2b credenciales y 2c conectores) están hechas y probadas con la app compilada; ver "Cierre de la Fase 2" en la 2c.
 
 **Decisiones de Julian (30/10/2026)** sobre "Para decidir antes de la fase 2":
 1. **Enfoque de IA:** la opción A (pipeline con salida estructurada). El chat con herramientas (B) no se hace por ahora.
@@ -22,6 +22,8 @@ Rama `feat/cotizacion-v2-base-comun`.
 |---|---|---|---|
 | 2a | IA por `ejecutarIA()`, interruptor en `ia_configuracion` | Hecho y probado (ver "Prueba de la 2a") | `src/lib/cotizacion/ia.ts` (+ test), `src/agentes/cotizacion/ia.ts` y `trabajos.ts` (nuevos), `src/lib/ia/` (`modelos.ts` + test, `claude.ts`, `index.ts`, `motor.ts` + test, `manejadores.ts`; se borró `cotizacion.ts`), `actions.ts`, `[id]/page.tsx`, `[id]/ActualizarMientrasLee.tsx`, `configuracion/actions.ts` y `configuracion/page.tsx` de Cotización, migración `0029` |
 | 2a+ | Feriados por provincia y Jueves Santo; el webhook de la v1 sin confirmar (el webhook se sacó en la 2c) | Hecho | `src/lib/cotizacion/seguimientos.ts` (+ test), `src/lib/provincias.ts` (nuevo), `src/db/schema.ts`, `src/lib/datos.ts`, `configuracion/actions.ts` y `Paneles.tsx` (general), `actions.ts` de Cotización, `src/agentes/cotizacion/solicitudes.ts`, `src/app/api/agentes/cotizacion/resultado/route.ts`, migración `0029` |
+| 2b | Credenciales en `credenciales_portal` (sin copia: en producción no hay ninguna) | Hecho y probado | `configuracion/actions.ts` y `configuracion/page.tsx` de Cotización, `src/lib/cotizacion/credenciales.ts` |
+| 2c | Conectores con el orden de canales | Hecho y probado (ver "2c. Conectores") | migración `0030`, `src/lib/conectores/`, `src/lib/cotizacion/orquestador.ts` y `correo.ts`, `src/agentes/cotizacion/` (`orquestador.ts`, `cotizar.ts` y `correo.ts`), pantallas de Cotización |
 
 **2a. La IA por `ejecutarIA()`:**
 - **Las 3 operaciones** (`src/agentes/cotizacion/ia.ts`) pasan por `ejecutarIA()` con salida estructurada y su esquema zod (`src/lib/cotizacion/ia.ts`). El código verifica lo que vuelve:
@@ -65,18 +67,17 @@ Rama `feat/cotizacion-v2-base-comun`.
   - **Mi cuenta:** la provincia viene en Buenos Aires, se cambia a Córdoba, se guarda y se vuelve a cambiar.
   - **Webhook de la v1** (con sesión, por el hallazgo de arriba): con envío deja la respuesta sin confirmar (`{"resultado":"sin_confirmar"}`, el envío sigue `pendiente` y el JSON de la lista no cambia). En una solicitud sin envíos contesta 422 con el mensaje, y con otro secreto, 401.
   - En los logs del servidor no hay errores de Cotización, claves ni datos de asegurados.
-| 2b | Credenciales en `credenciales_portal` (sin copia: en producción no hay ninguna) | Hecho y probado | `configuracion/actions.ts` y `configuracion/page.tsx` de Cotización, `src/lib/cotizacion/credenciales.ts` |
-| 2c | Conectores con el orden de canales | En curso (ver "2c. Conectores") | — |
 
-### 2c. Conectores (en curso, 30/10/2026)
+### 2c. Conectores (30/10/2026, hecha y probada)
 | Paso | Qué | Estado | Archivos |
 |---|---|---|---|
 | 1 | Migración `0030_cotizacion_conectores` | Hecho y probado | `drizzle/0030_cotizacion_conectores.sql` (+ snapshot), `src/db/schema.ts` |
 | 2 | Opción `canales` de `ejecutarEnCompania()` | Hecho, con tests | `src/lib/conectores/canales.ts` (+ test), `ejecutar.ts` (+ test nuevo), `companias.ts` (nuevo), `auditoria.ts` |
-| 3 | Orquestador (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`) | Hecho, con tests (se prueba con la app en el cierre) | `src/lib/cotizacion/orquestador.ts` (+ test, nuevos), `src/agentes/cotizacion/orquestador.ts` y `cotizar.ts` (nuevos), `trabajos.ts`, `solicitudes.ts`, `actions.ts`, `[id]/page.tsx`, `[id]/ActualizarMientrasLee.tsx`, `configuracion/page.tsx` y `agentes.css`; en la base común, `tipos.ts`, `canales.ts` y `simulada-portal.ts` (el campo del dato pedido) |
-| 4 | `CONECTORES_SIMULADOS_FORZAR` | Hecho, con tests | `src/lib/conectores/registro.ts`, `canales.test.ts`, `.env.example` |
-| 5 | El correo aprobado por la salida común; se borra `src/conexiones/cotizacion.ts` | Hecho, con tests (se prueba con la app en el cierre) | `src/agentes/cotizacion/correo.ts` (nuevo), `src/lib/cotizacion/correo.ts` (+ test), `actions.ts`, `page.tsx` y `[id]/page.tsx` de Cotización, `solicitudes.ts`; se borró `src/conexiones/cotizacion.ts` |
+| 3 | Orquestador (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`) | Hecho y probado | `src/lib/cotizacion/orquestador.ts` (+ test, nuevos), `src/agentes/cotizacion/orquestador.ts` y `cotizar.ts` (nuevos), `trabajos.ts`, `solicitudes.ts`, `actions.ts`, `[id]/page.tsx`, `[id]/ActualizarMientrasLee.tsx`, `configuracion/page.tsx` y `agentes.css`; en la base común, `tipos.ts`, `canales.ts` y `simulada-portal.ts` (el campo del dato pedido) |
+| 4 | `CONECTORES_SIMULADOS_FORZAR` | Hecho y probado | `src/lib/conectores/registro.ts`, `canales.test.ts`, `.env.example` |
+| 5 | El correo aprobado por la salida común; se borra `src/conexiones/cotizacion.ts` | Hecho y probado | `src/agentes/cotizacion/correo.ts` (nuevo), `src/lib/cotizacion/correo.ts` (+ test), `actions.ts`, `page.tsx` y `[id]/page.tsx` de Cotización, `solicitudes.ts`; se borró `src/conexiones/cotizacion.ts` |
 | 6 | Se saca el webhook de la v1 | Hecho | se borró `src/app/api/agentes/cotizacion/resultado/route.ts`; `.env.example`, `README.md`, `solicitudes.ts` |
+| Cierre | Arreglos que salieron de la prueba con la app compilada | Hecho y probado | `src/agentes/cotizacion/cotizar.ts`, `solicitudes.ts` y `orquestador.ts`, `actions.ts` y `[id]/page.tsx` de Cotización, `src/lib/conectores/registro.ts` (+ test en `canales.test.ts`), `src/lib/cotizacion/orquestador.ts` (+ test) |
 
 **Paso 1. Migración `0030_cotizacion_conectores`** (solo agrega, generada con `drizzle-kit generate`):
 - en `cotizacion_envios`: `canal_usado` (texto: `api`, `portal` o `correo`; null mientras no salió), `intentos` (JSON, `[]` por defecto: canal, resultado, código, dato pedido, detalle y fecha; el tipo es `IntentoEnvio` en `schema.ts`), `numero_compania` y `ultimo_error`;
@@ -97,7 +98,7 @@ Rama `feat/cotizacion-v2-base-comun`.
   - **`requiere_dato`:** `requiere_atencion` con la pregunta. En Contactos aparece "Tu respuesta" y "Responder y volver a cotizar": se guarda en `datos_riesgo` con el campo que pidió la compañía y se encola otro `cotizar_envio`. La respuesta no va a los eventos;
   - **sin conector, o fallan todos:** queda el borrador de correo (ya existía), `ultimo_error` dice qué pasó y el evento lo cuenta ("El portal de Federación Patronal no está disponible; se preparó el correo para aprobar."). La salud la actualiza `ejecutarEnCompania()`.
 - **Base común:** `ErrorConector` y `requiere_dato` suman `campo` (el nombre del dato en el riesgo de UNIQO). `SimuladaPortal` pide `uso`.
-- **Pantalla:** Contactos muestra el estado de cada compañía en palabras ("Cotizando por conexión directa o portal…", "Cotizó por portal · Falta tu confirmación", "Pedida por conexión directa", "Rechazada" con el motivo), la columna Canal y el número de la compañía como folio. Se actualiza sola mientras cotiza. En la Configuración, la casilla se llama "Cotizar automáticamente" y dice qué hace.
+- **Pantalla:** Contactos muestra el estado de cada compañía en palabras ("Cotizando por conexión directa o portal…", "Cotizó por portal · Falta tu confirmación", "Pedida por conexión directa", "Rechazada" con el motivo) y el número de la compañía como folio. Se actualiza sola mientras cotiza. En la Configuración, la casilla se llama "Cotizar automáticamente" y dice qué hace.
 - **Sin IA:** lo que devuelve un conector ya viene normalizado por la interfaz común, así que se pasa a `cotizacion_resultados` con código, sin IA.
 - Tests: 26 nuevos en `orquestador.test.ts`.
 
@@ -117,6 +118,33 @@ Lo que no se entiende se ignora. Afecta a los conectores simulados de esa compa�
 - Tests: 3 nuevos en `correo.test.ts` (destinatario, motivo y estado después de enviar).
 
 **Paso 6. El webhook de la v1:** se borró `/api/agentes/cotizacion/resultado` y `COTIZACION_WEBHOOK_SECRET` (del `.env.example` y de los comentarios). Lo reemplazan los conectores. `registrarResultadoCotizacion()` sigue aceptando respuestas sin confirmar de la IA y de los conectores. Si la variable está cargada en Vercel, se puede borrar: ya nada la lee. El README de Cotización quedó al día con los pasos 3 a 6.
+
+### Cierre de la Fase 2 (30/10/2026)
+**Arreglos que salieron de la prueba** (con la app compilada):
+- **Con más de 5 compañías, la sexta esperaba al cron del día siguiente:** el despacho al terminar la request procesa hasta 5 trabajos. Ahora `despacharCotizaciones(pedidos)` despacha una vuelta por pedido; cada vuelta toma de a un trabajo (`FOR UPDATE SKIP LOCKED`), así las compañías se cotizan en paralelo y ninguna se queda.
+- **La cotización en dos pasos no se podía consultar desde el cron:** Next carga el registro de conectores una vez para las acciones y otra para las rutas, y la conexión directa simulada guarda en memoria. El orquestador lo manejó bien (dejó "no encontró el pedido", sumó la consulta y reprogramó la siguiente), pero la simulación no servía. Las compañías simuladas ahora se comparten por `globalThis` dentro del proceso (solo con `CONECTORES_SIMULADOS=1`). Test nuevo en `canales.test.ts`.
+- **La columna Borrador quedaba fuera de la tarjeta** a 1440 px (ya pasaba antes, con los estados nuevos se notaba más): ahora va después de Estado, así "Aprobar" y "Omitir" se ven sin desplazar. Se sacó la columna Canal: el estado ya lo dice ("Cotizó por portal").
+- **Los tipos de evento técnicos** que se ven en Actividad reciente: `conector_fallo` pasó a `paso_a_correo` y `sin_conexion` a `solo_correo`.
+- **La nota de la solicitud** decía "El agente está cotizando…" aunque ya hubiera terminado: ahora dice "Aprobada para cotizar con las compañías conectadas. Los correos esperan tu aprobación." (cambio de texto, después de la última corrida).
+
+**Pruebas:**
+- `npm test`: pasan 555 de 560 (los 5 que fallan son los de antes: `catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`). La 2c suma 42 tests.
+- `npm run lint`: sin errores (las 3 advertencias viejas). `npm run build`: OK.
+- `npm run test:e2e`: **pasa entero** (23 pasos) contra Postgres 18.6 en Docker recién sembrado, con la app compilada, `CONECTORES_SIMULADOS=1` y sin `ANTHROPIC_API_KEY`. Corrió tres veces, la última con el código final.
+- **Criterios 11, 12 y 13 con la app compilada** (recorrido con Playwright fuera del repo, sobre la misma base después del E2E):
+  - **Preparación:** `conector_companias` con Sancor `{api}`, Federación Patronal `{portal}`, La Segunda `{}` (solo correo), Mapfre `{portal}`, Rivadavia `{portal}` y San Cristóbal `{api}`; un contacto para La Segunda; `CONECTORES_SIMULADOS_FORZAR=Federación Patronal=ok;Mapfre=falla;Rivadavia=dato;San Cristóbal=dos_pasos`.
+  - Una solicitud de Flotas con las 6, creada desde "Nueva solicitud". **Sin aprobar no hay ningún pedido** en la cola. "Aprobar y cotizar" encola 6 y la pantalla muestra "Esperá la cotización automática" hasta que terminan.
+  - **Criterio 11:** Sancor cotiza por conexión directa y Federación Patronal por portal, solas y **sin confirmar**, con prima total, prima neta, impuestos, franquicia, vigencia y validez. La Segunda no tiene canales: deja el borrador ("No hay conexión automática disponible con La Segunda: queda el correo para aprobar.") y `intentos = []`. Se confirman Sancor y Federación Patronal, se carga a mano la de La Segunda (lo que respondería por correo) y **las tres quedan en el mismo comparativo con el mismo formato**; "Mejor precio" va a la menor prima total.
+  - **Criterio 12:** el portal de Mapfre falla. El envío sigue `pendiente` con el borrador para aprobar, `ultimo_error` "El portal de Mapfre no está disponible.", el intento en `intentos`, el evento "…; se preparó el correo para aprobar.", una fila de error `no_disponible` en `conector_llamadas` (con el envío como entidad) y `conector_salud` del portal de Mapfre con el último error.
+  - **Criterio 13:** el portal de Rivadavia pide el uso del vehículo. El envío pasa a `requiere_atencion` con la pregunta y el formulario "Tu respuesta para Rivadavia". Al responder, la respuesta queda en `datos_riesgo.uso`, se reintenta solo y Rivadavia cotiza por portal (`intentos`: `requiere_dato` y `cotizada`). La respuesta no aparece en los eventos, la actividad ni el log.
+  - **Dos pasos:** San Cristóbal da un número (`SC-COT-…`, en la columna Folio), queda "Pedida por conexión directa" sin próximo seguimiento, y la consulta se programa para el 04/11/2026 (3 días hábiles desde el viernes 30/10). Adelantada a mano y corrida por el cron de la cola, cotiza sin confirmar.
+  - **Correo sin Gmail:** aprobar el de La Segunda lo deja "Correo aprobado, sin enviar" con "No salió: tu correo no está conectado (conectalo en Configuración → Conexiones). Después tocá “Enviar ahora”." Hay un solo mensaje `aprobado` en `mensajes`, para el contacto de La Segunda y sin `enviado_el`. "Enviar ahora" reintenta ese mismo mensaje y vuelve a avisar.
+  - **Cotizar automáticamente:** prendido, una solicitud nueva con Sancor y La Segunda ya cotiza con Sancor al crearse (evento del agente) y La Segunda espera su correo.
+  - En el log del servidor no hay errores ni datos del asegurado.
+
+**Para repetirla:** como en "Prueba contra Postgres 18.6" (más abajo), con `CONECTORES_SIMULADOS=1` en el build y el `next start`. Después del E2E, cortar el servidor, cargar las filas de `conector_companias` de arriba y volver a levantarlo con `CONECTORES_SIMULADOS_FORZAR`. Ojo: `npm run build` corre `preparar-db` contra la `DATABASE_URL` que tenga el entorno.
+
+**Para Julian:** si `COTIZACION_WEBHOOK_SECRET` está cargada en Vercel, se puede borrar (ya nada la lee). Para que una compañía use un canal automático en producción hacen falta su conector real y su fila en `conector_companias`; sin conectores, todo sigue por correo como hasta ahora.
 
 **Prueba del paso 1:** `db:preparar` desde un worktree de `main` contra Postgres 18.6 en Docker (29 migraciones, la cartera de ejemplo y 16 envíos). Después, `db:preparar` desde esta rama: 31 migraciones, los 16 envíos con el mismo hash de sus columnas de antes, `intentos = []` y lo demás en null, y `conector_companias` vacía.
 
@@ -381,12 +409,12 @@ Evidencia por lectura del código; lo que se comprobó contra Postgres está en 
   - simulador de respuestas (cotizado, pregunta, rechazo y error), solo con ejemplos y fuera de producción;
   - carga manual de la respuesta, y extracción con IA desde un PDF.
 - **Falta:**
-  - **El orquestador** (`src/lib/cotizacion/orquestador.ts`): no existe. Nada llama a `ejecutarEnCompania()`, no hay canal `api` o `portal`, no se pasa al canal siguiente y no se consultan las cotizaciones asincrónicas.
-  - **`ia_trabajos`:** Cotización no encola nada.
+  - ~~**El orquestador** (`src/lib/cotizacion/orquestador.ts`): no existe. Nada llama a `ejecutarEnCompania()`, no hay canal `api` o `portal`, no se pasa al canal siguiente y no se consultan las cotizaciones asincrónicas.~~ Hecho en la 2c.
+  - ~~**`ia_trabajos`:** Cotización no encola nada.~~ Hecho en la 2a y la 2c.
   - **La normalización con IA** de lo que devuelve un conector o un correo.
   - **El cron no saltea feriados** (solo fines de semana, por el horario de Vercel).
   - **El simulador no anda con la app compilada** (`next start` corre con `NODE_ENV=production`), por eso el E2E no puede usarlo.
-  - **El correo aprobado no queda como borrador:** pasa por `src/conexiones/cotizacion.ts`, que inventa una "referencia simulada", y el envío queda como `enviado`. No usa la salida común (`src/agentes/envio.ts`) ni avisa que no hay correo conectado.
+  - ~~**El correo aprobado no queda como borrador:** pasa por `src/conexiones/cotizacion.ts`, que inventa una "referencia simulada", y el envío queda como `enviado`. No usa la salida común (`src/agentes/envio.ts`) ni avisa que no hay correo conectado.~~ Hecho en la 2c.
   - La extracción desde el correo de la compañía.
 - **Tests:** ninguno del cron ni de la aprobación.
 
@@ -403,9 +431,9 @@ Evidencia por lectura del código; lo que se comprobó contra Postgres está en 
 | 8 | Sin clave o con la IA apagada funciona, se ocultan los controles y no hay llamadas | Hecho, con `ia_configuracion` desde la 2a. También sin cuota | Con la app compilada sin clave (paso 3 y E2E); apagada y sin cuota, en "Prueba de la 2a" |
 | 9 | Cada respuesta de IA queda con modelo, tokens y costo, y nada se envía sin aprobación | Hecho (2a): cada intento queda en `ia_uso` y cuenta para el tope; lo leído espera la confirmación y el correo mejorado sigue pendiente de aprobación | "Prueba de la 2a", con una API de Anthropic falsa |
 | 10 | Ninguna credencial en texto plano | Hecho, en `credenciales_portal` desde la 2b | "Prueba de la 2b": la clave no está en la base ni en el log, ni vuelve a la pantalla |
-| 11 | API + portal + correo → las dos primeras cotizan solas y las tres terminan en el mismo comparativo | **Falta** | No hay orquestador. Además, el registro simulado le da API y portal a todas las compañías: no hay cómo decir "esta solo por portal" |
-| 12 | Si el portal falla → borrador de correo, error registrado y salud actualizada | **Falta** en Cotización (la base común ya lo hace en `ejecutarEnCompania()` y `conector_salud`) | — |
-| 13 | El portal pide un dato → `requiere_atencion` con la pregunta, y al responder se reintenta | **Falta** | El simulador pone una pregunta genérica; no hay cómo responderla |
+| 11 | API + portal + correo → las dos primeras cotizan solas y las tres terminan en el mismo comparativo | Hecho (2c) | Con la app compilada: Sancor `{api}`, Federación Patronal `{portal}` y La Segunda `{}` en `conector_companias` ("Cierre de la Fase 2"); `orquestador.test.ts` |
+| 12 | Si el portal falla → borrador de correo, error registrado y salud actualizada | Hecho (2c) | Con la app compilada y `Mapfre=falla`: borrador, `ultimo_error`, evento, `conector_llamadas` y `conector_salud` |
+| 13 | El portal pide un dato → `requiere_atencion` con la pregunta, y al responder se reintenta | Hecho (2c) | Con la app compilada y `Rivadavia=dato`: la respuesta queda en `datos_riesgo` y se reintenta solo |
 | 14 | Ningún conector emite, acepta ni firma | Hecho por la base común | `src/lib/conectores/tipos.ts` no tiene esas acciones; `canales.test.ts` |
 | 15 | E2E: crear → aprobar → simular → comparar → propuesta → completar | **Parcial** | El paso 8 crea desde un lead; el 11 hace la propuesta y completa la 1042 sembrada. Faltan aprobar, simular y comparar |
 
@@ -416,9 +444,9 @@ Evidencia por lectura del código; lo que se comprobó contra Postgres está en 
 | **Interruptor de IA** | `org_features.cotizacion_ia`, aparte | `ia_configuracion` (en producción, la fila `*`/`*` activa con tope) | Leer `estadoIA({ agente: "cotizacion", … })`. Al migrar, la IA de Cotización queda prendida en producción dentro del tope: hay que decidirlo (ver el plan) |
 | **Registro del costo** | `cotizacion_borradores_ia` y `cotizacion_eventos` | `ia_uso` (sin contenido) | El costo va a `ia_uso`. `cotizacion_borradores_ia` sigue guardando el texto para revisar; las columnas de costo quedan como históricas |
 | **Credenciales** | `conexiones.datos.credencialesCifradas`, con `COTIZACION_CREDENTIALS_KEY` | `credenciales_portal` (`src/lib/conectores/credenciales.ts`), con `CREDENCIALES_PORTAL_KEY` | Guardar con `guardarCredencial()`. Migrar las que haya en `conexiones.datos` (en producción hay que contarlas antes; las dos claves tienen el mismo valor, así que se pueden descifrar y volver a cifrar) |
-| **Compañías** | `adaptadorSalidaCotizacion` simulado; `canal` = `correo/portal/ambos` | `ejecutarEnCompania()` con permisos (`cotizar` autorizado al aprobar la solicitud), orden `api → portal → archivo/manual`, `conector_llamadas` y `conector_salud` | Orquestador que llama `ejecutarEnCompania("cotizar")` con `autorizacion({ cotizar: { solicitudId, motivo } })`. Si cae a manual, deja el borrador de correo; si `requiere_dato`, pasa a `requiere_atencion` con la pregunta |
-| **Trabajos** | Todo en la acción del servidor | `ia_trabajos` con manejadores y `despachadorTrabajos` | `cotizacion:cotizar_envio`, `cotizacion:consultar_cotizacion` y `cotizacion:extraer_respuesta` como manejadores |
-| **Correo saliente** | La aprobación "envía" por un adaptador falso y marca `enviado` | La salida común (`src/agentes/envio.ts`), que solo sale con Gmail conectado y si no, avisa | Al aprobar, mandar por la salida común. Sin Gmail conectado, el envío queda aprobado y en espera, y la pantalla lo dice |
+| **Compañías** | `adaptadorSalidaCotizacion` simulado; `canal` = `correo/portal/ambos` | `ejecutarEnCompania()` con permisos (`cotizar` autorizado al aprobar la solicitud), orden `api → portal → archivo/manual`, `conector_llamadas` y `conector_salud` | **Hecho en la 2c:** el orquestador llama `ejecutarEnCompania("cotizar")` con la autorización de la solicitud y el orden de `conector_companias`. `canal` queda, pero ya no decide nada |
+| **Trabajos** | Todo en la acción del servidor | `ia_trabajos` con manejadores y `despachadorTrabajos` | **Hecho:** `cotizacion:extraer_respuesta` (2a), `cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion` (2c) |
+| **Correo saliente** | La aprobación "envía" por un adaptador falso y marca `enviado` | La salida común (`src/agentes/envio.ts`), que solo sale con Gmail conectado y si no, avisa | **Hecho en la 2c:** sale por `enviarMensaje()`; sin el correo conectado queda aprobado y sin enviar, con el motivo y "Enviar ahora" |
 | **Mapeos** | — | `conector_mapeos` | Lo usa el conector de cada compañía real; con los simulados no hace falta. Fuera de alcance |
 
 ## Prueba contra Postgres 18.6 (29/10/2026)
@@ -446,7 +474,7 @@ Docker descartable (`postgres:18.6`), `db:preparar` desde cero con los datos de 
 
 **Migraciones:** esta sesión no agrega ninguna. Las del plan se prueban sobre una base con los datos de `main` antes de mergear, como en el Validador (con `db:preparar` desde un worktree de `main` primero).
 
-## Plan propuesto (fase 1 hecha el 30/10/2026)
+## Plan propuesto (fases 1 y 2 hechas el 30/10/2026)
 Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6, commit y este progreso al día. Las migraciones solo agregan y se prueban antes sobre una base con los datos de `main`. Nada se envía de verdad: conectores simulados, correos como borradores y, sin `ANTHROPIC_API_KEY`, el agente funciona igual.
 
 | Fase | Qué | Sesiones | Criterios |
@@ -466,7 +494,7 @@ Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6
 - El porcentaje del detalle, por envíos cerrados. El paquete, por su nombre.
 - Sacar el texto "cuando elijas el enfoque de IA".
 
-### Fase 2 — Alinear con la base común (IA, credenciales y conectores)
+### Fase 2 — Alinear con la base común (IA, credenciales y conectores) — hecha, ver arriba
 **2a. IA por `ejecutarIA()`:**
 - Las 3 operaciones pasan a `ejecutarIA()` con esquema zod y salida estructurada:
   - `extraer_respuesta`: PDF o texto del correo → resultado normalizado, tarea `extraer` (Haiku, reintento con Sonnet). Va por la cola como manejador `cotizacion:extraer_respuesta`;
@@ -489,7 +517,7 @@ Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6
   - **sin conector o todos fallan:** queda el borrador de correo para aprobar, con el evento ("El portal de Sancor no respondió; se preparó el correo para aprobar"). La salud la actualiza `ejecutarEnCompania()`.
 - **Orden de canales por compañía:** una tabla compartida nueva (`conector_companias`: compañía, canales en orden, `org_id`, `producer_id`). Sin fila, quedan todos los conectores registrados, como hoy en el Validador. `ejecutarEnCompania()` suma la opción `canales`, con tests. Esto permite el criterio 11 (una por API, una por portal, una solo por correo).
 - **El correo aprobado** sale con el Gmail de la cuenta. Sin Gmail conectado, queda aprobado y sin enviar, y la pantalla lo dice. Se borra el adaptador falso `src/conexiones/cotizacion.ts`.
-- **Migración `0029`** (solo agrega):
+- **Migración** (solo agrega; quedó repartida en la `0029` de la 2a y la `0030` de la 2c):
   - en `cotizacion_envios`: `canal_usado` (`api`, `portal` o `correo`), `intentos` (JSON con canal, resultado y fecha), `numero_compania` y `ultimo_error`;
   - la tabla `conector_companias`;
   - la fila de `ia_configuracion` de 2a.
@@ -559,12 +587,11 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-**Fase 2 en curso** (rama `feat/cotizacion-v2-base-comun`). Las decisiones están al principio de este archivo. La 2a, la 2b y lo de los puntos 5 y 6 están hechos y probados. Siguiente: la **2c**, los conectores con el orden de canales (ver el plan, "2c. Conectores"):
-1. la migración `0030` (solo agrega): en `cotizacion_envios`, `canal_usado`, `intentos`, `numero_compania` y `ultimo_error`, y la tabla compartida `conector_companias`;
-2. la opción `canales` de `ejecutarEnCompania()`, con tests;
-3. el orquestador: "Aprobar y cotizar" encola `cotizacion:cotizar_envio` por compañía; las respuestas entran sin confirmar (punto 5);
-4. `CONECTORES_SIMULADOS_FORZAR` para probar los criterios 12 y 13;
-5. el correo aprobado por la salida común (`src/agentes/envio.ts`), y se borra `src/conexiones/cotizacion.ts`;
-6. se saca el webhook de la v1 (`src/app/api/agentes/cotizacion/resultado/route.ts` y `COTIZACION_WEBHOOK_SECRET`), como decidió Julian (ver "Hallazgo").
+**La Fase 2 está cerrada** (rama `feat/cotizacion-v2-base-comun`, sin PR). Siguiente: la **Fase 3, la pantalla común Configuración → Conexiones** (ver el plan, "Fase 3"), común a los 3 agentes:
+1. por compañía: el orden de canales de `conector_companias` (o "solo correo o carga manual"), las credenciales de `credenciales_portal`, las capacidades del conector, "Probar conexión" (`probarConexion()`) y la salud (`conector_salud`: último éxito, último error y latencia);
+2. cada agente ve solo lo suyo: Cotización, cotizar y coberturas; el Validador, cobranza y cancelaciones; Siniestros, lo de siniestros;
+3. la pestaña Credenciales del Validador y la sección Portales de Cotización pasan a ser un enlace a esta pantalla, y el `canal` viejo de las aseguradoras (`correo`, `portal`, `ambos`) deja de mostrarse en la Configuración de Cotización.
 
-Apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.
+Hoy `conector_companias` solo se carga por SQL (como en la prueba de la 2c).
+
+Pendientes que no son de esta fase: Julian desactiva Rivadavia duplicada desde la Configuración, y apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.

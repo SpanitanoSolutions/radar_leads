@@ -9,7 +9,6 @@ import {
   decidirCotizacion,
   elegibleParaCotizar,
   estadoEnvioVisible,
-  etiquetaCanal,
   intentosDeEnvio,
   numeroDe,
   puedeCotizarse,
@@ -133,11 +132,6 @@ describe("textos", () => {
 
   it("sin fallas no hay texto de falla", () => {
     expect(textoFallas("Sancor", ok(COTIZADA))).toBeNull();
-  });
-
-  it("los canales con su nombre para la pantalla", () => {
-    expect([etiquetaCanal("api"), etiquetaCanal("portal"), etiquetaCanal("correo"), etiquetaCanal(null), etiquetaCanal("fax")])
-      .toEqual(["Conexión directa", "Portal", "Correo", "—", "—"]);
   });
 });
 

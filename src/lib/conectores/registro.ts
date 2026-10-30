@@ -75,12 +75,11 @@ export type OpcionesSimulacion = {
 
 /**
  * Cada compañía con una SimuladaApi y una SimuladaPortal, para el seed, los
- * tests y el E2E. Las instancias se reutilizan por compañía, así lo que se
- * cotiza o denuncia se puede consultar después (en memoria, por proceso).
+ * tests y el E2E. Las instancias se reutilizan por compañía (en `porCompania`),
+ * así lo que se cotiza o denuncia se puede consultar después (en memoria).
  */
-export function crearRegistroSimulado(opciones: OpcionesSimulacion = {}): RegistroConectores {
+export function crearRegistroSimulado(opciones: OpcionesSimulacion = {}, porCompania = new Map<string, ConectorCompania[]>()): RegistroConectores {
   const registro = new RegistroConectores();
-  const porCompania = new Map<string, ConectorCompania[]>();
   registro.registrar((compania) => {
     let conectores = porCompania.get(compania);
     if (!conectores) {
@@ -101,6 +100,13 @@ export function simulacionHabilitada(entorno: Record<string, string | undefined>
   return entorno.CONECTORES_SIMULADOS === "1" && entorno.VERCEL_ENV !== "production";
 }
 
+/**
+ * Next carga este módulo más de una vez en el mismo proceso (las acciones y las
+ * rutas, como el cron de la cola): las compañías simuladas se comparten por
+ * globalThis, así una cotización en dos pasos se puede consultar desde el cron.
+ */
+const simuladasDelProceso = ((globalThis as { __companiasSimuladas?: Map<string, ConectorCompania[]> }).__companiasSimuladas ??= new Map());
+
 export const registroConectores: RegistroConectores = simulacionHabilitada()
-  ? crearRegistroSimulado({ forzar: leerForzados(process.env.CONECTORES_SIMULADOS_FORZAR) })
+  ? crearRegistroSimulado({ forzar: leerForzados(process.env.CONECTORES_SIMULADOS_FORZAR) }, simuladasDelProceso)
   : new RegistroConectores();

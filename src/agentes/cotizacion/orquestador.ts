@@ -148,7 +148,7 @@ async function aplicar(envio: Envio, solicitud: Solicitud, r: ResultadoCanales<R
 
   // Sin conexión automática, o fallaron todos los canales: queda el correo para aprobar.
   await db.update(e).set({ intentos, ultimoError: decision.error, ultimaActividad: ahora }).where(eq(e.id, envio.id));
-  await anotar(envio, solicitud, decision.error ? "conector_fallo" : "sin_conexion", textoDecision(envio.compania, decision));
+  await anotar(envio, solicitud, decision.error ? "paso_a_correo" : "solo_correo", textoDecision(envio.compania, decision));
 }
 
 async function aplicarOAvisar(...argumentos: Parameters<typeof aplicar>) {

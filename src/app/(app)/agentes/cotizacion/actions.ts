@@ -10,7 +10,7 @@ import { requerirSesion } from "@/lib/auth";
 import { mejorResultadoConfirmado, validarDatosRiesgo } from "@/lib/cotizacion";
 import { aprobarCorreoCotizacion, reenviarCorreoCotizacion, type ResultadoCorreo } from "@/agentes/cotizacion/correo";
 import { encolarLecturaPdf, redactarCorreoCotizacion, responderChatCotizacion, type ResultadoIACotizacion } from "@/agentes/cotizacion/ia";
-import { autorizarCotizacion } from "@/agentes/cotizacion/cotizar";
+import { autorizarCotizacion, despacharCotizaciones } from "@/agentes/cotizacion/cotizar";
 import { responderDatoPedido } from "@/agentes/cotizacion/orquestador";
 import { despachadorTrabajos } from "@/lib/ia/manejadores";
 import type { MotivoSinIA } from "@/lib/ia/motor";
@@ -172,7 +172,7 @@ export async function aprobarYCotizarSolicitud(formData: FormData) {
   try { encolados = await autorizarCotizacion(solicitudId, "aprobada"); }
   catch { encolados = "fallo"; }
   // El agente cotiza en segundo plano; si no termina acá, lo retoma el cron de la cola.
-  if (typeof encolados === "number" && encolados > 0) await despachadorTrabajos.despachar(solicitudId);
+  if (typeof encolados === "number") await despacharCotizaciones(encolados);
   revalidatePath("/agentes/cotizacion");
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
   const aviso = encolados === "fallo" ? "error-cotizar" : encolados === null ? "solicitud-cerrada" : encolados > 0 ? "cotizando" : "nada-para-cotizar";
@@ -188,7 +188,7 @@ export async function responderDatoCotizacion(formData: FormData) {
   let resultado: Awaited<ReturnType<typeof responderDatoPedido>> | "fallo";
   try { resultado = await responderDatoPedido(envioId, mensajeDe(formData, "respuesta")); }
   catch { resultado = "fallo"; }
-  if (resultado && typeof resultado === "object") await despachadorTrabajos.despachar(envioId);
+  if (resultado && typeof resultado === "object") await despacharCotizaciones(1);
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
   const aviso = resultado === "invalida" ? "dato-vacio" : resultado === "fallo" ? "error-dato" : resultado === null ? "dato-no-disponible" : "dato-respondido";
   redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);

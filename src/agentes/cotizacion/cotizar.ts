@@ -55,7 +55,7 @@ export async function autorizarCotizacion(solicitudId: number, motivo: MotivoCot
     });
     if (elegibles.length) {
       await tx.update(schema.solicitudesCotizacion)
-        .set({ nota: "El agente está cotizando con las compañías conectadas. Los correos esperan tu aprobación.", actualizadoEl: new Date() })
+        .set({ nota: "Aprobada para cotizar con las compañías conectadas. Los correos esperan tu aprobación.", actualizadoEl: new Date() })
         .where(eq(schema.solicitudesCotizacion.id, solicitudId));
     }
     await tx.insert(schema.actividadAgentes).values({ agente: AGENTE, referencia: `solicitud:${solicitud.numero}`, texto: `Solicitud ${solicitud.numero}: ${detalle}` });
@@ -63,12 +63,17 @@ export async function autorizarCotizacion(solicitudId: number, motivo: MotivoCot
   });
 }
 
-/** Procesa la cola al terminar la request. Fuera de una request, o si falla, la retoma el cron de la cola. */
-export async function despacharCotizaciones(): Promise<void> {
+/**
+ * Procesa la cola al terminar la request, con una vuelta por pedido: cada
+ * vuelta toma de a un trabajo (sin pisarse), así las compañías se cotizan en
+ * paralelo y ninguna queda para el cron del día siguiente. Fuera de una
+ * request, o si falla, la retoma el cron de la cola.
+ */
+export async function despacharCotizaciones(pedidos: number): Promise<void> {
   try {
     // Import diferido: los manejadores de la cola importan las solicitudes, que usan este archivo.
     const { despachadorTrabajos } = await import("@/lib/ia/manejadores");
-    await despachadorTrabajos.despachar(0);
+    for (let vuelta = 0; vuelta < pedidos; vuelta++) await despachadorTrabajos.despachar(vuelta);
   } catch {
     console.error("No se pudo despachar la cola de Cotización; la retoma el cron.");
   }
