@@ -21,7 +21,7 @@ Rama `feat/cotizacion-v2-base-comun`.
 | Paso | Qué | Estado | Archivos |
 |---|---|---|---|
 | 2a | IA por `ejecutarIA()`, interruptor en `ia_configuracion` | Hecho y probado (ver "Prueba de la 2a") | `src/lib/cotizacion/ia.ts` (+ test), `src/agentes/cotizacion/ia.ts` y `trabajos.ts` (nuevos), `src/lib/ia/` (`modelos.ts` + test, `claude.ts`, `index.ts`, `motor.ts` + test, `manejadores.ts`; se borró `cotizacion.ts`), `actions.ts`, `[id]/page.tsx`, `[id]/ActualizarMientrasLee.tsx`, `configuracion/actions.ts` y `configuracion/page.tsx` de Cotización, migración `0029` |
-| 2a+ | Feriados por provincia y Jueves Santo; el webhook de la v1 sin confirmar | Hecho | `src/lib/cotizacion/seguimientos.ts` (+ test), `src/lib/provincias.ts` (nuevo), `src/db/schema.ts`, `src/lib/datos.ts`, `configuracion/actions.ts` y `Paneles.tsx` (general), `actions.ts` de Cotización, `src/agentes/cotizacion/solicitudes.ts`, `src/app/api/agentes/cotizacion/resultado/route.ts`, migración `0029` |
+| 2a+ | Feriados por provincia y Jueves Santo; el webhook de la v1 sin confirmar (el webhook se sacó en la 2c) | Hecho | `src/lib/cotizacion/seguimientos.ts` (+ test), `src/lib/provincias.ts` (nuevo), `src/db/schema.ts`, `src/lib/datos.ts`, `configuracion/actions.ts` y `Paneles.tsx` (general), `actions.ts` de Cotización, `src/agentes/cotizacion/solicitudes.ts`, `src/app/api/agentes/cotizacion/resultado/route.ts`, migración `0029` |
 
 **2a. La IA por `ejecutarIA()`:**
 - **Las 3 operaciones** (`src/agentes/cotizacion/ia.ts`) pasan por `ejecutarIA()` con salida estructurada y su esquema zod (`src/lib/cotizacion/ia.ts`). El código verifica lo que vuelve:
@@ -36,11 +36,11 @@ Rama `feat/cotizacion-v2-base-comun`.
 
 **2a+. Lo decidido en los puntos 5 y 6:**
 - **Feriados:** el Jueves Santo cuenta como no hábil. `DIAS_NO_HABILES_POR_PROVINCIA` tiene los que el Gobierno fijó para algunas provincias (Decreto 1103/2026: el 10/11 en CABA y Córdoba, el 11/11 en Buenos Aires). La provincia de la cuenta se elige en Configuración → Mi cuenta (`ajustes.provincia`, Buenos Aires por defecto) y la usa la aprobación de cada envío. Los feriados propios de cada provincia no están cargados.
-- **El webhook de la v1** (`/api/agentes/cotizacion/resultado`) deja la respuesta sin confirmar (`actor: "compania"`). En una solicitud sin envíos contesta 422: "La solicitud no tiene un envío para esa compañía: cargá la respuesta a mano."
+- **El webhook de la v1** (`/api/agentes/cotizacion/resultado`) deja la respuesta sin confirmar (`actor: "compania"`). En una solicitud sin envíos contesta 422: "La solicitud no tiene un envío para esa compañía: cargá la respuesta a mano." **Se sacó en la 2c (paso 6).**
 
 **Migración `0029_cotizacion_base_comun`** (solo agrega): la columna `ajustes.provincia` y la fila `cotizacion` / `*` de `ia_configuracion`, si no existe.
 
-**Hallazgo (de antes, sin tocar):** el webhook de la v1 nunca fue alcanzable desde afuera. `src/proxy.ts` pide sesión en todo salvo `/api/cron/`, así que una llamada sin sesión termina en `/login` aunque traiga el secreto. No lo abrí: sería una dirección pública nueva. **Decisión de Julian (30/10/2026): se saca en la 2c**, porque lo reemplazan los conectores.
+**Hallazgo (de antes, sin tocar):** el webhook de la v1 nunca fue alcanzable desde afuera. `src/proxy.ts` pide sesión en todo salvo `/api/cron/`, así que una llamada sin sesión termina en `/login` aunque traiga el secreto. No lo abrí: sería una dirección pública nueva. **Decisión de Julian (30/10/2026): se saca en la 2c**, porque lo reemplazan los conectores. Se sacó en el paso 6 de la 2c.
 
 **2b. Las claves de los portales en `credenciales_portal`:**
 - La sección Portales de la Configuración de Cotización guarda con `guardarCredencial()` y lee con `listarCredenciales()`, con el mismo alcance que la cartera del Validador (`ALCANCE_CREDENCIALES`, sin organización ni productor por ahora). Así los dos agentes usan la misma clave de cada compañía.
@@ -76,7 +76,7 @@ Rama `feat/cotizacion-v2-base-comun`.
 | 3 | Orquestador (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`) | Hecho, con tests (se prueba con la app en el cierre) | `src/lib/cotizacion/orquestador.ts` (+ test, nuevos), `src/agentes/cotizacion/orquestador.ts` y `cotizar.ts` (nuevos), `trabajos.ts`, `solicitudes.ts`, `actions.ts`, `[id]/page.tsx`, `[id]/ActualizarMientrasLee.tsx`, `configuracion/page.tsx` y `agentes.css`; en la base común, `tipos.ts`, `canales.ts` y `simulada-portal.ts` (el campo del dato pedido) |
 | 4 | `CONECTORES_SIMULADOS_FORZAR` | Hecho, con tests | `src/lib/conectores/registro.ts`, `canales.test.ts`, `.env.example` |
 | 5 | El correo aprobado por la salida común; se borra `src/conexiones/cotizacion.ts` | Hecho, con tests (se prueba con la app en el cierre) | `src/agentes/cotizacion/correo.ts` (nuevo), `src/lib/cotizacion/correo.ts` (+ test), `actions.ts`, `page.tsx` y `[id]/page.tsx` de Cotización, `solicitudes.ts`; se borró `src/conexiones/cotizacion.ts` |
-| 6 | Se saca el webhook de la v1 | Pendiente | — |
+| 6 | Se saca el webhook de la v1 | Hecho | se borró `src/app/api/agentes/cotizacion/resultado/route.ts`; `.env.example`, `README.md`, `solicitudes.ts` |
 
 **Paso 1. Migración `0030_cotizacion_conectores`** (solo agrega, generada con `drizzle-kit generate`):
 - en `cotizacion_envios`: `canal_usado` (texto: `api`, `portal` o `correo`; null mientras no salió), `intentos` (JSON, `[]` por defecto: canal, resultado, código, dato pedido, detalle y fecha; el tipo es `IntentoEnvio` en `schema.ts`), `numero_compania` y `ultimo_error`;
@@ -116,6 +116,8 @@ Lo que no se entiende se ignora. Afecta a los conectores simulados de esa compa�
 - Ya no hay "referencia simulada" ni "Aprobado · simulado": se borró el adaptador falso `src/conexiones/cotizacion.ts`. Aprobar u omitir desde el detalle vuelve al detalle.
 - Tests: 3 nuevos en `correo.test.ts` (destinatario, motivo y estado después de enviar).
 
+**Paso 6. El webhook de la v1:** se borró `/api/agentes/cotizacion/resultado` y `COTIZACION_WEBHOOK_SECRET` (del `.env.example` y de los comentarios). Lo reemplazan los conectores. `registrarResultadoCotizacion()` sigue aceptando respuestas sin confirmar de la IA y de los conectores. Si la variable está cargada en Vercel, se puede borrar: ya nada la lee. El README de Cotización quedó al día con los pasos 3 a 6.
+
 **Prueba del paso 1:** `db:preparar` desde un worktree de `main` contra Postgres 18.6 en Docker (29 migraciones, la cartera de ejemplo y 16 envíos). Después, `db:preparar` desde esta rama: 31 migraciones, los 16 envíos con el mismo hash de sus columnas de antes, `intentos = []` y lo demás en null, y `conector_companias` vacía.
 
 ## Fase 1 — Arreglos (30/10/2026, cerrada)
@@ -149,7 +151,7 @@ Sin migraciones. Rama `feat/cotizacion-v2-arreglos`.
   - `soloConfirmadas()`: la lista, sus tarjetas y su exportación dejan como pendiente el precio de una respuesta sin confirmar, también si es de antes de este arreglo;
   - `agregarRespuesta()`: la comparativa, el estado y la nota al confirmar.
 - **La extracción** devuelve qué pasó (`sin_confirmar`, `ya_confirmada` o `sin_precio`), y el detalle muestra un aviso para cada caso.
-- **Queda igual:** el webhook de la v1 (`/api/agentes/cotizacion/resultado`) sigue registrando como confirmado lo que manda un portal. **Para la Fase 2:** cuando la respuesta venga de un conector, decidir si entra sin confirmar.
+- **Queda igual:** el webhook de la v1 (`/api/agentes/cotizacion/resultado`) sigue registrando como confirmado lo que manda un portal. **Para la Fase 2:** cuando la respuesta venga de un conector, decidir si entra sin confirmar. (Se decidió sin confirmar, y el webhook se sacó en la 2c.)
 
 **2. Redirect dentro del `try`.** `redirect()` lanza un error propio de Next, y el `catch` lo convertía en otro aviso.
 - **`aprobarEnvioCotizacion()`:** ahora busca el envío y comprueba el borrador antes del `try`. "Borrador no disponible" llega como tal, y no como "No pudimos aprobar".
@@ -272,7 +274,7 @@ La implementación es del 28/10/2026 (commit `1f0957c` "coti v2" y `d8d2e9d` "co
 - **IA:** `src/lib/ia/cotizacion.ts`, con `generar()` de `ProveedorClaude` y su propio interruptor (`org_features.cotizacion_ia`).
 - **Salida:** `src/conexiones/cotizacion.ts`, un adaptador que "envía" el correo aprobado y devuelve una referencia simulada.
 - **Pantallas:** `/agentes/cotizacion` (Solicitudes, Historial y Desempeño), `/agentes/cotizacion/nueva`, `/agentes/cotizacion/[id]` (Contactos, Cotizaciones, Validación y Agente), `/agentes/cotizacion/configuracion` y las exportaciones.
-- **Cron:** `/api/cron/cotizacion` (seguimientos como borradores). Webhook `/api/agentes/cotizacion/resultado` (de la v1).
+- **Cron:** `/api/cron/cotizacion` (seguimientos como borradores). Webhook `/api/agentes/cotizacion/resultado` (de la v1; se sacó en la 2c).
 
 ## Hallazgos de la lectura (29/10/2026)
 - La migración `0014` siembra dos tandas de aseguradoras: quedan 8 filas para 7 compañías, con Rivadavia dos veces ("Seguros Rivadavia" y "Rivadavia"). Las de la primera tanda tienen 11 ramos y las que solo están en la segunda (Rivadavia y Mapfre), 7.
