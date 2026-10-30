@@ -20,6 +20,7 @@ export default function LoginPage() {
         <FormLogin />
       </div>
       <footer className="login-pie">
+        <Link href="/terminos">Términos y condiciones</Link>
         <Link href="/privacidad">Política de privacidad</Link>
       </footer>
     </main>

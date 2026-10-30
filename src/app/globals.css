@@ -725,6 +725,15 @@ a:hover {
 .login-pie a:hover {
   color: var(--acento-texto);
 }
+.firma-app-enlaces,
+.legal-pie-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.firma-app-enlaces {
+  justify-content: flex-end;
+}
 .contenido:focus {
   outline: none;
 }
@@ -1573,6 +1582,10 @@ textarea.campo {
   padding: 24px 16px;
 }
 .login-pie {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
   color: var(--etiqueta);
   font-size: 12px;
 }
