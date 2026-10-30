@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agregarRespuesta, estadoVisible, estaCerrada, filtrarSolicitudes, interpretarEstrategiaSeguimiento, mejorCotizacion, mejorResultadoConfirmado, porcentajeCerrados, resumenCotizacion, soloConfirmadas, sumarDiasHabiles, validarCuitCuil, validarDatosRiesgo, validarCotizacionContraSolicitud, type SolicitudParaLista } from "./cotizacion";
+import { agregarRespuesta, describirEstrategia, estadoVisible, estaCerrada, filtrarSolicitudes, interpretarEstrategiaSeguimiento, mejorCotizacion, mejorResultadoConfirmado, porcentajeCerrados, resumenCotizacion, soloConfirmadas, sumarDiasHabiles, validarCuitCuil, validarDatosRiesgo, validarCotizacionContraSolicitud, type SolicitudParaLista } from "./cotizacion";
 
 const solicitudes: SolicitudParaLista[] = [
   { numero: 1042, cliente: "Gómez, Lucía", ramo: "Auto", bien: "Peugeot 208", origen: "whatsapp", estado: "lista", cotizaciones: [{ compania: "Sancor", precio: 912000 }, { compania: "Mapfre", precio: 958000 }] },
@@ -90,6 +90,13 @@ describe("cotización", () => {
     expect(interpretarEstrategiaSeguimiento("Cada 3 días hábiles; para Flotas cada 1 día hábil; si ya hay folio, esperar"))
       .toEqual({ intervaloDiasHabiles: 3, porRamo: { flotas: 1 }, esperarConFolio: true });
     expect(interpretarEstrategiaSeguimiento("cada dos días hábiles")).toBeNull();
+    // La regla de un ramo no se toma como la general, aunque vaya primero.
+    expect(interpretarEstrategiaSeguimiento("Para Flotas cada 1 día hábil; cada 3 días hábiles"))
+      .toEqual({ intervaloDiasHabiles: 3, porRamo: { flotas: 1 }, esperarConFolio: false });
+    expect(interpretarEstrategiaSeguimiento("Para Flotas cada 1 día"))
+      .toEqual({ intervaloDiasHabiles: 3, porRamo: { flotas: 1 }, esperarConFolio: false });
+    expect(describirEstrategia(interpretarEstrategiaSeguimiento("Cada 2 días hábiles; para Flotas cada 1 día hábil; si ya hay folio, esperar")!))
+      .toBe("Seguimiento cada 2 días hábiles. Flotas: cada 1 día hábil. Si la compañía ya dio un folio, espera la cotización.");
     expect(sumarDiasHabiles("2025-12-19", 3, ["2025-12-22"])).toBe("2025-12-25");
   });
 

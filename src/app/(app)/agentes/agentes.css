@@ -1653,6 +1653,7 @@
 .cotizacion-contacto-sin-resultados a { color: var(--acento-texto); font-weight: 650; }
 .cotizacion-contacto-pista { margin: 3px 6px 0; padding: 9px 7px 6px; border-top: 1px solid var(--borde-suave); color: var(--etiqueta); font-size: 11px; line-height: 1.4; }
 .cotizacion-campo-error { display: block; margin-top: 6px; color: var(--rojo-texto); font-size: 12px; }
+.cotizacion-campo-ayuda { display: block; margin-top: 6px; color: var(--etiqueta); font-size: 12px; }
 .cotizacion-tipos-solicitud { min-width: 0; margin: 0 0 19px 44px; padding: 0; border: 0; }
 .cotizacion-tipos-solicitud legend { margin-bottom: 8px; }
 .cotizacion-tipos-opciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -2059,6 +2060,61 @@
 /* El checklist del inicio lleva a cada sección por su ancla. */
 .cotizacion-ajustes > section[id] {
   scroll-margin-top: 16px;
+}
+/* Tipos de seguro: tabla de texto, sin el mínimo de 980 px ni la última columna a la derecha. */
+.cotizacion-tabla-tipos {
+  min-width: 640px;
+}
+.cotizacion-tabla-tipos td {
+  vertical-align: top;
+}
+.cotizacion-tabla-tipos th:last-child,
+.cotizacion-tabla-tipos td:last-child {
+  min-width: 210px;
+  text-align: left;
+}
+.cotizacion-editar-tipo summary {
+  list-style: none;
+  cursor: pointer;
+}
+.cotizacion-editar-tipo summary::-webkit-details-marker {
+  display: none;
+}
+.cotizacion-editar-tipo[open] {
+  flex-basis: 100%;
+}
+.cotizacion-editar-tipo .cotizacion-ajuste-form {
+  margin-top: 8px;
+}
+/* La estrategia de seguimiento ocupa todo el ancho del formulario. */
+.cotizacion-estrategia {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+.cotizacion-estrategia > label,
+.cotizacion-estrategia-ia label {
+  display: grid;
+  gap: 5px;
+  color: var(--etiqueta);
+  font-size: 13px;
+}
+.cotizacion-estrategia-lectura {
+  margin: 0;
+  color: var(--verde-texto);
+  font-size: 13px;
+}
+.cotizacion-estrategia-lectura.error {
+  color: var(--rojo-texto);
+}
+.cotizacion-estrategia-ia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+.cotizacion-estrategia-ia label {
+  flex: 1 1 260px;
 }
 .cotizacion-ajuste-seccion {
   display: grid;

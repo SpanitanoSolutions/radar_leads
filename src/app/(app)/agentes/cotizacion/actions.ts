@@ -17,6 +17,7 @@ import { despachadorTrabajos } from "@/lib/ia/manejadores";
 import type { MotivoSinIA } from "@/lib/ia/motor";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
 import { FILAS_COBERTURA, unirCoberturasManuales, type Cobertura } from "@/lib/cotizacion/comparativo";
+import { ramosParaSolicitud } from "@/lib/cotizacion/tipos-seguro";
 
 const ESTADOS: EstadoCotizacion[] = ["atencion", "esperando", "lista", "enviada", "ganada", "perdida"];
 
@@ -82,6 +83,9 @@ export async function nuevaSolicitud(formData: FormData) {
     volverNuevaSolicitud("solicitud-incompleta");
   }
   if (tipoVinculo !== "asegurado" && tipoVinculo !== "lead") volverNuevaSolicitud("solicitud-vinculo-invalido");
+  // El ramo tiene que ser uno de los tipos de seguro activos, como los ofrece el formulario.
+  const tipos = await db.select({ ramo: schema.cotizacionTiposSeguro.ramo, descripcion: schema.cotizacionTiposSeguro.descripcion, activo: schema.cotizacionTiposSeguro.activo }).from(schema.cotizacionTiposSeguro);
+  if (!ramosParaSolicitud(tipos).some((tipoSeguro) => tipoSeguro.ramo === ramo)) volverNuevaSolicitud("solicitud-ramo-invalido");
 
   const camposRiesgo = ["marca", "modelo", "anio", "version", "uso", "conductor", "fechaNacimiento", "codigoPostal", "cuitCuil", "formaDePago", "cantidadUnidades", "actividad", "zona", "sumaAsegurada", "coberturasSolicitadas"];
   const datosRiesgo = Object.fromEntries(camposRiesgo.map((campo) => [campo, mensajeDe(formData, campo)]).filter(([, valor]) => valor));

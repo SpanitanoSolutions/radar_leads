@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pesos } from "@/lib/formato";
-import { cuerpoVerificado, esquemaRespuestaCompaniaIA, respuestaLeida, resumenLectura, textoDeChat, type RespuestaCompaniaIA } from "./ia";
+import { cuerpoVerificado, esquemaRespuestaCompaniaIA, estrategiaVerificada, mensajeEstrategia, respuestaLeida, resumenLectura, textoDeChat, type RespuestaCompaniaIA } from "./ia";
 
 const LEIDA: RespuestaCompaniaIA = {
   primaTotal: 912000.456,
@@ -85,5 +85,28 @@ describe("textoDeChat", () => {
   it("sin faltantes devuelve solo la respuesta, y sin respuesta, nada", () => {
     expect(textoDeChat({ respuesta: "Listo.", faltan: [] })).toBe("Listo.");
     expect(textoDeChat({ respuesta: " ", faltan: ["algo"] })).toBeNull();
+  });
+});
+
+describe("Sugerir con IA la estrategia de seguimiento", () => {
+  it("lo que propone la IA pasa por el parser: si el agente lo entiende, vuelve limpio y explicado", () => {
+    expect(estrategiaVerificada("  Cada 3 días hábiles;\n para Flotas cada 1 día hábil; si la aseguradora ya dio un folio, esperar la cotización. ")).toEqual({
+      estrategia: "Cada 3 días hábiles; para Flotas cada 1 día hábil; si la aseguradora ya dio un folio, esperar la cotización.",
+      descripcion: "Seguimiento cada 3 días hábiles. Flotas: cada 1 día hábil. Si la compañía ya dio un folio, espera la cotización.",
+    });
+  });
+
+  it("si el agente no la entiende, no se ofrece", () => {
+    expect(estrategiaVerificada("Escribirles cuando parezca oportuno.")).toBeNull();
+    expect(estrategiaVerificada("cada dos días hábiles")).toBeNull();
+    expect(estrategiaVerificada("   ")).toBeNull();
+  });
+
+  it("el pedido lleva los ramos, el máximo, la estrategia actual y lo que pide el productor, recortado", () => {
+    const mensaje = mensajeEstrategia({ ramos: ["Automotor", "Flotas"], maximo: 3, actual: "Cada 3 días hábiles", pedido: "x".repeat(900) });
+    expect(mensaje).toContain("Ramos que vende: Automotor, Flotas.");
+    expect(mensaje).toContain("Máximo de seguimientos por compañía: 3.");
+    expect(mensaje).toContain("Estrategia actual: Cada 3 días hábiles");
+    expect(mensaje.split("\n")[3]).toHaveLength("Lo que pide el productor: ".length + 500);
   });
 });

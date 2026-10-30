@@ -12,7 +12,6 @@ type Aseguradora = { id: number; nombre: string; ramos: string[]; ramosConPaquet
 type TipoContacto = "asegurado" | "lead";
 type OpcionContacto = Contacto & { tipo: TipoContacto };
 
-const RAMOS = ["Automotor", "Flotas", "Hogar", "Integral de comercio", "Incendio", "RC", "Caución", "ART", "AP", "Vida", "Salud"];
 const TIPOS = [
   { valor: "negocio_nuevo", titulo: "Negocio nuevo", detalle: "Una cobertura para contratar por primera vez." },
   { valor: "renovacion", titulo: "Renovación", detalle: "Revisá una póliza que está por vencer." },
@@ -24,6 +23,7 @@ const MENSAJES_AVISO: Record<string, string> = {
   "lead-inexistente": "No encontramos ese lead. Buscalo de nuevo y volvé a intentarlo.",
   "sin-companias-configuradas": "No hay aseguradoras disponibles para este ramo. Revisá la configuración.",
   "solicitud-riesgo-invalido": "Completá los datos obligatorios del riesgo y revisá el CUIT/CUIL.",
+  "solicitud-ramo-invalido": "Ese ramo ya no está entre tus tipos de seguro activos. Elegí otro.",
   "solicitud-adjunto-invalido": "El archivo debe ser PDF, Word, Excel o imagen, y pesar hasta 25 MB.",
   "error-operacion": "No pudimos guardar la solicitud. Revisá si se creó antes de volver a intentarlo.",
 };
@@ -54,14 +54,18 @@ export default function FormularioNuevaSolicitud({
   asegurados,
   leads,
   aseguradoras,
+  ramos,
   aviso,
 }: {
   asegurados: Contacto[];
   leads: Contacto[];
   aseguradoras: Aseguradora[];
+  /** Los tipos de seguro activos (los ramos que vende el productor). */
+  ramos: { ramo: string; descripcion: string }[];
   aviso: string;
 }) {
-  const [ramo, setRamo] = useState("Automotor");
+  const ramoInicial = ramos.some((item) => item.ramo === "Automotor") ? "Automotor" : ramos[0]?.ramo ?? "";
+  const [ramo, setRamo] = useState(ramoInicial);
   const [tipo, setTipo] = useState<(typeof TIPOS)[number]["valor"]>("negocio_nuevo");
   const [busqueda, setBusqueda] = useState("");
   const [seleccionado, setSeleccionado] = useState<OpcionContacto | null>(null);
@@ -70,8 +74,9 @@ export default function FormularioNuevaSolicitud({
   const [errorContacto, setErrorContacto] = useState(false);
   const [archivo, setArchivo] = useState("");
   const [companiasElegidas, setCompaniasElegidas] = useState<string[]>(() =>
-    aseguradoras.filter((aseguradora) => coincideConRamo(aseguradora, "Automotor")).map((aseguradora) => aseguradora.nombre),
+    aseguradoras.filter((aseguradora) => coincideConRamo(aseguradora, ramoInicial)).map((aseguradora) => aseguradora.nombre),
   );
+  const descripcionRamo = ramos.find((item) => item.ramo === ramo)?.descripcion;
 
   const contactos = useMemo<OpcionContacto[]>(() => [
     ...asegurados.map((contacto) => ({ ...contacto, tipo: "asegurado" as const })),
@@ -259,8 +264,10 @@ export default function FormularioNuevaSolicitud({
           <label className="cotizacion-campo">
             <span>Ramo</span>
             <select name="ramo" value={ramo} onChange={(evento) => cambiarRamo(evento.target.value)} required>
-              {RAMOS.map((item) => <option key={item} value={item}>{item}</option>)}
+              {ramos.map((item) => <option key={item.ramo} value={item.ramo}>{item.ramo}</option>)}
             </select>
+            {descripcionRamo && <small className="cotizacion-campo-ayuda">{descripcionRamo}</small>}
+            {!ramos.length && <small className="cotizacion-campo-error">No hay tipos de seguro activos. <Link href="/agentes/cotizacion/configuracion#tipos">Activalos en la configuración</Link>.</small>}
           </label>
           <label className="cotizacion-campo">
             <span>Bien a asegurar <small>Opcional</small></span>
@@ -379,7 +386,7 @@ export default function FormularioNuevaSolicitud({
         <p><span aria-hidden="true">✓</span> Nada se envía a las aseguradoras sin tu aprobación.</p>
         <div>
           <Link href="/agentes/cotizacion" className="boton">Cancelar</Link>
-          <BotonCrear bloqueado={!aseguradorasDisponibles.length || !companiasElegidas.length} />
+          <BotonCrear bloqueado={!ramo || !aseguradorasDisponibles.length || !companiasElegidas.length} />
         </div>
       </footer>
     </form>

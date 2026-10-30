@@ -392,6 +392,13 @@ export async function obtenerAseguradorasCotizacion() {
   return db.select().from(schema.cotizacionAseguradoras).orderBy(schema.cotizacionAseguradoras.nombre);
 }
 
+/** Los tipos de seguro (los ramos que vende el productor), en el orden en que se cargaron. */
+export async function obtenerTiposSeguroCotizacion() {
+  await connection();
+  return db.select({ ramo: schema.cotizacionTiposSeguro.ramo, descripcion: schema.cotizacionTiposSeguro.descripcion, activo: schema.cotizacionTiposSeguro.activo })
+    .from(schema.cotizacionTiposSeguro).orderBy(schema.cotizacionTiposSeguro.id);
+}
+
 /** Los paquetes de cobertura: para el aviso "sin paquete configurado" y el paquete de cada envío. */
 export async function obtenerPaquetesCotizacion() {
   await connection();

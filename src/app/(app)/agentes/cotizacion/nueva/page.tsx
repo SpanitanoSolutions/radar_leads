@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { obtenerAseguradorasCotizacion, obtenerOpcionesSolicitud, obtenerPaquetesCotizacion } from "@/lib/datos-agentes";
+import { obtenerAseguradorasCotizacion, obtenerOpcionesSolicitud, obtenerPaquetesCotizacion, obtenerTiposSeguroCotizacion } from "@/lib/datos-agentes";
+import { ramosParaSolicitud } from "@/lib/cotizacion/tipos-seguro";
 import { ramosConPaquete } from "@/lib/cotizacion/configuracion";
 import FormularioNuevaSolicitud from "./FormularioNuevaSolicitud";
 import "../../agentes.css";
@@ -11,10 +12,11 @@ export default async function NuevaSolicitudCotizacion({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [opciones, aseguradoras, paquetes, sp] = await Promise.all([
+  const [opciones, aseguradoras, paquetes, tipos, sp] = await Promise.all([
     obtenerOpcionesSolicitud(),
     obtenerAseguradorasCotizacion(),
     obtenerPaquetesCotizacion(),
+    obtenerTiposSeguroCotizacion(),
     searchParams,
   ]);
   const aviso = typeof sp.aviso === "string" ? sp.aviso : "";
@@ -37,6 +39,7 @@ export default async function NuevaSolicitudCotizacion({
         asegurados={opciones.asegurados}
         leads={opciones.leads}
         aseguradoras={aseguradoras.filter((aseguradora) => aseguradora.activa).map(({ id, nombre, ramos }) => ({ id, nombre, ramos, ramosConPaquete: conPaquete.get(id) ?? [] }))}
+        ramos={ramosParaSolicitud(tipos)}
         aviso={aviso}
       />
     </div>
