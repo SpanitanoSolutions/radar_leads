@@ -5,13 +5,13 @@ import { db, schema } from "@/db";
 import { BotonCopiar } from "@/components/BotonCopiar";
 import { obtenerDetalleCotizacion } from "@/lib/datos-agentes";
 import { diaYHora } from "@/lib/fechas";
-import { pesos } from "@/lib/formato";
-import { mejorResultadoConfirmado, porcentajeCerrados, validarCotizacionContraSolicitud } from "@/lib/cotizacion";
+import { porcentajeCerrados, validarCotizacionContraSolicitud } from "@/lib/cotizacion";
 import { estadoIACotizacion, lecturasDePdfs, obtenerBorradoresIA } from "@/agentes/cotizacion/ia";
 import { contextoDeEnvios } from "@/agentes/cotizacion/detalle";
 import { borradorEjecutivo, resumenesAprobados } from "@/agentes/cotizacion/ejecutivo";
 import { archivosPorCompania, atencionDeLaSolicitud, borradorVisible, estadoContacto, nombrePaqueteDe, pasosDeLaSolicitud, proximoSeguimiento, seguimientosActivos, tablaContactos, textoProximo, textoTabulado } from "@/lib/cotizacion/detalle";
 import { etiquetaRiesgo } from "@/lib/cotizacion/ejecutivo";
+import { coberturasManuales, envioConMejorPrecio, FILAS_COBERTURA, filasComparativo, precioComparativo, type VistaComparativo } from "@/lib/cotizacion/comparativo";
 import { nombreEvento } from "@/lib/cotizacion/eventos";
 import { datoPedido, elegibleParaCotizar, EVENTO_AUTORIZACION } from "@/lib/cotizacion/orquestador";
 import { aprobarEnvioCotizacion, aprobarPropuestaCotizacion, aprobarResumenEjecutivoAccion, aprobarYCotizarSolicitud, cargarArchivoCotizacion, reenviarCorreoCotizacionAccion, reenviarResumenEjecutivoAccion, cargarResultadoCotizacion, confirmarResultadoCotizacionAccion, generarPropuestaCotizacion, marcarSolicitudCompletada, omitirBorradorCotizacion, responderDatoCotizacion, simularRespuestaCotizacion, chatearCotizacionIA, redactarCorreoConIA, extraerPdfConIA } from "../actions";
@@ -59,7 +59,7 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
 
 export default async function DetalleCotizacion({ params, searchParams }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; aviso?: string; ia?: string }>;
+  searchParams: Promise<{ tab?: string; aviso?: string; ia?: string; vista?: string }>;
 }) {
   const [{ id: textoId }, sp] = await Promise.all([params, searchParams]);
   const id = Number(textoId);
@@ -83,7 +83,8 @@ export default async function DetalleCotizacion({ params, searchParams }: {
   const autorizada = eventos.some((evento) => evento.tipo === EVENTO_AUTORIZACION);
   const porCotizar = envios.filter((envio) => elegibleParaCotizar(envio) && !cotizando.has(envio.id)).length;
   const cliente = asegurado?.nombre ?? lead?.empresa ?? solicitud.cliente;
-  const mejor = mejorResultadoConfirmado(resultados);
+  const vista: VistaComparativo = sp.vista === "compacta" ? "compacta" : "detallada";
+  const mejorId = envioConMejorPrecio(envios.map((envio) => resultados.find((resultado) => resultado.envioId === envio.id)));
   const maximoSeguimientos = config?.maxSeguimientos ?? 3;
   const atencion = cerrada ? [] : atencionDeLaSolicitud(envios, ctx);
   const seguimientos = cerrada ? [] : seguimientosActivos(envios, ctx, maximoSeguimientos);
@@ -147,23 +148,30 @@ export default async function DetalleCotizacion({ params, searchParams }: {
 
           {tab === "cotizaciones" && <section className="tarjeta cotizacion-ajuste-seccion">
             <div className="cotizacion-comparativa-cabecera"><div><h2>Comparativa</h2><p>Las respuestas que cargás a mano quedan confirmadas. Las que lee la IA o manda la compañía por conexión directa o portal cuentan recién cuando las confirmás.</p></div><div className="cotizacion-botones-borrador"><Link className="boton" href={`/agentes/cotizacion/exportar/${id}`}>Descargar CSV</Link><Link className="boton" href={`/agentes/cotizacion/exportar/${id}?formato=xlsx`}>Descargar Excel</Link><Link className="boton" href={`/agentes/cotizacion/exportar/${id}?formato=pdf`}>Descargar PDF</Link></div></div>
-            <div className="tabla-scroll"><table className="tabla"><thead><tr><th>Concepto</th>{envios.map((envio) => <th key={envio.id}>{envio.compania}{mejor?.envioId === envio.id && <span className="cotizacion-mejor-precio">Mejor precio</span>}</th>)}</tr></thead><tbody>
-              <tr><th>Prima neta</th>{envios.map((envio) => <td key={envio.id}>{resultadoPorEnvio.get(envio.id)?.primaNeta != null ? pesos(resultadoPorEnvio.get(envio.id)!.primaNeta!) : "—"}</td>)}</tr>
-              <tr><th>Prima total</th>{envios.map((envio) => <td key={envio.id}>{resultadoPorEnvio.has(envio.id) ? <>{pesos(resultadoPorEnvio.get(envio.id)!.primaTotal)}{!resultadoPorEnvio.get(envio.id)!.confirmado && <small> · falta tu confirmación</small>}</> : "Pendiente"}</td>)}</tr>
+            <nav aria-label="Vista del comparativo" className="cotizacion-vistas">
+              {(["compacta", "detallada"] as const).map((opcion) => <Link key={opcion} href={`/agentes/cotizacion/${id}?tab=cotizaciones&vista=${opcion}`} aria-current={vista === opcion ? "page" : undefined}>{opcion === "compacta" ? "Compacta" : "Detallada"}</Link>)}
+              <span className="texto-suave">{vista === "compacta" ? "Precio, prima neta y franquicia." : "Todas las filas: gastos, impuestos, límite, vigencia y coberturas."}</span>
+            </nav>
+            <div className="tabla-scroll"><table className="tabla cotizacion-comparativo"><thead><tr><th>Concepto</th>{envios.map((envio) => <th key={envio.id}>{envio.compania}{mejorId === envio.id && <span className="cotizacion-mejor-precio">Mejor precio</span>}</th>)}</tr></thead><tbody>
+              <tr className="cotizacion-fila-precio"><th>Prima total</th>{envios.map((envio) => {
+                const resultado = resultadoPorEnvio.get(envio.id);
+                return <td key={envio.id} className={mejorId === envio.id ? "cotizacion-celda-mejor" : undefined}>{resultado ? <>{precioComparativo(resultado)}{!resultado.confirmado && <small> · falta tu confirmación</small>}</> : "Pendiente"}</td>;
+              })}</tr>
               <tr><th>Tu revisión</th>{envios.map((envio) => {
                 const resultado = resultadoPorEnvio.get(envio.id);
                 if (!resultado) return <td key={envio.id}>—</td>;
                 if (resultado.confirmado) return <td key={envio.id}>Confirmada</td>;
                 return <td key={envio.id}><form action={confirmarResultadoCotizacionAccion}><input type="hidden" name="resultadoId" value={resultado.id} /><input type="hidden" name="solicitudId" value={id} /><button className="boton boton-primario" aria-label={`Confirmar la respuesta de ${envio.compania}`}>Confirmar</button></form></td>;
               })}</tr>
-              <tr><th>Franquicia</th>{envios.map((envio) => <td key={envio.id}>{resultadoPorEnvio.get(envio.id)?.franquicia ?? "—"}</td>)}</tr>
-              <tr><th>Suma asegurada</th>{envios.map((envio) => <td key={envio.id}>{resultadoPorEnvio.get(envio.id)?.sumaAsegurada != null ? pesos(resultadoPorEnvio.get(envio.id)!.sumaAsegurada!) : "—"}</td>)}</tr>
-              <tr><th>Condiciones</th>{envios.map((envio) => <td key={envio.id}>{resultadoPorEnvio.get(envio.id)?.condiciones ?? "—"}</td>)}</tr>
-              <tr><th>Coberturas</th>{envios.map((envio) => <td key={envio.id}>{resultadoPorEnvio.get(envio.id)?.coberturas.map((c) => `${c.nombre}${c.valor ? `: ${c.valor}` : ""}`).join(", ") || "—"}</td>)}</tr>
+              {filasComparativo(envios.map((envio) => resultadoPorEnvio.get(envio.id)), vista).map((fila) => (
+                <tr key={fila.id}><th>{fila.etiqueta}</th>{fila.celdas.map((celda, indice) => <td key={envios[indice].id}>{celda ?? "—"}</td>)}</tr>
+              ))}
             </tbody></table></div>
+            {mejorId === null && resultados.length > 0 && <p className="texto-suave">“Mejor precio” aparece cuando confirmás al menos una respuesta.</p>}
             <h3>Cargar una cotización recibida</h3>
             {envios.map((envio) => {
               const actual = resultadoPorEnvio.get(envio.id);
+              const manuales = coberturasManuales(actual?.coberturas ?? []);
               return <section key={`resultado-${envio.id}`} className="cotizacion-resultado-manual">
                 <h4>{envio.compania}</h4>
                 <form action={cargarResultadoCotizacion} className="cotizacion-ajuste-form">
@@ -181,6 +189,7 @@ export default async function DetalleCotizacion({ params, searchParams }: {
                   <label>Código postal cotizado<input name="codigoPostalCotizado" defaultValue={actual?.riesgoCotizado.codigoPostal ?? ""} /></label>
                   <label>Vigencia<input name="vigencia" defaultValue={actual?.vigencia ?? ""} /></label>
                   <label>Condiciones<textarea name="condiciones" rows={2} defaultValue={actual?.condiciones ?? ""} /></label>
+                  {FILAS_COBERTURA.map((fila) => <label key={fila.id}>{fila.etiqueta}<input name={`cobertura_${fila.id}`} maxLength={200} defaultValue={manuales[fila.id]} placeholder={fila.id === "servicios" ? "Ej.: grúa 300 km, auto sustituto" : "Ej.: incluida, hasta $ 300.000"} /></label>)}
                   <label>Observación<textarea name="observacion" rows={2} defaultValue={solicitud.cotizaciones.find((cotizacion) => cotizacion.compania === envio.compania)?.observacion ?? ""} /></label>
                   <button className="boton boton-primario">Guardar y confirmar</button>
                 </form>

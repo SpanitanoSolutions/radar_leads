@@ -194,7 +194,8 @@ export async function registrarResultadoCotizacion(datos: {
         condiciones: datos.condiciones ?? null,
         vigencia: datos.vigencia ?? null,
         ...(datos.moneda ? { moneda: datos.moneda } : {}),
-        coberturas: datos.coberturas ?? [],
+        // Sin coberturas en los datos (la carga rápida de la lista), quedan las que había.
+        ...(datos.coberturas !== undefined || !existente ? { coberturas: datos.coberturas ?? [] } : {}),
         riesgoCotizado: datos.riesgoCotizado ?? {},
         confirmado,
       };

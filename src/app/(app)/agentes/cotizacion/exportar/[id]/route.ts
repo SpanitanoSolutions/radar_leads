@@ -4,6 +4,7 @@ import { requerirSesion } from "@/lib/auth";
 import { escribirXlsx } from "@/lib/xlsx-escribir";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
 import { tablaContactos } from "@/lib/cotizacion/detalle";
+import { coberturasPorFila, FILAS_COBERTURA } from "@/lib/cotizacion/comparativo";
 import { contextoDeEnvios } from "@/agentes/cotizacion/detalle";
 
 function campoCsv(valor: string | number | null | undefined): string {
@@ -37,16 +38,19 @@ export async function GET(request: Request, context: RouteContext<"/agentes/coti
     } });
   }
   const filas: (string | number | null)[][] = [
-    ["Compañía", "Estado", "Prima neta", "Prima total", "Gastos", "Impuestos", "Franquicia", "Suma asegurada", "Vigencia", "Condiciones", "Confirmada"],
+    ["Compañía", "Estado", "Prima neta", "Prima total", "Gastos", "Impuestos", "Franquicia", "Suma asegurada", "Vigencia", "Condiciones",
+      ...FILAS_COBERTURA.map((fila) => fila.etiqueta), "Otras coberturas", "Confirmada"],
     ...envios.map((envio) => {
       const resultado = resultadoPorEnvio.get(envio.id);
+      const coberturas = resultado ? coberturasPorFila(resultado.coberturas) : null;
       return [envio.compania, envio.estado, resultado?.primaNeta ?? null, resultado?.primaTotal ?? null,
         resultado?.gastos ?? null, resultado?.impuestos ?? null, resultado?.franquicia ?? null,
         resultado?.sumaAsegurada ?? null, resultado?.vigencia ?? null, resultado?.condiciones ?? null,
+        ...FILAS_COBERTURA.map((fila) => coberturas?.[fila.id] ?? null), coberturas?.otras ?? null,
         resultado?.confirmado ? "Sí" : "No"];
     }),
   ];
-  if (!envios.length) filas.push(...solicitud.cotizaciones.map((cotizacion) => [cotizacion.compania, "histórica", null, cotizacion.precio, null, null, null, null, null, cotizacion.observacion ?? null, "No"]));
+  if (!envios.length) filas.push(...solicitud.cotizaciones.map((cotizacion) => [cotizacion.compania, "histórica", null, cotizacion.precio, null, null, null, null, null, cotizacion.observacion ?? null, ...FILAS_COBERTURA.map(() => null), null, "No"]));
   const formato = parametros.get("formato");
   if (formato === "pdf") {
     const propuesta = generarPdfPropuesta(`Comparativa ${solicitud.numero} - ${solicitud.cliente}`, filas.slice(1).map((fila) => ({ etiqueta: String(fila[0] ?? ""), valor: fila.slice(1).filter((valor) => valor != null && valor !== "").join(" | ") || "Sin respuesta" })));

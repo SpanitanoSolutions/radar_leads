@@ -16,6 +16,7 @@ import { aprobarResumenEjecutivo, reenviarResumenEjecutivo, type ResultadoResume
 import { despachadorTrabajos } from "@/lib/ia/manejadores";
 import type { MotivoSinIA } from "@/lib/ia/motor";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
+import { FILAS_COBERTURA, unirCoberturasManuales, type Cobertura } from "@/lib/cotizacion/comparativo";
 
 const ESTADOS: EstadoCotizacion[] = ["atencion", "esperando", "lista", "enviada", "ganada", "perdida"];
 
@@ -433,8 +434,16 @@ export async function cargarResultadoCotizacion(formData: FormData) {
   }
   if ([primaNeta, gastos, impuestos, sumaAsegurada].some((valor) => valor != null && (!Number.isFinite(valor) || valor < 0))) volver("resultado-cotizacion-invalido", query);
   try {
+    // Las filas de cobertura del comparativo (solo en el detalle): reemplazan las que se cargaron a mano y conservan las de la compañía.
+    let coberturas: Cobertura[] | undefined;
+    if (FILAS_COBERTURA.some((fila) => formData.has(`cobertura_${fila.id}`))) {
+      const [actual] = await db.select({ coberturas: schema.cotizacionResultados.coberturas }).from(schema.cotizacionResultados)
+        .innerJoin(schema.cotizacionEnvios, eq(schema.cotizacionEnvios.id, schema.cotizacionResultados.envioId))
+        .where(and(eq(schema.cotizacionEnvios.solicitudId, solicitudId), eq(schema.cotizacionEnvios.compania, compania)));
+      coberturas = unirCoberturasManuales(actual?.coberturas ?? [], Object.fromEntries(FILAS_COBERTURA.map((fila) => [fila.id, mensajeDe(formData, `cobertura_${fila.id}`)])));
+    }
     await registrarResultadoCotizacion({
-      solicitudId, compania, precio, observacion, origen: "manual", primaNeta, gastos, impuestos, sumaAsegurada,
+      solicitudId, compania, precio, observacion, origen: "manual", primaNeta, gastos, impuestos, sumaAsegurada, coberturas,
       franquicia: mensajeDe(formData, "franquicia").slice(0, 200) || null,
       condiciones: mensajeDe(formData, "condiciones").slice(0, 2000) || null,
       vigencia: mensajeDe(formData, "vigencia").slice(0, 200) || null,

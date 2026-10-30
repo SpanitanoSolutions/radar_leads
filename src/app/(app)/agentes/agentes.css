@@ -2172,6 +2172,56 @@
   color: var(--verde-texto);
   font-size: 11px;
 }
+/* El comparativo es una tabla de texto: sin el mínimo de 980 px ni la última columna a la derecha. */
+.cotizacion-comparativo {
+  min-width: 0;
+}
+.cotizacion-comparativo th,
+.cotizacion-comparativo td {
+  min-width: 140px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.cotizacion-comparativo th:last-child,
+.cotizacion-comparativo td:last-child {
+  text-align: left;
+}
+/* Las cabeceras de fila (Prima total, Daños…) se leen como texto, no como títulos de columna. */
+.cotizacion-comparativo tbody th {
+  border-bottom-color: var(--borde-suave);
+  color: var(--etiqueta);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+}
+.cotizacion-fila-precio td {
+  font-weight: 600;
+}
+.cotizacion-celda-mejor {
+  background: var(--verde-suave);
+  color: var(--verde-texto);
+}
+.cotizacion-vistas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+.cotizacion-vistas a {
+  padding: 5px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  color: var(--texto);
+  text-decoration: none;
+}
+.cotizacion-vistas a[aria-current="page"] {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  font-weight: 600;
+}
 .cotizacion-datos-riesgo {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
