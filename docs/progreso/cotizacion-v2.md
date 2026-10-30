@@ -40,7 +40,7 @@ Rama `feat/cotizacion-v2-base-comun`.
 
 **Migración `0029_cotizacion_base_comun`** (solo agrega): la columna `ajustes.provincia` y la fila `cotizacion` / `*` de `ia_configuracion`, si no existe.
 
-**Hallazgo (de antes, sin tocar):** el webhook de la v1 nunca fue alcanzable desde afuera. `src/proxy.ts` pide sesión en todo salvo `/api/cron/`, así que una llamada sin sesión termina en `/login` aunque traiga el secreto. No lo abrí: sería una dirección pública nueva. Queda para decidir en la 2c (sacarlo, ya que lo reemplazan los conectores, o dejarlo pasar en el proxy con su secreto).
+**Hallazgo (de antes, sin tocar):** el webhook de la v1 nunca fue alcanzable desde afuera. `src/proxy.ts` pide sesión en todo salvo `/api/cron/`, así que una llamada sin sesión termina en `/login` aunque traiga el secreto. No lo abrí: sería una dirección pública nueva. **Decisión de Julian (30/10/2026): se saca en la 2c**, porque lo reemplazan los conectores.
 
 **2b. Las claves de los portales en `credenciales_portal`:**
 - La sección Portales de la Configuración de Cotización guarda con `guardarCredencial()` y lee con `listarCredenciales()`, con el mismo alcance que la cartera del Validador (`ALCANCE_CREDENCIALES`, sin organización ni productor por ahora). Así los dos agentes usan la misma clave de cada compañía.
@@ -512,8 +512,7 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
 2. la opción `canales` de `ejecutarEnCompania()`, con tests;
 3. el orquestador: "Aprobar y cotizar" encola `cotizacion:cotizar_envio` por compañía; las respuestas entran sin confirmar (punto 5);
 4. `CONECTORES_SIMULADOS_FORZAR` para probar los criterios 12 y 13;
-5. el correo aprobado por la salida común (`src/agentes/envio.ts`), y se borra `src/conexiones/cotizacion.ts`.
-
-Antes de la 2c, Julian decide qué hacer con el webhook de la v1 (ver "Hallazgo"): sacarlo o dejarlo pasar en el proxy con su secreto.
+5. el correo aprobado por la salida común (`src/agentes/envio.ts`), y se borra `src/conexiones/cotizacion.ts`;
+6. se saca el webhook de la v1 (`src/app/api/agentes/cotizacion/resultado/route.ts` y `COTIZACION_WEBHOOK_SECRET`), como decidió Julian (ver "Hallazgo").
 
 Apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.
