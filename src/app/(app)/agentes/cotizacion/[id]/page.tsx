@@ -5,8 +5,9 @@ import { pesos } from "@/lib/formato";
 import { mejorResultadoConfirmado, porcentajeCerrados, validarCotizacionContraSolicitud } from "@/lib/cotizacion";
 import { estadoIACotizacion, lecturasDePdfs, obtenerBorradoresIA } from "@/agentes/cotizacion/ia";
 import { enviosCotizando } from "@/agentes/cotizacion/cotizar";
+import { correosSinEnviar } from "@/agentes/cotizacion/correo";
 import { datoPedido, elegibleParaCotizar, estadoEnvioVisible, etiquetaCanal, EVENTO_AUTORIZACION } from "@/lib/cotizacion/orquestador";
-import { aprobarEnvioCotizacion, aprobarPropuestaCotizacion, aprobarYCotizarSolicitud, cargarArchivoCotizacion, cargarResultadoCotizacion, confirmarResultadoCotizacionAccion, generarPropuestaCotizacion, marcarSolicitudCompletada, omitirBorradorCotizacion, responderDatoCotizacion, simularRespuestaCotizacion, chatearCotizacionIA, redactarCorreoConIA, extraerPdfConIA } from "../actions";
+import { aprobarEnvioCotizacion, aprobarPropuestaCotizacion, aprobarYCotizarSolicitud, cargarArchivoCotizacion, reenviarCorreoCotizacionAccion, cargarResultadoCotizacion, confirmarResultadoCotizacionAccion, generarPropuestaCotizacion, marcarSolicitudCompletada, omitirBorradorCotizacion, responderDatoCotizacion, simularRespuestaCotizacion, chatearCotizacionIA, redactarCorreoConIA, extraerPdfConIA } from "../actions";
 import { ActualizarMientrasLee } from "./ActualizarMientrasLee";
 import "../../agentes.css";
 
@@ -34,6 +35,10 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   "dato-vacio": { texto: "Escribí la respuesta para la compañía.", error: true },
   "dato-no-disponible": { texto: "Esa compañía ya no está esperando un dato.", error: true },
   "error-dato": { texto: "No pudimos guardar tu respuesta. Probá de nuevo.", error: true },
+  "envio-aprobado": { texto: "Aprobaste el correo y salió desde tu correo conectado." },
+  "correo-enviado": { texto: "Salió el correo que habías aprobado." },
+  "envio-aprobado-sin-enviar": { texto: "Aprobaste el correo, pero no salió. En la tabla está el motivo; cuando lo resuelvas, tocá “Enviar ahora”.", error: true },
+  "borrador-omitido": { texto: "Omitiste el borrador; no se envió nada." },
 };
 
 export default async function DetalleCotizacion({ params, searchParams }: {
@@ -47,8 +52,9 @@ export default async function DetalleCotizacion({ params, searchParams }: {
   if (!detalle) notFound();
   const { solicitud, asegurado, lead, envios, archivos, propuestas, eventos, resultados, paquetes } = detalle;
   const pdfsDeCompanias = archivos.filter((archivo) => archivo.mime === "application/pdf" && archivo.envioId);
-  const [estadoIA, borradoresIA, lecturas, cotizando] = await Promise.all([
-    estadoIACotizacion(), obtenerBorradoresIA(id), lecturasDePdfs(pdfsDeCompanias.map((archivo) => archivo.id)), enviosCotizando(envios.map((envio) => envio.id)),
+  const envioIds = envios.map((envio) => envio.id);
+  const [estadoIA, borradoresIA, lecturas, cotizando, sinEnviar] = await Promise.all([
+    estadoIACotizacion(), obtenerBorradoresIA(id), lecturasDePdfs(pdfsDeCompanias.map((archivo) => archivo.id)), enviosCotizando(envioIds), correosSinEnviar(envioIds),
   ]);
   const leyendo = [...lecturas.values()].some((lectura) => lectura.estado === "pendiente" || lectura.estado === "procesando");
   const cerrada = Boolean(solicitud.completadoEl) || ["ganada", "perdida"].includes(solicitud.estado);
@@ -95,7 +101,11 @@ export default async function DetalleCotizacion({ params, searchParams }: {
                     {dato && <form action={responderDatoCotizacion} className="cotizacion-dato"><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="solicitudId" value={id} /><label>Tu respuesta para {envio.compania}<input name="respuesta" required maxLength={200} /></label><button className="boton boton-primario">Responder y volver a cotizar</button></form>}
                   </td>
                   <td>{etiquetaCanal(envio.canalUsado)}</td><td>{envio.cantidadSeguimientos}</td><td>{envio.ultimaActividad.toLocaleString("es-AR")}</td>
-                  <td>{enCurso ? <span className="texto-suave">Esperá la cotización automática</span> : envio.estadoBorrador === "pendiente" ? <div className="cotizacion-botones-borrador"><form action={aprobarEnvioCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton boton-primario">Aprobar</button></form><form action={omitirBorradorCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Omitir</button></form>{estadoIA.habilitada && <form action={redactarCorreoConIA}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Mejorar con IA</button></form>}</div> : envio.estadoBorrador === "aprobado" ? "Aprobado · simulado" : envio.canalUsado && envio.canalUsado !== "correo" ? "No hace falta" : "Omitido"}</td>
+                  <td>{enCurso ? <span className="texto-suave">Esperá la cotización automática</span>
+                    : envio.estadoBorrador === "pendiente" ? <div className="cotizacion-botones-borrador"><form action={aprobarEnvioCotizacion}><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="volverDetalle" value="on" /><button className="boton boton-primario">Aprobar</button></form><form action={omitirBorradorCotizacion}><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="volverDetalle" value="on" /><button className="boton">Omitir</button></form>{estadoIA.habilitada && <form action={redactarCorreoConIA}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Mejorar con IA</button></form>}</div>
+                    : envio.estadoBorrador === "aprobado" && sinEnviar.has(envio.id) ? <div className="cotizacion-botones-borrador"><span>Aprobado · sin enviar</span><form action={reenviarCorreoCotizacionAccion}><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="volverDetalle" value="on" /><button className="boton">Enviar ahora</button></form></div>
+                    : envio.estadoBorrador === "aprobado" ? "Aprobado y enviado"
+                    : envio.canalUsado && envio.canalUsado !== "correo" ? "No hace falta" : "Omitido"}</td>
                 </tr>;
               })}
             </tbody></table></div>

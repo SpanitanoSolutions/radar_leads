@@ -8,9 +8,7 @@ import { confirmarResultadoCotizacion, crearSolicitud, registrarResultadoCotizac
 import type { EstadoCotizacion } from "@/lib/cotizacion";
 import { requerirSesion } from "@/lib/auth";
 import { mejorResultadoConfirmado, validarDatosRiesgo } from "@/lib/cotizacion";
-import { adaptadorSalidaCotizacion } from "@/conexiones/cotizacion";
-import { calcularProximoSeguimiento } from "@/lib/cotizacion/seguimientos";
-import { provinciaValida } from "@/lib/provincias";
+import { aprobarCorreoCotizacion, reenviarCorreoCotizacion, type ResultadoCorreo } from "@/agentes/cotizacion/correo";
 import { encolarLecturaPdf, redactarCorreoCotizacion, responderChatCotizacion, type ResultadoIACotizacion } from "@/agentes/cotizacion/ia";
 import { autorizarCotizacion } from "@/agentes/cotizacion/cotizar";
 import { responderDatoPedido } from "@/agentes/cotizacion/orquestador";
@@ -128,46 +126,41 @@ export async function nuevaSolicitud(formData: FormData) {
   volver(`solicitud-${numero}`, "?tab=solicitudes");
 }
 
+/** Después de aprobar u omitir: al detalle si el botón estaba ahí, y si no a la lista. */
+function volverDelCorreo(formData: FormData, solicitudId: number | null, aviso: string): never {
+  revalidatePath("/agentes/cotizacion");
+  if (solicitudId && mensajeDe(formData, "volverDetalle") === "on") {
+    revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+    redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);
+  }
+  volver(aviso, "?tab=solicitudes");
+}
+
+/** El correo aprobado sale por la salida común; sin el correo de la cuenta conectado queda aprobado y sin enviar. */
 export async function aprobarEnvioCotizacion(formData: FormData) {
   await requerirSesion();
   const envioId = Number(mensajeDe(formData, "envioId"));
   if (!Number.isInteger(envioId) || envioId <= 0) volver("envio-invalido", "?tab=solicitudes");
+  let resultado: ResultadoCorreo | null | "fallo";
+  try { resultado = await aprobarCorreoCotizacion(envioId); }
+  catch { resultado = "fallo"; }
   // Fuera del try: redirect() lanza un error propio de Next y el catch lo convertiría en "No pudimos aprobar".
-  const [envio] = await db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.id, envioId));
-  if (!envio || envio.estadoBorrador !== "pendiente" || !envio.asuntoBorrador || !envio.cuerpoBorrador) volver("borrador-no-disponible", "?tab=solicitudes");
-  const { asuntoBorrador, cuerpoBorrador } = envio;
-  try {
-    const [[solicitud], [config], [ajustes]] = await Promise.all([
-      db.select({ ramo: schema.solicitudesCotizacion.ramo }).from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, envio.solicitudId)),
-      db.select().from(schema.cotizacionConfig).limit(1),
-      db.select({ provincia: schema.ajustes.provincia }).from(schema.ajustes).where(eq(schema.ajustes.id, 1)),
-    ]);
-    const ahora = new Date();
-    const esSeguimiento = envio.estado === "en_seguimiento";
-    const cantidadSeguimientos = envio.cantidadSeguimientos + (esSeguimiento ? 1 : 0);
-    const maxSeguimientos = config?.maxSeguimientos ?? 3;
-    const proximoSeguimiento = solicitud
-      ? calcularProximoSeguimiento(ahora, solicitud.ramo, config?.estrategiaSeguimiento ?? "Cada 3 días hábiles", { provincia: provinciaValida(ajustes?.provincia) })
-      : null;
-    const respuesta = await adaptadorSalidaCotizacion.enviarBorrador({ compania: envio.compania, asunto: asuntoBorrador, cuerpo: cuerpoBorrador });
-    await db.transaction(async (tx) => {
-      await tx.update(schema.cotizacionEnvios).set({
-        estado: esSeguimiento && cantidadSeguimientos >= maxSeguimientos ? "requiere_atencion" : esSeguimiento ? "en_seguimiento" : "enviado",
-        estadoBorrador: "aprobado", aprobadoEl: new Date(),
-        cantidadSeguimientos,
-        ultimaActividad: new Date(), proximoSeguimiento: esSeguimiento && cantidadSeguimientos >= maxSeguimientos ? null : proximoSeguimiento,
-      }).where(eq(schema.cotizacionEnvios.id, envioId));
-      await tx.insert(schema.cotizacionEventos).values({
-        solicitudId: envio.solicitudId, envioId, actor: "productor", tipo: "borrador_aprobado",
-        detalle: respuesta.simulado ? `El productor aprobó el borrador para ${envio.compania}; referencia simulada ${respuesta.referencia}.` : `El productor aprobó el borrador para ${envio.compania}.`,
-      });
-      await tx.insert(schema.actividadAgentes).values({ agente: "cotizacion", referencia: `solicitud:${envio.solicitudId}`, texto: `Aprobaste el borrador para ${envio.compania}; conexión simulada.` });
-    });
-  } catch {
-    volver("error-aprobar-envio", "?tab=solicitudes");
-  }
-  revalidatePath("/agentes/cotizacion");
-  volver("envio-aprobado", "?tab=solicitudes");
+  if (resultado === null) volver("borrador-no-disponible", "?tab=solicitudes");
+  if (resultado === "fallo") volver("error-aprobar-envio", "?tab=solicitudes");
+  volverDelCorreo(formData, resultado.solicitudId, resultado.enviado ? "envio-aprobado" : "envio-aprobado-sin-enviar");
+}
+
+/** "Enviar ahora": vuelve a intentar un correo aprobado que no salió. */
+export async function reenviarCorreoCotizacionAccion(formData: FormData) {
+  await requerirSesion();
+  const envioId = Number(mensajeDe(formData, "envioId"));
+  if (!Number.isInteger(envioId) || envioId <= 0) volver("envio-invalido", "?tab=solicitudes");
+  let resultado: ResultadoCorreo | null | "fallo";
+  try { resultado = await reenviarCorreoCotizacion(envioId); }
+  catch { resultado = "fallo"; }
+  if (resultado === null) volver("borrador-no-disponible", "?tab=solicitudes");
+  if (resultado === "fallo") volver("error-aprobar-envio", "?tab=solicitudes");
+  volverDelCorreo(formData, resultado.solicitudId, resultado.enviado ? "correo-enviado" : "envio-aprobado-sin-enviar");
 }
 
 /** "Aprobar y cotizar": autoriza al agente a cotizar por conexión directa o portal. Los correos siguen esperando su aprobación. */
@@ -211,8 +204,7 @@ export async function omitirBorradorCotizacion(formData: FormData) {
     await tx.update(schema.cotizacionEnvios).set({ estadoBorrador: "omitido", ultimaActividad: new Date() }).where(eq(schema.cotizacionEnvios.id, envioId));
     await tx.insert(schema.cotizacionEventos).values({ solicitudId: envio.solicitudId, envioId, actor: "productor", tipo: "borrador_omitido", detalle: `El productor omitió el borrador para ${envio.compania}.` });
   });
-  revalidatePath("/agentes/cotizacion");
-  volver("borrador-omitido", "?tab=solicitudes");
+  volverDelCorreo(formData, envio.solicitudId, "borrador-omitido");
 }
 
 export async function cargarArchivoCotizacion(formData: FormData) {

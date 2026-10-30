@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { armarBorradorSolicitud } from "./correo";
+import { armarBorradorSolicitud, destinatarioCotizacion, estadoTrasEnvio, motivoSinEnviar } from "./correo";
 
 const base = {
   plantillaAsunto: "SOLICITUD – [RAMO] – [CLIENTE] – [ASEGURADORA] – [CLAVE]",
@@ -51,5 +51,26 @@ describe("borrador de la solicitud a cada compañía", () => {
     const { asunto, cuerpo } = armarBorradorSolicitud({ aseguradora: base.aseguradora, solicitud: base.solicitud, cuenta: base.cuenta });
     expect(asunto).toBe("SOLICITUD – Automotor – Panadería La Espiga SA – Sancor – 4521");
     expect(cuerpo).toBe("Buenos días. Solicitamos una propuesta para Panadería La Espiga SA, CUIT 30-71234567-1, ramo Automotor. Productor: Julián Pérez.");
+  });
+});
+
+describe("el correo aprobado", () => {
+  it("va al primer contacto con una dirección válida", () => {
+    expect(destinatarioCotizacion([{ email: "" }, { email: "sin-arroba" }, { email: " cotizaciones@sancor.com.ar " }, { email: "otro@sancor.com.ar" }])).toBe("cotizaciones@sancor.com.ar");
+    expect(destinatarioCotizacion([])).toBeNull();
+  });
+
+  it("sin Gmail, o sin el correo de la compañía, dice qué hacer", () => {
+    expect(motivoSinEnviar("Gmail no está conectado.", "c@sancor.com.ar"))
+      .toBe("No salió: tu correo no está conectado (conectalo en Configuración → Conexiones). Después tocá “Enviar ahora”.");
+    expect(motivoSinEnviar("Gmail necesita autorización. Volvé a conectarlo.", null))
+      .toBe("No salió: tu correo no está conectado (conectalo en Configuración → Conexiones) y falta el correo de la compañía (cargalo en la Configuración de Cotización). Después tocá “Enviar ahora”.");
+    expect(motivoSinEnviar("Gmail respondió 503.", "c@sancor.com.ar")).toBe("No salió: el correo no se pudo enviar. Probá “Enviar ahora” en un rato.");
+  });
+
+  it("el primer correo deja el envío enviado; los seguimientos cuentan hasta el máximo", () => {
+    expect(estadoTrasEnvio({ estado: "pendiente", cantidadSeguimientos: 0 }, 3)).toEqual({ estado: "enviado", cantidadSeguimientos: 0, programarSeguimiento: true });
+    expect(estadoTrasEnvio({ estado: "en_seguimiento", cantidadSeguimientos: 1 }, 3)).toEqual({ estado: "en_seguimiento", cantidadSeguimientos: 2, programarSeguimiento: true });
+    expect(estadoTrasEnvio({ estado: "en_seguimiento", cantidadSeguimientos: 2 }, 3)).toEqual({ estado: "requiere_atencion", cantidadSeguimientos: 3, programarSeguimiento: false });
   });
 });

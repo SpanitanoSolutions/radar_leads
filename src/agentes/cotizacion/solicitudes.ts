@@ -227,7 +227,7 @@ export async function registrarResultadoCotizacion(datos: {
     await tx.insert(schema.actividadAgentes).values({
       agente: "cotizacion",
       referencia: `solicitud:${solicitud.numero}`,
-      texto: `Registró una respuesta de ${datos.compania}${datos.origen === "portal" ? " recibida del portal simulado" : " cargada por el productor"}. ${textoFaltan(pendientes)}`,
+      texto: `Registró una respuesta de ${datos.compania}${datos.origen === "portal" ? " recibida de la compañía" : " cargada por el productor"}. ${textoFaltan(pendientes)}`,
     });
     return "confirmada";
   });

@@ -43,3 +43,38 @@ export function armarBorradorSolicitud(datos: DatosBorradorSolicitud): { asunto:
   for (const [clave, valor] of Object.entries(valores)) cuerpo = cuerpo.replaceAll(`{${clave}}`, valor);
   return { asunto, cuerpo };
 }
+
+// ---------- El correo aprobado, por la salida común ----------
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** A quién va el correo: el primer contacto de la compañía con una dirección válida. */
+export function destinatarioCotizacion(contactos: { email?: string | null }[]): string | null {
+  return contactos.map((contacto) => contacto.email?.trim() ?? "").find((email) => EMAIL.test(email)) ?? null;
+}
+
+/** Por qué no salió un correo aprobado, en palabras del productor, con lo que tiene que hacer. */
+export function motivoSinEnviar(error: string, destinatario: string | null): string {
+  const sinGmail = /^Gmail (no está conectado|necesita autorización)/.test(error);
+  const faltas = [
+    sinGmail ? "tu correo no está conectado (conectalo en Configuración → Conexiones)" : null,
+    destinatario ? null : "falta el correo de la compañía (cargalo en la Configuración de Cotización)",
+  ].filter(Boolean);
+  if (faltas.length) return `No salió: ${faltas.join(" y ")}. Después tocá “Enviar ahora”.`;
+  return "No salió: el correo no se pudo enviar. Probá “Enviar ahora” en un rato.";
+}
+
+/**
+ * Cómo queda el envío cuando el correo sale. Un seguimiento suma uno y, al
+ * llegar al máximo, pasa a requerir atención y no se programan más.
+ */
+export function estadoTrasEnvio(envio: { estado: string; cantidadSeguimientos: number }, maximoSeguimientos: number): {
+  estado: "enviado" | "en_seguimiento" | "requiere_atencion";
+  cantidadSeguimientos: number;
+  programarSeguimiento: boolean;
+} {
+  if (envio.estado !== "en_seguimiento") return { estado: "enviado", cantidadSeguimientos: envio.cantidadSeguimientos, programarSeguimiento: true };
+  const cantidadSeguimientos = envio.cantidadSeguimientos + 1;
+  const agotados = cantidadSeguimientos >= maximoSeguimientos;
+  return { estado: agotados ? "requiere_atencion" : "en_seguimiento", cantidadSeguimientos, programarSeguimiento: !agotados };
+}
