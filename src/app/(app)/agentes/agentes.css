@@ -2301,6 +2301,27 @@
 .cotizacion-tabla-contactos td {
   vertical-align: top;
 }
+/* Bitácora: tabla de texto; el detalle se lee entero y la última columna no va a la derecha. */
+.cotizacion-tabla-bitacora {
+  min-width: 760px;
+}
+.cotizacion-tabla-bitacora td {
+  vertical-align: top;
+}
+.cotizacion-tabla-bitacora td:first-child {
+  white-space: nowrap;
+}
+.cotizacion-tabla-bitacora th:last-child,
+.cotizacion-tabla-bitacora td:last-child {
+  min-width: 260px;
+  text-align: left;
+}
+.cotizacion-bitacora-cuenta {
+  margin: 0;
+  padding: 0 16px 10px;
+  color: var(--etiqueta);
+  font-size: 13px;
+}
 .cotizacion-datos-riesgo dd {
   margin: 4px 0 0;
   overflow-wrap: anywhere;

@@ -5,7 +5,9 @@ import { db, schema } from "@/db";
 import type { Comprobante, CuentaCompania } from "@/db/schema";
 import { ALCANCE_CONEXIONES } from "./conectores/companias";
 import { listarCredenciales } from "./conectores/credenciales";
+import type { EventoBitacora } from "./cotizacion/bitacora";
 import type { DatosChecklist } from "./cotizacion/configuracion";
+import { momentosDelEnvio, type EnvioParaMetricas } from "./cotizacion/metricas";
 import { sumarDias } from "./fechas";
 import type { CuotaConPoliza } from "./validador";
 
@@ -448,29 +450,46 @@ export async function obtenerMetricasCotizacion() {
   await connection();
   const [envios, solicitudes, resultados] = await Promise.all([
     db.select().from(schema.cotizacionEnvios),
-    db.select({ id: schema.solicitudesCotizacion.id, productor: schema.solicitudesCotizacion.ejecutivo, creadoEl: schema.solicitudesCotizacion.creadoEl, estado: schema.solicitudesCotizacion.estado, actualizadoEl: schema.solicitudesCotizacion.actualizadoEl, completadoEl: schema.solicitudesCotizacion.completadoEl }).from(schema.solicitudesCotizacion),
+    db.select({ id: schema.solicitudesCotizacion.id, numero: schema.solicitudesCotizacion.numero, productor: schema.solicitudesCotizacion.ejecutivo, creadoEl: schema.solicitudesCotizacion.creadoEl, estado: schema.solicitudesCotizacion.estado, actualizadoEl: schema.solicitudesCotizacion.actualizadoEl, completadoEl: schema.solicitudesCotizacion.completadoEl }).from(schema.solicitudesCotizacion),
     db.select().from(schema.cotizacionResultados),
   ]);
   const solicitudesPorId = new Map(solicitudes.map((solicitud) => [solicitud.id, solicitud]));
   const resultadoPorEnvio = new Map(resultados.map((resultado) => [resultado.envioId, resultado]));
   return {
-    envios: envios.flatMap((envio) => {
+    envios: envios.flatMap((envio): EnvioParaMetricas[] => {
       const solicitud = solicitudesPorId.get(envio.solicitudId);
       if (!solicitud) return [];
       const resultado = resultadoPorEnvio.get(envio.id);
+      // El tiempo de respuesta se mide desde que salió el pedido, no desde que se creó el borrador.
+      const { salidoEl, respondidoEl } = momentosDelEnvio(envio, resultado);
       return [{
         solicitudId: envio.solicitudId,
         compania: envio.compania,
         productor: solicitud.productor ?? "Productor",
         estado: envio.estado,
-        creadoEl: envio.creadoEl,
-        respondidoEl: resultado?.recibidoEl ?? null,
+        salidoEl,
+        respondidoEl,
         primaNeta: resultado?.primaNeta ?? null,
         seguimientos: envio.cantidadSeguimientos,
       }];
     }),
-    solicitudes: solicitudes.map(({ estado, actualizadoEl, ...resto }) => ({ ...resto, estado, actualizadoEl })),
+    solicitudes: solicitudes.map((solicitud) => ({ ...solicitud, productor: solicitud.productor ?? "Productor" })),
   };
+}
+
+/** Los eventos de todas las solicitudes, con su número, cliente y compañía, para la bitácora del agente (los más nuevos). */
+export async function obtenerBitacoraCotizacion(limite = 2000): Promise<EventoBitacora[]> {
+  await connection();
+  const e = schema.cotizacionEventos;
+  return db.select({
+    id: e.id, fecha: e.fecha, tipo: e.tipo, actor: e.actor, detalle: e.detalle, solicitudId: e.solicitudId,
+    numero: schema.solicitudesCotizacion.numero, cliente: schema.solicitudesCotizacion.cliente, compania: schema.cotizacionEnvios.compania,
+  })
+    .from(e)
+    .innerJoin(schema.solicitudesCotizacion, eq(schema.solicitudesCotizacion.id, e.solicitudId))
+    .leftJoin(schema.cotizacionEnvios, eq(schema.cotizacionEnvios.id, e.envioId))
+    .orderBy(desc(e.fecha), desc(e.id))
+    .limit(limite);
 }
 
 /** Opciones de origen para cargar solicitudes desde Cotización. */

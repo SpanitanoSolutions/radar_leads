@@ -7,7 +7,7 @@ import { db, schema } from "@/db";
 import { confirmarResultadoCotizacion, crearSolicitud, registrarResultadoCotizacion, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
 import type { EstadoCotizacion } from "@/lib/cotizacion";
 import { requerirSesion } from "@/lib/auth";
-import { mejorResultadoConfirmado, validarDatosRiesgo } from "@/lib/cotizacion";
+import { ESTADOS_COTIZACION, mejorResultadoConfirmado, validarDatosRiesgo } from "@/lib/cotizacion";
 import { aprobarCorreoCotizacion, reenviarCorreoCotizacion, type ResultadoCorreo } from "@/agentes/cotizacion/correo";
 import { encolarLecturaPdf, redactarCorreoCotizacion, responderChatCotizacion, type ResultadoIACotizacion } from "@/agentes/cotizacion/ia";
 import { autorizarCotizacion, despacharCotizaciones } from "@/agentes/cotizacion/cotizar";
@@ -57,6 +57,8 @@ export async function actualizarSolicitud(formData: FormData) {
     [solicitud] = await db.select().from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, id));
     if (solicitud) {
       await db.update(schema.solicitudesCotizacion).set({ estado: estado as EstadoCotizacion, nota: nota || null, actualizadoEl: new Date() }).where(eq(schema.solicitudesCotizacion.id, id));
+      const textoEstado = ESTADOS_COTIZACION.find((item) => item.id === estado)?.texto ?? estado;
+      await db.insert(schema.cotizacionEventos).values({ solicitudId: id, actor: "productor", tipo: "solicitud_actualizada", detalle: `El productor cambió el estado a "${textoEstado}".${nota ? ` Nota: ${nota}` : ""}` });
       await db.insert(schema.actividadAgentes).values({
         agente: "cotizacion",
         referencia: `solicitud:${solicitud.numero}`,

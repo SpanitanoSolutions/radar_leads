@@ -97,7 +97,7 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
     const insertados = await tx.insert(schema.cotizacionEnvios).values(envios).returning({ id: schema.cotizacionEnvios.id, compania: schema.cotizacionEnvios.compania });
     await tx.insert(schema.cotizacionEventos).values([
       { solicitudId: insertada.id, tipo: "solicitud_creada", detalle: "Se creó la solicitud y quedaron borradores pendientes de aprobación." },
-      ...insertados.map(({ id, compania }) => ({ solicitudId: insertada.id, envioId: id, tipo: "borrador_creado", detalle: `Borrador preparado para ${compania}; requiere aprobación del productor.` })),
+      ...insertados.map(({ id, compania }) => ({ solicitudId: insertada.id, envioId: id, actor: "agente", tipo: "borrador_creado", detalle: `Borrador preparado para ${compania}; requiere aprobación del productor.` })),
     ]);
     await tx.insert(schema.actividadAgentes).values({
       agente: "cotizacion",
