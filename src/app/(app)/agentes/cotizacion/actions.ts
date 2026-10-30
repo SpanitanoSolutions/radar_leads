@@ -12,6 +12,7 @@ import { aprobarCorreoCotizacion, reenviarCorreoCotizacion, type ResultadoCorreo
 import { encolarLecturaPdf, redactarCorreoCotizacion, responderChatCotizacion, type ResultadoIACotizacion } from "@/agentes/cotizacion/ia";
 import { autorizarCotizacion, despacharCotizaciones } from "@/agentes/cotizacion/cotizar";
 import { responderDatoPedido } from "@/agentes/cotizacion/orquestador";
+import { aprobarResumenEjecutivo, reenviarResumenEjecutivo, type ResultadoResumen } from "@/agentes/cotizacion/ejecutivo";
 import { despachadorTrabajos } from "@/lib/ia/manejadores";
 import type { MotivoSinIA } from "@/lib/ia/motor";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
@@ -131,7 +132,8 @@ function volverDelCorreo(formData: FormData, solicitudId: number | null, aviso: 
   revalidatePath("/agentes/cotizacion");
   if (solicitudId && mensajeDe(formData, "volverDetalle") === "on") {
     revalidatePath(`/agentes/cotizacion/${solicitudId}`);
-    redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);
+    const tab = mensajeDe(formData, "volverTab") === "agente" ? "agente" : "contactos";
+    redirect(`/agentes/cotizacion/${solicitudId}?tab=${tab}&aviso=${aviso}`);
   }
   volver(aviso, "?tab=solicitudes");
 }
@@ -177,6 +179,37 @@ export async function aprobarYCotizarSolicitud(formData: FormData) {
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
   const aviso = encolados === "fallo" ? "error-cotizar" : encolados === null ? "solicitud-cerrada" : encolados > 0 ? "cotizando" : "nada-para-cotizar";
   redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);
+}
+
+/** Resultado del resumen al ejecutivo, como aviso del detalle. */
+function avisoResumen(resultado: ResultadoResumen | null | "fallo"): string {
+  if (resultado === null || resultado === "fallo") return "error-resumen";
+  if ("cambio" in resultado) return "resumen-cambio";
+  return resultado.enviado ? "resumen-enviado" : "resumen-sin-enviar";
+}
+
+/** El productor aprueba el resumen de la solicitud para el ejecutivo (su correo de Mi cuenta). */
+export async function aprobarResumenEjecutivoAccion(formData: FormData) {
+  await requerirSesion();
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  if (!Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
+  let resultado: ResultadoResumen | null | "fallo";
+  try { resultado = await aprobarResumenEjecutivo(solicitudId, mensajeDe(formData, "huella")); }
+  catch { resultado = "fallo"; }
+  revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&aviso=${avisoResumen(resultado)}`);
+}
+
+/** "Enviar ahora" del resumen al ejecutivo que quedó aprobado y sin enviar. */
+export async function reenviarResumenEjecutivoAccion(formData: FormData) {
+  await requerirSesion();
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  if (!Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
+  let resultado: ResultadoResumen | null | "fallo";
+  try { resultado = await reenviarResumenEjecutivo(solicitudId); }
+  catch { resultado = "fallo"; }
+  revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&aviso=${avisoResumen(resultado)}`);
 }
 
 /** El productor responde el dato que pidió la compañía: se guarda en el riesgo y el agente vuelve a cotizar. */

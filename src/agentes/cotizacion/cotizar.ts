@@ -24,6 +24,22 @@ export async function enviosCotizando(envioIds: number[], tx: Pick<typeof db, "s
   return new Set(filas.map((fila) => fila.entidadId));
 }
 
+/** La próxima consulta programada de cada cotización que tarda (cotizacion:consultar_cotizacion pendiente). */
+export async function consultasProgramadas(envioIds: number[]): Promise<Map<number, Date>> {
+  if (!envioIds.length) return new Map();
+  const t = schema.iaTrabajos;
+  const filas = await db.select({ entidadId: t.entidadId, cuando: t.ejecutarDespuesDe }).from(t).where(and(
+    eq(t.agente, AGENTE), eq(t.operacion, OPERACIONES_COTIZACION.consultarCotizacion), eq(t.entidad, ENTIDAD_ENVIO),
+    inArray(t.entidadId, envioIds), eq(t.estado, "pendiente"),
+  ));
+  const consultas = new Map<number, Date>();
+  for (const { entidadId, cuando } of filas) {
+    const actual = consultas.get(entidadId);
+    if (!actual || cuando < actual) consultas.set(entidadId, cuando);
+  }
+  return consultas;
+}
+
 /**
  * Aprobar la solicitud (o "Cotizar automáticamente") autoriza al agente a
  * cotizar por conexión directa o portal. Encola un pedido por compañía que

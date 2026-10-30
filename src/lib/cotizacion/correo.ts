@@ -54,11 +54,15 @@ export function destinatarioCotizacion(contactos: { email?: string | null }[]): 
 }
 
 /** Por qué no salió un correo aprobado, en palabras del productor, con lo que tiene que hacer. */
-export function motivoSinEnviar(error: string, destinatario: string | null): string {
+export function motivoSinEnviar(
+  error: string,
+  destinatario: string | null,
+  faltaDestinatario = "falta el correo de la compañía (cargalo en la Configuración de Cotización)",
+): string {
   const sinGmail = /^Gmail (no está conectado|necesita autorización)/.test(error);
   const faltas = [
     sinGmail ? "tu correo no está conectado (conectalo en Configuración → Conexiones)" : null,
-    destinatario ? null : "falta el correo de la compañía (cargalo en la Configuración de Cotización)",
+    destinatario ? null : faltaDestinatario,
   ].filter(Boolean);
   if (faltas.length) return `No salió: ${faltas.join(" y ")}. Después tocá “Enviar ahora”.`;
   return "No salió: el correo no se pudo enviar. Probá “Enviar ahora” en un rato.";

@@ -369,7 +369,7 @@ export async function obtenerDetalleCotizacion(id: number) {
     solicitud.leadId
       ? db.select().from(schema.leads).where(eq(schema.leads.id, solicitud.leadId)).then((filas) => filas[0] ?? null)
       : Promise.resolve(null),
-    db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.solicitudId, id)),
+    db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.solicitudId, id)).orderBy(schema.cotizacionEnvios.id),
     db.select({ id: schema.cotizacionArchivos.id, envioId: schema.cotizacionArchivos.envioId, nombre: schema.cotizacionArchivos.nombre, mime: schema.cotizacionArchivos.mime, tamano: schema.cotizacionArchivos.tamano, creadoEl: schema.cotizacionArchivos.creadoEl }).from(schema.cotizacionArchivos).where(eq(schema.cotizacionArchivos.solicitudId, id)),
     db.select({ id: schema.cotizacionPropuestas.id, nombre: schema.cotizacionPropuestas.nombre, estado: schema.cotizacionPropuestas.estado, creadoEl: schema.cotizacionPropuestas.creadoEl }).from(schema.cotizacionPropuestas).where(eq(schema.cotizacionPropuestas.solicitudId, id)).orderBy(desc(schema.cotizacionPropuestas.creadoEl)),
     db.select().from(schema.cotizacionEventos).where(eq(schema.cotizacionEventos.solicitudId, id)).orderBy(desc(schema.cotizacionEventos.fecha)),
