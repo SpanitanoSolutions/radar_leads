@@ -66,7 +66,23 @@ Rama `feat/cotizacion-v2-base-comun`.
   - **Webhook de la v1** (con sesión, por el hallazgo de arriba): con envío deja la respuesta sin confirmar (`{"resultado":"sin_confirmar"}`, el envío sigue `pendiente` y el JSON de la lista no cambia). En una solicitud sin envíos contesta 422 con el mensaje, y con otro secreto, 401.
   - En los logs del servidor no hay errores de Cotización, claves ni datos de asegurados.
 | 2b | Credenciales en `credenciales_portal` (sin copia: en producción no hay ninguna) | Hecho y probado | `configuracion/actions.ts` y `configuracion/page.tsx` de Cotización, `src/lib/cotizacion/credenciales.ts` |
-| 2c | Conectores con el orden de canales | Pendiente | — |
+| 2c | Conectores con el orden de canales | En curso (ver "2c. Conectores") | — |
+
+### 2c. Conectores (en curso, 30/10/2026)
+| Paso | Qué | Estado | Archivos |
+|---|---|---|---|
+| 1 | Migración `0030_cotizacion_conectores` | Hecho y probado | `drizzle/0030_cotizacion_conectores.sql` (+ snapshot), `src/db/schema.ts` |
+| 2 | Opción `canales` de `ejecutarEnCompania()` | Pendiente | — |
+| 3 | Orquestador (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`) | Pendiente | — |
+| 4 | `CONECTORES_SIMULADOS_FORZAR` | Pendiente | — |
+| 5 | El correo aprobado por la salida común; se borra `src/conexiones/cotizacion.ts` | Pendiente | — |
+| 6 | Se saca el webhook de la v1 | Pendiente | — |
+
+**Paso 1. Migración `0030_cotizacion_conectores`** (solo agrega, generada con `drizzle-kit generate`):
+- en `cotizacion_envios`: `canal_usado` (texto: `api`, `portal` o `correo`; null mientras no salió), `intentos` (JSON, `[]` por defecto: canal, resultado, código, dato pedido, detalle y fecha; el tipo es `IntentoEnvio` en `schema.ts`), `numero_compania` y `ultimo_error`;
+- la tabla compartida `conector_companias` (compañía, `canales` en orden, `org_id`, `producer_id`), única por compañía y alcance (`NULLS NOT DISTINCT`). Sin fila se usan todos los conectores registrados; con la lista vacía, solo correo o carga manual.
+
+**Prueba:** `db:preparar` desde un worktree de `main` contra Postgres 18.6 en Docker (29 migraciones, la cartera de ejemplo y 16 envíos). Después, `db:preparar` desde esta rama: 31 migraciones, los 16 envíos con el mismo hash de sus columnas de antes, `intentos = []` y lo demás en null, y `conector_companias` vacía.
 
 ## Fase 1 — Arreglos (30/10/2026, cerrada)
 Sin migraciones. Rama `feat/cotizacion-v2-arreglos`.
