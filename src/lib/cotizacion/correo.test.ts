@@ -66,6 +66,9 @@ describe("el correo aprobado", () => {
     expect(motivoSinEnviar("Gmail necesita autorización. Volvé a conectarlo.", null))
       .toBe("No salió: tu correo no está conectado (conectalo en Configuración → Conexiones) y falta el correo de la compañía (cargalo en la Configuración de Cotización). Después tocá “Enviar ahora”.");
     expect(motivoSinEnviar("Gmail respondió 503.", "c@sancor.com.ar")).toBe("No salió: el correo no se pudo enviar. Probá “Enviar ahora” en un rato.");
+    // El resumen al ejecutivo va al correo de Mi cuenta: si falta, lo dice así.
+    expect(motivoSinEnviar("Falta el destinatario.", null, "falta tu correo (cargalo en Configuración → Mi cuenta)"))
+      .toBe("No salió: falta tu correo (cargalo en Configuración → Mi cuenta). Después tocá “Enviar ahora”.");
   });
 
   it("el primer correo deja el envío enviado; los seguimientos cuentan hasta el máximo", () => {

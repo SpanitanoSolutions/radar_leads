@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { obtenerAseguradorasCotizacion, obtenerOpcionesSolicitud } from "@/lib/datos-agentes";
+import { obtenerAseguradorasCotizacion, obtenerOpcionesSolicitud, obtenerPaquetesCotizacion, obtenerTiposSeguroCotizacion } from "@/lib/datos-agentes";
+import { ramosParaSolicitud } from "@/lib/cotizacion/tipos-seguro";
+import { ramosConPaquete } from "@/lib/cotizacion/configuracion";
 import FormularioNuevaSolicitud from "./FormularioNuevaSolicitud";
 import "../../agentes.css";
 
@@ -10,12 +12,15 @@ export default async function NuevaSolicitudCotizacion({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [opciones, aseguradoras, sp] = await Promise.all([
+  const [opciones, aseguradoras, paquetes, tipos, sp] = await Promise.all([
     obtenerOpcionesSolicitud(),
     obtenerAseguradorasCotizacion(),
+    obtenerPaquetesCotizacion(),
+    obtenerTiposSeguroCotizacion(),
     searchParams,
   ]);
   const aviso = typeof sp.aviso === "string" ? sp.aviso : "";
+  const conPaquete = ramosConPaquete(paquetes);
 
   return (
     <div className="cotizacion-nueva-pagina">
@@ -33,7 +38,8 @@ export default async function NuevaSolicitudCotizacion({
       <FormularioNuevaSolicitud
         asegurados={opciones.asegurados}
         leads={opciones.leads}
-        aseguradoras={aseguradoras.filter((aseguradora) => aseguradora.activa).map(({ id, nombre, ramos }) => ({ id, nombre, ramos }))}
+        aseguradoras={aseguradoras.filter((aseguradora) => aseguradora.activa).map(({ id, nombre, ramos }) => ({ id, nombre, ramos, ramosConPaquete: conPaquete.get(id) ?? [] }))}
+        ramos={ramosParaSolicitud(tipos)}
         aviso={aviso}
       />
     </div>

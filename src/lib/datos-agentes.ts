@@ -3,6 +3,11 @@ import { and, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-o
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import type { Comprobante, CuentaCompania } from "@/db/schema";
+import { ALCANCE_CONEXIONES } from "./conectores/companias";
+import { listarCredenciales } from "./conectores/credenciales";
+import type { EventoBitacora } from "./cotizacion/bitacora";
+import type { DatosChecklist } from "./cotizacion/configuracion";
+import { momentosDelEnvio, type EnvioParaMetricas } from "./cotizacion/metricas";
 import { sumarDias } from "./fechas";
 import type { CuotaConPoliza } from "./validador";
 
@@ -366,7 +371,7 @@ export async function obtenerDetalleCotizacion(id: number) {
     solicitud.leadId
       ? db.select().from(schema.leads).where(eq(schema.leads.id, solicitud.leadId)).then((filas) => filas[0] ?? null)
       : Promise.resolve(null),
-    db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.solicitudId, id)),
+    db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.solicitudId, id)).orderBy(schema.cotizacionEnvios.id),
     db.select({ id: schema.cotizacionArchivos.id, envioId: schema.cotizacionArchivos.envioId, nombre: schema.cotizacionArchivos.nombre, mime: schema.cotizacionArchivos.mime, tamano: schema.cotizacionArchivos.tamano, creadoEl: schema.cotizacionArchivos.creadoEl }).from(schema.cotizacionArchivos).where(eq(schema.cotizacionArchivos.solicitudId, id)),
     db.select({ id: schema.cotizacionPropuestas.id, nombre: schema.cotizacionPropuestas.nombre, estado: schema.cotizacionPropuestas.estado, creadoEl: schema.cotizacionPropuestas.creadoEl }).from(schema.cotizacionPropuestas).where(eq(schema.cotizacionPropuestas.solicitudId, id)).orderBy(desc(schema.cotizacionPropuestas.creadoEl)),
     db.select().from(schema.cotizacionEventos).where(eq(schema.cotizacionEventos.solicitudId, id)).orderBy(desc(schema.cotizacionEventos.fecha)),
@@ -387,6 +392,40 @@ export async function obtenerDetalleCotizacion(id: number) {
 export async function obtenerAseguradorasCotizacion() {
   await connection();
   return db.select().from(schema.cotizacionAseguradoras).orderBy(schema.cotizacionAseguradoras.nombre);
+}
+
+/** Los tipos de seguro (los ramos que vende el productor), en el orden en que se cargaron. */
+export async function obtenerTiposSeguroCotizacion() {
+  await connection();
+  return db.select({ ramo: schema.cotizacionTiposSeguro.ramo, descripcion: schema.cotizacionTiposSeguro.descripcion, activo: schema.cotizacionTiposSeguro.activo })
+    .from(schema.cotizacionTiposSeguro).orderBy(schema.cotizacionTiposSeguro.id);
+}
+
+/** Los paquetes de cobertura: para el aviso "sin paquete configurado" y el paquete de cada envío. */
+export async function obtenerPaquetesCotizacion() {
+  await connection();
+  return db.select({ id: schema.cotizacionPaquetes.id, aseguradoraId: schema.cotizacionPaquetes.aseguradoraId, ramo: schema.cotizacionPaquetes.ramo })
+    .from(schema.cotizacionPaquetes);
+}
+
+/** Lo que mira el checklist del inicio de Cotización (src/lib/cotizacion/configuracion.ts). */
+export async function obtenerChecklistCotizacion(): Promise<DatosChecklist> {
+  await connection();
+  const [aseguradoras, paquetes, credenciales, [config], [agente]] = await Promise.all([
+    db.select({ id: schema.cotizacionAseguradoras.id, nombre: schema.cotizacionAseguradoras.nombre, activa: schema.cotizacionAseguradoras.activa, contactos: schema.cotizacionAseguradoras.contactos })
+      .from(schema.cotizacionAseguradoras),
+    db.select({ aseguradoraId: schema.cotizacionPaquetes.aseguradoraId }).from(schema.cotizacionPaquetes),
+    listarCredenciales(ALCANCE_CONEXIONES),
+    db.select({ persona: schema.cotizacionConfig.persona, nombreAgente: schema.cotizacionConfig.nombreAgente, personalidad: schema.cotizacionConfig.personalidad })
+      .from(schema.cotizacionConfig).limit(1),
+    db.select({ config: schema.configuracionAgentes.config }).from(schema.configuracionAgentes).where(eq(schema.configuracionAgentes.agente, "cotizacion")),
+  ]);
+  return {
+    aseguradoras,
+    paquetes,
+    credenciales,
+    voz: config ? { ...config, elegida: agente?.config.vozElegida === true } : null,
+  };
 }
 
 export async function obtenerEnviosCotizacion() {
@@ -411,29 +450,46 @@ export async function obtenerMetricasCotizacion() {
   await connection();
   const [envios, solicitudes, resultados] = await Promise.all([
     db.select().from(schema.cotizacionEnvios),
-    db.select({ id: schema.solicitudesCotizacion.id, productor: schema.solicitudesCotizacion.ejecutivo, creadoEl: schema.solicitudesCotizacion.creadoEl, estado: schema.solicitudesCotizacion.estado, actualizadoEl: schema.solicitudesCotizacion.actualizadoEl, completadoEl: schema.solicitudesCotizacion.completadoEl }).from(schema.solicitudesCotizacion),
+    db.select({ id: schema.solicitudesCotizacion.id, numero: schema.solicitudesCotizacion.numero, productor: schema.solicitudesCotizacion.ejecutivo, creadoEl: schema.solicitudesCotizacion.creadoEl, estado: schema.solicitudesCotizacion.estado, actualizadoEl: schema.solicitudesCotizacion.actualizadoEl, completadoEl: schema.solicitudesCotizacion.completadoEl }).from(schema.solicitudesCotizacion),
     db.select().from(schema.cotizacionResultados),
   ]);
   const solicitudesPorId = new Map(solicitudes.map((solicitud) => [solicitud.id, solicitud]));
   const resultadoPorEnvio = new Map(resultados.map((resultado) => [resultado.envioId, resultado]));
   return {
-    envios: envios.flatMap((envio) => {
+    envios: envios.flatMap((envio): EnvioParaMetricas[] => {
       const solicitud = solicitudesPorId.get(envio.solicitudId);
       if (!solicitud) return [];
       const resultado = resultadoPorEnvio.get(envio.id);
+      // El tiempo de respuesta se mide desde que salió el pedido, no desde que se creó el borrador.
+      const { salidoEl, respondidoEl } = momentosDelEnvio(envio, resultado);
       return [{
         solicitudId: envio.solicitudId,
         compania: envio.compania,
         productor: solicitud.productor ?? "Productor",
         estado: envio.estado,
-        creadoEl: envio.creadoEl,
-        respondidoEl: resultado?.recibidoEl ?? null,
+        salidoEl,
+        respondidoEl,
         primaNeta: resultado?.primaNeta ?? null,
         seguimientos: envio.cantidadSeguimientos,
       }];
     }),
-    solicitudes: solicitudes.map(({ estado, actualizadoEl, ...resto }) => ({ ...resto, estado, actualizadoEl })),
+    solicitudes: solicitudes.map((solicitud) => ({ ...solicitud, productor: solicitud.productor ?? "Productor" })),
   };
+}
+
+/** Los eventos de todas las solicitudes, con su número, cliente y compañía, para la bitácora del agente (los más nuevos). */
+export async function obtenerBitacoraCotizacion(limite = 2000): Promise<EventoBitacora[]> {
+  await connection();
+  const e = schema.cotizacionEventos;
+  return db.select({
+    id: e.id, fecha: e.fecha, tipo: e.tipo, actor: e.actor, detalle: e.detalle, solicitudId: e.solicitudId,
+    numero: schema.solicitudesCotizacion.numero, cliente: schema.solicitudesCotizacion.cliente, compania: schema.cotizacionEnvios.compania,
+  })
+    .from(e)
+    .innerJoin(schema.solicitudesCotizacion, eq(schema.solicitudesCotizacion.id, e.solicitudId))
+    .leftJoin(schema.cotizacionEnvios, eq(schema.cotizacionEnvios.id, e.envioId))
+    .orderBy(desc(e.fecha), desc(e.id))
+    .limit(limite);
 }
 
 /** Opciones de origen para cargar solicitudes desde Cotización. */

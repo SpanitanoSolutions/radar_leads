@@ -18,7 +18,8 @@ datos de personas solo se muestran detrás del login.
 - **Importar cartera** (`/importar`): asistente para subir CSV/XLSX, relacionar
   columnas, revisar problemas y combinar o reemplazar pólizas sin borrar datos.
 - **Cotización** (`/agentes/cotizacion`): solicitudes vinculadas a asegurados o
-  leads, comparativas de precios, filtros, bitácora y desempeño.
+  leads, cotización por conexión directa o portal, comparativo, propuesta en PDF
+  con el logo de la cuenta, bitácora con filtros y desempeño.
 - **Validador de pagos** (`/agentes/validador`): revisión de cuotas y comprobantes.
 - **Cobranza** (`/agentes/cobranza`): borradores para aprobar y seguimiento de cuotas.
 - **Siniestros** (`/agentes/siniestros`): expedientes con o sin póliza, documentos,
@@ -404,6 +405,13 @@ En `/agentes/cotizacion` podés crear solicitudes vinculadas a un asegurado o le
 La creación de una solicitud prepara un borrador de correo por aseguradora. Con "Aprobar y cotizar" (o con "Cotizar automáticamente" en la configuración), el agente pide la cotización por conexión directa o portal a las compañías que tienen conectores (`src/lib/conectores/`), en el orden de canales de cada una (`conector_companias`; sin fila, primero la conexión directa). Si ninguno sirve, queda el correo para aprobar, con el motivo en el registro de la solicitud. Si el portal pide un dato que falta, la compañía queda en "Requiere atención" con la pregunta; al responderla, el dato se guarda en el riesgo y se vuelve a cotizar. Los pedidos corren en la cola `ia_trabajos` (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`, que consulta las cotizaciones que tardan con la estrategia de seguimiento). Ningún conector emite, acepta ni firma.
 
 Cada correo necesita aprobación y sale por la salida común (`src/agentes/envio.ts`) con el correo de la cuenta conectado; si no está conectado, queda aprobado y sin enviar, y el detalle lo dice con un botón "Enviar ahora". Las cotizaciones cargadas por el productor quedan confirmadas; las que manda una compañía por un conector o lee la IA esperan su confirmación. La aprobación de la propuesta PDF solo habilita su descarga para compartirla manualmente.
+
+Las pantallas (fase 4, `docs/progreso/cotizacion-v2.md`):
+- **Inicio:** el checklist "Terminá de configurar tu agente de cotización" (lo que vendés, una aseguradora con contacto, los accesos de portal y la voz), cada paso con su sección. La pestaña **Bitácora** muestra todos los eventos de las solicitudes (`cotizacion_eventos`) con filtros por texto, compañía, quién, tipo y fecha. **Desempeño** mide la respuesta desde que salió el pedido (no desde el borrador) y muestra el volumen y el cierre promedio; el ranking cuenta solicitudes.
+- **Nueva solicitud:** ofrece los tipos de seguro activos y marca las aseguradoras "sin paquete configurado" para el ramo. Cada envío lleva el paquete de su ramo.
+- **Detalle:** Contactos con el próximo seguimiento (o la consulta programada de las que tardan), las preguntas, **Copiar** y **Excel** (`exportar/[id]?vista=contactos`); el comparativo con las filas de la spec (gastos, impuestos, daños, robo, cristales, RC y servicios), en vista compacta o detallada, con "Mejor precio" solo entre las confirmadas; la pestaña Agente con la línea de tiempo de pasos, los borradores para aprobar y el **correo al ejecutivo** (el resumen de la solicitud, al correo de Mi cuenta, por la salida común), y el panel con "Requiere atención", la persona de la configuración, los seguimientos activos y los archivos por compañía.
+- **Propuesta en PDF:** A4, con el logo de Mi cuenta (PNG o JPG; un WebP no entra en el PDF y la pantalla lo avisa), los datos de la cuenta, acentos (Helvetica con `WinAnsiEncoding`), las respuestas confirmadas ordenadas por precio y las coberturas informadas. Queda en borrador hasta que la aprobás. El comparativo en PDF usa la misma marca.
+- **Configuración:** el ABM de **Tipos de seguro** (la baja desactiva, no borra) y la estrategia de seguimiento, que se lee mientras se escribe ("Así la entiende el agente") y tiene **"Sugerir con IA"** (solo con la IA activa; pasa por `ejecutarIA()` y el parser valida la sugerencia antes de ofrecerla; se guarda recién con "Guardar configuración").
 
 La configuración está en `/agentes/cotizacion/configuracion`. El orden de canales, las claves de los portales y la salud de cada compañía están en Conexiones con las compañías (ver "Base común de agentes"); el campo `canal` de las aseguradoras ya no se muestra ni decide nada. La IA pasa por `ejecutarIA()`: su interruptor está en la configuración de Cotización, y el uso y el costo quedan en `ia_uso` dentro del tope del mes. Sin `ANTHROPIC_API_KEY`, todo sigue a mano.
 

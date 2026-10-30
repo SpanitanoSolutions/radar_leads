@@ -157,11 +157,13 @@ export type ReglaSeguimiento = {
 export function interpretarEstrategiaSeguimiento(texto: string): ReglaSeguimiento | null {
   const normal = normalizar(texto);
   const regla: ReglaSeguimiento = { intervaloDiasHabiles: 3, porRamo: {}, esperarConFolio: false };
-  const general = normal.match(/cada\s+(\d+)\s+dias?\s+habil(?:es)?/);
-  if (general) regla.intervaloDiasHabiles = Math.min(30, Math.max(1, Number(general[1])));
-  else if (/cada\s+\d+\s+dias?/.test(normal)) return null;
-
   const porRamo = /para\s+(.+?)\s+cada\s+(\d+)\s+dias?(?:\s+habil(?:es)?)?(?=$|[,;.])/g;
+  // La regla general se busca fuera de las de cada ramo: "para Flotas cada 1 día hábil; cada 3…" es cada 3.
+  const sinRamos = normal.replace(porRamo, " ");
+  const general = sinRamos.match(/cada\s+(\d+)\s+dias?\s+habil(?:es)?/);
+  if (general) regla.intervaloDiasHabiles = Math.min(30, Math.max(1, Number(general[1])));
+  else if (/cada\s+\d+\s+dias?/.test(sinRamos)) return null;
+
   for (const coincidencia of normal.matchAll(porRamo)) {
     const ramo = coincidencia[1].trim().replace(/\s+/g, " ");
     regla.porRamo[ramo] = Math.min(30, Math.max(1, Number(coincidencia[2])));
@@ -169,6 +171,18 @@ export function interpretarEstrategiaSeguimiento(texto: string): ReglaSeguimient
   if (/folio/.test(normal) && /(esperar|pausar|detener)/.test(normal)) regla.esperarConFolio = true;
   if (!general && !Object.keys(regla.porRamo).length && !regla.esperarConFolio) return null;
   return regla;
+}
+
+const diasHabiles = (n: number) => `cada ${n} ${n === 1 ? "día hábil" : "días hábiles"}`;
+
+/** Cómo entiende el agente la estrategia, para mostrarla debajo del texto. */
+export function describirEstrategia(regla: ReglaSeguimiento): string {
+  const partes = [`Seguimiento ${diasHabiles(regla.intervaloDiasHabiles)}.`];
+  for (const [ramo, dias] of Object.entries(regla.porRamo)) {
+    partes.push(`${ramo.charAt(0).toLocaleUpperCase("es-AR")}${ramo.slice(1)}: ${diasHabiles(dias)}.`);
+  }
+  if (regla.esperarConFolio) partes.push("Si la compañía ya dio un folio, espera la cotización.");
+  return partes.join(" ");
 }
 
 /** Suma días hábiles sin contar fines de semana ni feriados recibidos. */

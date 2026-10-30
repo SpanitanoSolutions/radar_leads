@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useFormStatus } from "react-dom";
+import { ramoCanonico } from "@/lib/ramos";
 import { nuevaSolicitud } from "../actions";
 
 type Contacto = { id: number; nombre: string };
-type Aseguradora = { id: number; nombre: string; ramos: string[] };
+/** `ramosConPaquete`: con su nombre canónico ("Auto", "Flota"). */
+type Aseguradora = { id: number; nombre: string; ramos: string[]; ramosConPaquete: string[] };
 type TipoContacto = "asegurado" | "lead";
 type OpcionContacto = Contacto & { tipo: TipoContacto };
 
-const RAMOS = ["Automotor", "Flotas", "Hogar", "Integral de comercio", "Incendio", "RC", "Caución", "ART", "AP", "Vida", "Salud"];
 const TIPOS = [
   { valor: "negocio_nuevo", titulo: "Negocio nuevo", detalle: "Una cobertura para contratar por primera vez." },
   { valor: "renovacion", titulo: "Renovación", detalle: "Revisá una póliza que está por vencer." },
@@ -22,6 +23,7 @@ const MENSAJES_AVISO: Record<string, string> = {
   "lead-inexistente": "No encontramos ese lead. Buscalo de nuevo y volvé a intentarlo.",
   "sin-companias-configuradas": "No hay aseguradoras disponibles para este ramo. Revisá la configuración.",
   "solicitud-riesgo-invalido": "Completá los datos obligatorios del riesgo y revisá el CUIT/CUIL.",
+  "solicitud-ramo-invalido": "Ese ramo ya no está entre tus tipos de seguro activos. Elegí otro.",
   "solicitud-adjunto-invalido": "El archivo debe ser PDF, Word, Excel o imagen, y pesar hasta 25 MB.",
   "error-operacion": "No pudimos guardar la solicitud. Revisá si se creó antes de volver a intentarlo.",
 };
@@ -32,6 +34,10 @@ function normalizar(texto: string): string {
 
 function coincideConRamo(aseguradora: Aseguradora, ramo: string): boolean {
   return aseguradora.ramos.length === 0 || aseguradora.ramos.includes(ramo);
+}
+
+function tienePaquete(aseguradora: Aseguradora, ramo: string): boolean {
+  return aseguradora.ramosConPaquete.includes(ramoCanonico(ramo));
 }
 
 function BotonCrear({ bloqueado }: { bloqueado: boolean }) {
@@ -48,14 +54,18 @@ export default function FormularioNuevaSolicitud({
   asegurados,
   leads,
   aseguradoras,
+  ramos,
   aviso,
 }: {
   asegurados: Contacto[];
   leads: Contacto[];
   aseguradoras: Aseguradora[];
+  /** Los tipos de seguro activos (los ramos que vende el productor). */
+  ramos: { ramo: string; descripcion: string }[];
   aviso: string;
 }) {
-  const [ramo, setRamo] = useState("Automotor");
+  const ramoInicial = ramos.some((item) => item.ramo === "Automotor") ? "Automotor" : ramos[0]?.ramo ?? "";
+  const [ramo, setRamo] = useState(ramoInicial);
   const [tipo, setTipo] = useState<(typeof TIPOS)[number]["valor"]>("negocio_nuevo");
   const [busqueda, setBusqueda] = useState("");
   const [seleccionado, setSeleccionado] = useState<OpcionContacto | null>(null);
@@ -64,8 +74,9 @@ export default function FormularioNuevaSolicitud({
   const [errorContacto, setErrorContacto] = useState(false);
   const [archivo, setArchivo] = useState("");
   const [companiasElegidas, setCompaniasElegidas] = useState<string[]>(() =>
-    aseguradoras.filter((aseguradora) => coincideConRamo(aseguradora, "Automotor")).map((aseguradora) => aseguradora.nombre),
+    aseguradoras.filter((aseguradora) => coincideConRamo(aseguradora, ramoInicial)).map((aseguradora) => aseguradora.nombre),
   );
+  const descripcionRamo = ramos.find((item) => item.ramo === ramo)?.descripcion;
 
   const contactos = useMemo<OpcionContacto[]>(() => [
     ...asegurados.map((contacto) => ({ ...contacto, tipo: "asegurado" as const })),
@@ -145,6 +156,7 @@ export default function FormularioNuevaSolicitud({
     setCompaniasElegidas([]);
   }
 
+  const sinPaquete = aseguradorasDisponibles.filter((aseguradora) => companiasElegidas.includes(aseguradora.nombre) && !tienePaquete(aseguradora, ramo));
   const requiereRiesgoAuto = ramo === "Automotor";
   const requiereRiesgoFlota = ramo === "Flotas";
   const maxAnio = new Date().getFullYear() + 1;
@@ -252,8 +264,10 @@ export default function FormularioNuevaSolicitud({
           <label className="cotizacion-campo">
             <span>Ramo</span>
             <select name="ramo" value={ramo} onChange={(evento) => cambiarRamo(evento.target.value)} required>
-              {RAMOS.map((item) => <option key={item} value={item}>{item}</option>)}
+              {ramos.map((item) => <option key={item.ramo} value={item.ramo}>{item.ramo}</option>)}
             </select>
+            {descripcionRamo && <small className="cotizacion-campo-ayuda">{descripcionRamo}</small>}
+            {!ramos.length && <small className="cotizacion-campo-error">No hay tipos de seguro activos. <Link href="/agentes/cotizacion/configuracion#tipos">Activalos en la configuración</Link>.</small>}
           </label>
           <label className="cotizacion-campo">
             <span>Bien a asegurar <small>Opcional</small></span>
@@ -332,11 +346,16 @@ export default function FormularioNuevaSolicitud({
                   <label key={aseguradora.id} className={`cotizacion-aseguradora-opcion${marcada ? " seleccionada" : ""}`}>
                     <input type="checkbox" name="companias" value={aseguradora.nombre} checked={marcada} onChange={() => alternarCompania(aseguradora.nombre)} />
                     <span className="cotizacion-aseguradora-check" aria-hidden="true">{marcada ? "✓" : ""}</span>
-                    <span className="cotizacion-aseguradora-detalle"><strong>{aseguradora.nombre}</strong></span>
+                    <span className="cotizacion-aseguradora-detalle"><strong>{aseguradora.nombre}</strong>{!tienePaquete(aseguradora, ramo) && <small className="cotizacion-sin-paquete">Sin paquete configurado</small>}</span>
                   </label>
                 );
               })}
             </div>
+            {sinPaquete.length > 0 && (
+              <p className="cotizacion-aviso-paquete" role="status">
+                {sinPaquete.length === 1 ? `${sinPaquete[0].nombre} no tiene` : `${sinPaquete.length} de las seleccionadas no tienen`} paquete de cobertura para {ramo}: el pedido sale igual, sin la cobertura de referencia. <Link href="/agentes/cotizacion/configuracion#paquetes">Configurá los paquetes</Link>.
+              </p>
+            )}
           </>
         ) : (
           <div className="cotizacion-sin-aseguradoras">
@@ -367,7 +386,7 @@ export default function FormularioNuevaSolicitud({
         <p><span aria-hidden="true">✓</span> Nada se envía a las aseguradoras sin tu aprobación.</p>
         <div>
           <Link href="/agentes/cotizacion" className="boton">Cancelar</Link>
-          <BotonCrear bloqueado={!aseguradorasDisponibles.length || !companiasElegidas.length} />
+          <BotonCrear bloqueado={!ramo || !aseguradorasDisponibles.length || !companiasElegidas.length} />
         </div>
       </footer>
     </form>

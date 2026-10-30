@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { describirEstrategia, interpretarEstrategiaSeguimiento } from "@/lib/cotizacion";
 import { pesos } from "@/lib/formato";
 
 // La IA de Cotización lee, redacta y explica, pero nunca decide. Lo que lee de un
@@ -10,6 +11,7 @@ export const OPERACIONES_IA_COTIZACION = {
   extraerRespuesta: "extraer_respuesta",
   redactarCorreo: "redactar_correo",
   chat: "chat",
+  sugerirEstrategia: "sugerir_estrategia",
 } as const;
 
 // ---------- Respuesta de una compañía (PDF) ----------
@@ -149,4 +151,35 @@ export function textoDeChat(datos: ChatIA): string | null {
   if (!respuesta) return null;
   const faltan = datos.faltan.map((f) => f.trim()).filter(Boolean).slice(0, 10);
   return faltan.length ? `${respuesta}\n\nPara completar falta:\n${faltan.map((f) => `- ${f}`).join("\n")}` : respuesta;
+}
+
+// ---------- Estrategia de seguimiento ("Sugerir con IA") ----------
+
+export const esquemaEstrategiaIA = z.object({ estrategia: z.string() });
+
+export const SISTEMA_ESTRATEGIA = `Redactás la estrategia de seguimiento del agente que le pide cotizaciones a compañías de seguros argentinas en nombre de un productor asesor.
+El agente la lee con reglas fijas, así que usá solo estas frases, separadas por punto y coma:
+- primero la regla general: "Cada N días hábiles" (N entre 1 y 30);
+- después, solo si hace falta, una por ramo: "para <ramo> cada N días hábiles", con el ramo escrito como en la lista que te pasan;
+- al final, si corresponde: "si la aseguradora ya dio un folio, esperar la cotización".
+No agregues otras frases, explicaciones ni horarios. Respetá lo que pide el productor; si no pide nada, proponé una estrategia razonable para los ramos que vende.`;
+
+export function mensajeEstrategia(datos: { ramos: string[]; maximo: number; actual: string; pedido: string }): string {
+  return [
+    `Ramos que vende: ${datos.ramos.join(", ") || "sin cargar"}.`,
+    `Máximo de seguimientos por compañía: ${datos.maximo}.`,
+    `Estrategia actual: ${datos.actual.trim() || "(vacía)"}`,
+    `Lo que pide el productor: ${datos.pedido.trim().slice(0, 500) || "(nada en particular)"}`,
+  ].join("\n");
+}
+
+/**
+ * Lo que propone la IA pasa por el mismo parser que la estrategia escrita a
+ * mano: si el agente no la entiende, no se ofrece. Devuelve el texto limpio y
+ * cómo lo entiende el agente.
+ */
+export function estrategiaVerificada(texto: string): { estrategia: string; descripcion: string } | null {
+  const estrategia = texto.trim().replace(/\s+/g, " ").slice(0, 1000);
+  const regla = estrategia ? interpretarEstrategiaSeguimiento(estrategia) : null;
+  return regla ? { estrategia, descripcion: describirEstrategia(regla) } : null;
 }

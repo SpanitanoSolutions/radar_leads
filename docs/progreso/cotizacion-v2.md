@@ -1,10 +1,135 @@
 # Progreso — Agente de Cotización v2
 
 Spec: [cotizacion-v2.md](../specs/cotizacion-v2.md). Manda en todo lo de compañías: [conectores.md](../specs/conectores.md). Plan anterior: [PLAN-cotizacion-v2.md](../PLAN-cotizacion-v2.md).
-Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`), `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`; PR #34, mergeado) y `feat/cotizacion-v2-conexiones` (fase 3, sale de `main` en `0fecc26`).
+Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`), `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`; PR #34, mergeado), `feat/cotizacion-v2-conexiones` (fase 3, sale de `main` en `0fecc26`; PR #35, mergeado) y `feat/cotizacion-v2-pantallas` (fase 4, sale de `main` en `f05023b`).
+
+## Fase 4 — Lo que falta de las pantallas (30/10/2026, cerrada)
+Rama `feat/cotizacion-v2-pantallas`, sale de `main` en `f05023b` (con el PR #35), sin PR (Julian decide cuándo). Un commit por paso (`aa5fae3`, `4d74ca3`, `4c901e9`, `b8c0a65`, `50d449f`, `84620d9`) más el del cierre. **Sin migraciones.** Con esta fase, el criterio 6 queda hecho.
+
+### Prueba de la fase 4 (30/10/2026)
+- `npm test`: pasan 630 de 633. Los 3 que fallan son los de antes (`catalogo.test.ts` la cuenta bancaria, `menu.test.ts` y `siniestros.test.ts`). La fase suma 52 tests.
+- `npm run lint`: sin errores (las 3 advertencias viejas). `npm run build`: OK, con la `DATABASE_URL` del Docker.
+- `npm run test:e2e`: **pasa entero** (24 pasos) contra Postgres 18.6 en Docker recién sembrado, con la app compilada, `CONECTORES_SIMULADOS=1` y sin `ANTHROPIC_API_KEY`. El control de 390 px suma la Bitácora, Desempeño, la configuración y la nueva solicitud de Cotización.
+- **Recorrido de cada paso con la app compilada** (los mismos scripts de Playwright de las pruebas de cada paso, fuera del repo, con capturas y el control de 390 px; cada uno sobre una base recién sembrada o la que deja el paso 2), con `CONECTORES_SIMULADOS_FORZAR=Sancor=ok;Mapfre=falla;Rivadavia=dato;San Cristóbal=dos_pasos`: los pasos 1, 2, 3, 4 (sin IA), 5 y 6 pasaron enteros con los mismos resultados que con `next dev`. "Sugerir con IA" se probó con la app compilada y una API de Anthropic falsa local (3 pedidos a Haiku con salida estructurada, 3 filas en `ia_uso`). Los PDF de la propuesta (sin logo, PNG, JPG y WebP) y del comparativo se abrieron con PyMuPDF sin reparar nada.
+- En los logs de `next start` no hay errores de Cotización ni claves o contraseñas; están los avisos de `new Date()` al prerenderizar de otras pantallas, que son de antes.
+- **Sin migraciones:** la fase no toca `drizzle/` ni `src/db/schema.ts` (el flag de la voz va en `configuracion_agentes.config`, que ya existía).
+
+**Para repetirla:** como en "Prueba contra Postgres 18.6" (más abajo): `DATABASE_URL` del Docker exportada (nunca la de Neon) para `db:preparar` y `npm run build`, y `next start` con `CONECTORES_SIMULADOS=1`. Para el recorrido, `CONECTORES_SIMULADOS_FORZAR` como arriba y, para "Sugerir con IA", `ANTHROPIC_API_KEY` de mentira con `ANTHROPIC_BASE_URL` apuntando a una API falsa local.
+
+| Paso | Qué | Estado | Archivos |
+|---|---|---|---|
+| 1 | Checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud | Hecho, 7 tests, probado con `next dev` | `src/lib/cotizacion/configuracion.ts` (+ test, nuevos), `src/lib/datos-agentes.ts`, `src/agentes/cotizacion/solicitudes.ts`, `page.tsx`, `nueva/` y `configuracion/` (`page.tsx`, `actions.ts`) de Cotización, `agentes.css` |
+| 2 | Detalle: Contactos (próximo seguimiento, Copiar y Excel), panel (Requiere atención, seguimientos activos, archivos por compañía) y Agente (línea de tiempo y borrador al ejecutivo) | Hecho, 13 tests, probado con `next dev` | `src/lib/cotizacion/detalle.ts`, `ejecutivo.ts` y `eventos.ts` (+ tests, nuevos), `correo.ts` (+ test); `src/agentes/cotizacion/detalle.ts` y `ejecutivo.ts` (nuevos), `cotizar.ts`; `[id]/page.tsx`, `actions.ts` y `exportar/[id]/route.ts` de Cotización; `src/lib/datos-agentes.ts`, `agentes.css` |
+| 3 | Comparativo: filas de la spec y vista compacta o detallada | Hecho, 8 tests, probado con `next dev` | `src/lib/cotizacion/comparativo.ts` (+ test, nuevos), `src/agentes/cotizacion/solicitudes.ts`, `[id]/page.tsx`, `actions.ts` y `exportar/[id]/route.ts` de Cotización, `agentes.css` |
+| 4 | ABM de Tipos de seguro y "Sugerir con IA" para la estrategia | Hecho, 10 tests, probado con `next dev` (sin IA y con una API de Anthropic falsa local) | `src/lib/cotizacion/tipos-seguro.ts` (+ test, nuevos), `src/lib/cotizacion.ts` y `ia.ts` (+ tests), `src/agentes/cotizacion/ia.ts`, `configuracion/` (`page.tsx`, `actions.ts`, `EstrategiaSeguimiento.tsx` nuevo), `nueva/` y `actions.ts` de Cotización, `src/lib/datos-agentes.ts`, `agentes.css` |
+| 5 | Bitácora con `cotizacion_eventos` y filtros; métricas desde que salió el envío | Hecho, 10 tests, probado con `next dev` | `src/lib/cotizacion/bitacora.ts` (+ test, nuevos), `metricas.ts` (+ test), `src/lib/datos-agentes.ts`, `page.tsx` y `actions.ts` de Cotización, `src/agentes/cotizacion/solicitudes.ts`, `agentes.css` |
+| 6 | Propuesta en PDF con el logo de la cuenta y con acentos (criterio 6) | Hecho, 11 tests, probado con `next dev` | `src/lib/cotizacion/logo-pdf.ts` y `propuesta.ts` (+ tests, nuevos), `propuesta-pdf.ts` (+ test, reescrito), `actions.ts`, `[id]/page.tsx` y `exportar/[id]/route.ts` de Cotización |
+| Cierre | Tests, lint, build, E2E entero, recorrido con la app compilada, README y vault | Hecho (ver "Prueba de la fase 4") | `e2e/flujos.mjs` (control de 390 px), `README.md`, este archivo |
+
+**Decisiones de Julian (30/10/2026):**
+- **Borrador al ejecutivo:** el ejecutivo es el productor de la cuenta. El borrador va al correo de Mi cuenta y, al aprobarlo, sale por la salida común; sin el correo conectado queda aprobado y sin enviar, como los de las compañías.
+- **"Agregá lo que vendés"** (checklist del inicio) lleva a Paquetes de cobertura y queda listo con al menos un paquete cargado para una aseguradora activa.
+
+**Paso 1. Checklist y "sin paquete configurado":**
+- **El checklist** ("Terminá de configurar tu agente de cotización", con "N de 4 listos") reemplaza al de antes (activar el agente, el correo y el nombre del productor). Cada paso lleva a su sección y dice para qué sirve; desaparece con los 4 listos. Lo calcula `pasosConfiguracionCotizacion()` (pura):
+  - **Agregá lo que vendés** → Configuración `#paquetes`: un paquete de una aseguradora activa;
+  - **Agregá una aseguradora con contacto** → `#aseguradoras`: una activa con un correo válido (el mismo control que usa el correo a la compañía);
+  - **Conectá los accesos de portal** → `/configuracion/companias?agente=cotizacion`: una clave activa de una compañía con la que cotizás, por su nombre canónico;
+  - **Elegí cómo suena tu agente** → `#voz`: la voz se guardó alguna vez o es distinta de la que viene.
+- **La configuración** tiene anclas por sección (`#aseguradoras`, `#voz`, `#paquetes`); la sección de voz se divide en "Voz y tono" y "Comportamiento", y Paquetes explica qué son.
+- **La nueva solicitud** marca "Sin paquete configurado" en cada aseguradora sin paquete para el ramo elegido (por nombre canónico: "Automotor" y "Auto" son el mismo) y resume el aviso con el enlace a Paquetes. No bloquea: el pedido sale igual.
+- **Cada envío nuevo lleva el paquete de su ramo** (`paqueteParaEnvio()`), así Contactos lo muestra por su nombre. Antes ningún envío tenía paquete.
+
+**Decisiones de la implementación (revisables):**
+- "Elegí cómo suena tu agente" queda listo al guardar la configuración del agente aunque se deje la voz que viene: se anota `vozElegida` en `configuracion_agentes.config` de `cotizacion` (sin migración). También cuenta como listo una voz distinta de la que viene, para las cuentas que la cambiaron antes de esta fase.
+- Con varios paquetes para el mismo ramo, el envío lleva el primero que se cargó.
+
+**Paso 2. El detalle:**
+- **Contactos:** las columnas de la spec (aseguradora, estado, borrador, folio, paquete, **próximo seguimiento**, seguimientos "N de máximo", **preguntas** y última actividad). El próximo seguimiento es el del correo o, en las cotizaciones en dos pasos, la consulta programada en la cola ("04/11/2026 · consulta a la compañía"); no hay si la compañía ya respondió o se está cotizando. La pregunta de la compañía va en su columna y no se repite en el estado. **Copiar** (con `BotonCopiar`) deja la tabla con tabuladores, para pegar en una planilla; **Excel** baja `contactos-<número>.xlsx` (`exportar/[id]?vista=contactos&formato=xlsx`, y sin `formato`, CSV). Pantalla, Copiar y Excel salen de la misma `tablaContactos()`. Los envíos se ordenan por id (antes, sin orden, podían cambiar de lugar).
+- **Panel:**
+  - **Estado** con la barra del porcentaje y **Requiere atención**, compañía por compañía, con el enlace a la pestaña: respuesta sin confirmar, dato pedido, máximo de seguimientos, error, correo aprobado que no salió y cuántos correos esperan aprobación (`atencionDeLaSolicitud()`);
+  - **Persona del agente**: la de la configuración (nombre, persona y cómo escribe); antes decía "Verónica" fijo;
+  - **Seguimientos activos**, del más próximo al más lejano, con "N de máximo" o la consulta a la compañía;
+  - **Archivos** agrupados por compañía y paquete, primero los de la solicitud;
+  - **Actividad reciente** con los nombres de los eventos en palabras (`nombreEvento()`), las 6 últimas y "Mostrar más".
+- **Agente:**
+  - **Pasos de la solicitud**, una línea de tiempo (`pasosDeLaSolicitud()`): crear la solicitud, elegir las aseguradoras (con cuántas tienen paquete), preparar los pedidos, pedir las cotizaciones (cuántos salieron), recibir las respuestas, revisar y comparar (mejor precio o cuántas faltan confirmar), propuesta y cerrar. Cada uno hecho, en curso o pendiente, con su fecha;
+  - **Borradores para aprobar**: los correos a las compañías que esperan, con el cuerpo y Aprobar u Omitir (vuelven a esta pestaña);
+  - **Correo al ejecutivo** (decisión de Julian): el resumen armado en vivo (`resumenParaEjecutivo()`: el riesgo con sus nombres, cada compañía con su estado o precio y el mejor precio confirmado), para el correo de Mi cuenta. "Aprobar y enviar el resumen" lo guarda en `mensajes` (`cotizacion:ejecutivo:<id>`, aprobado) y sale por la salida común; sin el correo conectado o sin el correo de Mi cuenta queda aprobado y sin enviar, con el motivo y **Enviar ahora**. "Copiar el resumen", también;
+  - la actividad con los nombres de los eventos, y Validación muestra los datos del riesgo con sus nombres ("Código postal" y no `codigoPostal`).
+
+**Decisiones de la implementación (revisables):**
+- La línea de tiempo usa los pasos de UNIQO (de crear a cerrar la solicitud) y no los de la referencia ("Obtener ramos", "Obtener opciones de aseguradoras"), que son llamados internos de su agente.
+- El resumen al ejecutivo no se guarda como borrador: se arma con lo que hay al abrir la pestaña. Al aprobarlo, el servidor lo vuelve a armar y lo compara con una huella del que viste; si cambió (llegó una respuesta, por ejemplo), no sale y pide revisarlo de nuevo. El saludo usa el ejecutivo de la solicitud o, si no tiene, el nombre del productor.
+- "Requiere atención" incluye las respuestas sin confirmar y los correos que no salieron, además de las preguntas, y suma en una línea los correos que esperan aprobación.
+- De paso: el detalle tiene `export const instant = false`, como las demás páginas de agentes (en `next dev` avisaba "uncached data", también en `main`).
+
+**Paso 3. El comparativo:**
+- **Filas de la spec** (`filasComparativo()`, pura): prima total y "Tu revisión" (con Confirmar) arriba; después prima neta, **gastos**, **impuestos**, franquicia, suma asegurada o límite, vigencia, condiciones, **daños**, **robo**, **cristales**, **responsabilidad civil**, **servicios** y "Otras coberturas" (solo si alguna respuesta tiene). Los montos van en la moneda de la respuesta (US$ si es en dólares). Gastos e impuestos en 0 se muestran como no informados.
+- **Las coberturas a sus filas** (`coberturasPorFila()`): llegan con el nombre que les da cada compañía ("RC, robo e incendio total", "Todo riesgo con franquicia"); cada una va a las filas que nombra, con su valor ("Todo riesgo con franquicia: Franquicia $ 350.000"), y una que se llama como la fila muestra solo el valor. **No se infiere nada**: "Terceros completo" no nombra ninguna y va a "Otras coberturas".
+- **Carga a mano:** el formulario de cada compañía suma Daños, Robo, Cristales, Responsabilidad civil y Servicios. Se guardan como coberturas con el nombre de la fila y **se conservan las que trajo la compañía** (`unirCoberturasManuales()`).
+- **Vista compacta o detallada** (`?vista=compacta|detallada`, la detallada por defecto): la compacta deja prima total, tu revisión, prima neta y franquicia.
+- **"Mejor precio"** (`envioConMejorPrecio()`): la menor prima total entre las confirmadas; la columna lleva la etiqueta y la celda del precio se resalta. Sin ninguna confirmada no aparece, y la pantalla explica que aparece al confirmar.
+- **La exportación** del comparativo (CSV, Excel y PDF) suma las columnas de cobertura.
+- El comparativo es una tabla de texto: `.cotizacion-comparativo` le saca el mínimo de 980 px y la última columna a la derecha, y las cabeceras de fila van en minúscula.
+
+**Arreglo de paso:** guardar una respuesta a mano (también la carga rápida de la lista) pisaba las coberturas que había traído la compañía con una lista vacía. Ahora `registrarResultadoCotizacion()` las conserva si no le pasan coberturas.
+
+**Decisiones de la implementación (revisables):**
+- Robo es una sola fila (total y parcial juntos, como los nombra cada compañía), porque muchas respuestas dicen solo "Robo".
+- La vista por defecto es la detallada, para no esconder datos.
+
+**Paso 6. La propuesta en PDF (criterio 6):**
+- **Con la marca de la cuenta:** el logo de Mi cuenta (`ajustes.productor_logo`, migración `0012`) arriba a la izquierda, escalado sin deformarse (hasta 150 × 56 puntos), y a la derecha la organización, el productor y el contacto (teléfono y correo), con los mismos valores que muestra la cuenta. Sin logo, la organización va como título del encabezado.
+- **Con acentos:** Helvetica y Helvetica-Bold con `WinAnsiEncoding`; los acentos, la ñ, las comillas y la raya van como escapes octales (`textoPdf()`). Antes se sacaban las tildes ("Organizacion").
+- **El logo** (`logoParaPdf()`, puro, con `node:zlib`): el JPG entra tal cual (`DCTDecode`); el PNG (8 bits, o paleta de 1 a 8 bits) se descomprime, se le sacan los filtros de cada fila y la transparencia va aparte como máscara (`SMask`). Sin dependencias nuevas.
+- **El contenido** (`documentoPropuesta()`, puro): A4, título "Propuesta de seguro para …", la solicitud, una introducción, la tabla de las respuestas **confirmadas** de la más barata a la más cara (compañía y paquete, prima total, franquicia y vigencia) con "Mejor precio" resaltado en la primera, las coberturas que informó cada compañía (las filas del comparativo) y el pie ("Documento preliminar: no es una póliza…" y la fecha de emisión). Lo que no entra en la página se resume.
+- **Sigue en borrador** hasta que el productor la aprueba (como antes) y el evento dice si salió con o sin logo. Los avisos de generar y aprobar, que antes no se mostraban, ahora están, y junto al botón dice si la propuesta va con el logo.
+- **El comparativo en PDF** (Descargar PDF) usa el mismo generador y la misma marca (`documentoComparativo()`): todas las compañías, su estado, prima total, franquicia y si falta confirmar.
+
+**Decisiones de la implementación (revisables):**
+- **Un logo en WebP no va en el PDF** (no se puede embeber sin una librería): la propuesta sale sin logo, el aviso pide subirlo en PNG o JPG en Mi cuenta y lo mismo dice la pantalla junto al botón. Mi cuenta sigue aceptando WebP para la aplicación.
+- La propuesta es de una página: con muchas compañías o coberturas, lo que no entra se resume ("Y N más en el comparativo").
+
+**Prueba del paso 6** (con `next dev`, sobre la 1042 con 4 respuestas confirmadas; los PDF pasados a imagen y a texto con PyMuPDF, fuera del repo): sin logo, la propuesta sale con "HR Productores" y el aviso pide cargar el logo. Con un PNG con transparencia (subido desde Mi cuenta) y con un JPG, sale con el logo (1 imagen en la página), "Pérez & Asociados Seguros", "Julián Pérez" y el contacto, "Propuesta de seguro para Gómez, Lucía", las 4 compañías ordenadas con "Mejor precio" en Sancor ($ 912.000) y el pie con "póliza" y "compañía" con tilde. El comparativo en PDF lleva la misma marca. Con el logo en WebP sale sin imagen y con el aviso. PyMuPDF abrió los 5 sin reparar nada.
+
+**Paso 5. Bitácora y métricas:**
+- **Bitácora** (la pestaña "Historial" pasa a llamarse **Bitácora**): todos los eventos de `cotizacion_eventos` (antes mostraba `actividad_agentes`, sin filtros), con fecha, solicitud (enlace a su pestaña Agente) y cliente, compañía, quién (Vos, el agente, la IA, la compañía), el evento en palabras y el detalle. **Filtros:** texto (número, cliente o detalle, sin tildes), compañía, quién, tipo de evento (solicitud y propuesta, correos y seguimientos, conexión con las compañías, respuestas, IA) y fechas en el día argentino (`filtrarBitacora()`, pura). Muestra los 200 más nuevos y dice cuántos hay.
+- **Métricas desde que salió el envío** (`momentosDelEnvio()`, pura): el pedido salió con el primer intento que llegó a la compañía (un correo enviado o un canal automático que respondió algo; un portal caído no cuenta) y, en los envíos de antes de los conectores (sin intentos), cuando se aprobó el correo. La respuesta es la registrada o, si rechazó, el intento del rechazo (antes un rechazo no tenía tiempo). Sin salida conocida, el envío no entra en el promedio. Desempeño lo explica arriba de la tabla.
+- **Desempeño** muestra además el **volumen** (cotizaciones de cada compañía) y, en el ranking, el **cierre promedio**. El ranking **cuenta solicitudes** (solicitudes, cerradas —completada, ganada o perdida— y activas); la tasa de cotización y los pendientes siguen siendo de envíos. "Solicitudes detenidas" muestra el número de la solicitud y su estado en palabras (antes, el id interno y el estado guardado).
+- **Cambiar el estado desde la lista** deja el evento `solicitud_actualizada` (antes solo quedaba en la actividad general) y los borradores que prepara el agente al crear la solicitud quedan con actor "agente" (antes, "productor" por defecto).
+
+**Decisiones de la implementación (revisables):**
+- La bitácora del agente es la de las solicitudes (`cotizacion_eventos`). Lo que no es de una solicitud (por ejemplo, que la IA sugirió una estrategia) sigue en la actividad general.
+- El tiempo de cierre va de crear la solicitud a completarla; si se ganó o perdió sin completarla, hasta su último cambio.
+
+**Prueba del paso 5** (con `next dev`, sobre la solicitud del paso 2): la Bitácora muestra los 18 eventos de la base. Filtrar Rivadavia deja "La compañía pide un dato" y "Borrador preparado"; "Vos", lo tuyo (resumen y correo aprobados, archivos, "Aprobada para cotizar", "Solicitud creada"); "Conexión con las compañías", lo de los conectores; "uso del vehículo" encuentra el pedido de Rivadavia; las fechas de hoy traen todo y hasta el 01/01/2026, nada. Cambiar el estado de la 1043 desde la lista aparece como "Solicitud actualizada". Con el pedido a San Cristóbal preparado hace 3 días y salido hace 4 horas, al cargar su respuesta Desempeño dice **4.0 h** (antes habría dicho unas 76 h) y "1 cotización". Sin desborde a 390 px.
+
+**Paso 4. Tipos de seguro y "Sugerir con IA":**
+- **ABM de Tipos de seguro** en la Configuración de Cotización (`#tipos`): la tabla de `cotizacion_tipos_seguro` (los 11 de la migración `0014`) con ramo, descripción, sub-tipos y estado; **alta** (el ramo no se repite, sin distinguir mayúsculas ni tildes), **edición** de la descripción y los sub-tipos (separados por coma, sin repetidos) y **activar o desactivar**. Valida `validarTipoSeguro()` (pura) y cada acción pide sesión.
+- **La nueva solicitud ofrece los tipos activos** (`ramosParaSolicitud()`), con la descripción debajo del ramo, y la acción vuelve a validar en el servidor que el ramo sea uno de ellos ("Ese ramo ya no está entre tus tipos de seguro activos"). Si la tabla está vacía, los ramos de la spec. El campo Ramo de Paquetes sugiere los tipos activos.
+- **La estrategia de seguimiento** se lee mientras se escribe ("Así la entiende el agente: …", con `describirEstrategia()`), o avisa que el agente no la entiende. Guardar la sigue validando en el servidor.
+- **"Sugerir con IA"** (solo con la IA activa para Cotización; sin IA el botón no aparece): un campo opcional "¿Cómo querés el seguimiento?" y el botón. Pasa por `ejecutarIA()` (operación `sugerir_estrategia`, tarea `redactar`: Haiku, con salida estructurada), con los ramos activos, el máximo y la estrategia actual. **El parser valida lo que propone** (`estrategiaVerificada()`): si el agente no lo entiende no se ofrece y lo dice; si lo entiende va al campo con su lectura, y se guarda recién con "Guardar configuración". El uso queda en `ia_uso` y entra en el tope de USD 20; la bitácora anota que la IA sugirió una estrategia.
+
+**Arreglo de paso (parser):** la regla general tomaba el primer "cada N días hábiles" del texto aunque fuera de un ramo ("Para Flotas cada 1 día hábil; cada 3 días hábiles" quedaba en 1), y "Para Flotas cada 1 día" solo se rechazaba. Ahora la general se busca fuera de las reglas por ramo. Tests nuevos.
+
+**Decisiones de la implementación (revisables):**
+- La baja de un tipo de seguro lo desactiva y no lo borra, como las aseguradoras: deja de ofrecerse en la nueva solicitud y las solicitudes que lo usan no cambian.
+- El ramo de un tipo no se renombra (las aseguradoras y los paquetes lo nombran por texto): se agrega uno nuevo y se desactiva el viejo.
+- La sugerencia de la IA no se guarda sola: va al campo y el productor la guarda.
+
+**Prueba del paso 4** (con `next dev`):
+- **Sin `ANTHROPIC_API_KEY`:** Tipos de seguro muestra los 11 y no hay "Sugerir con IA". Alta de Embarcaciones (con "Veleros, Lanchas, veleros" quedan 2 sub-tipos), "embarcaciónes" se rechaza como repetido, edición de Caución y desactivarla la deja Inactivo. La nueva solicitud ofrece Embarcaciones con su descripción y no Caución; forzar Caución en el formulario lo rechaza el servidor. Una estrategia que el agente no entiende se marca al escribirla y se rechaza al guardar; "Para Flotas cada 1 día hábil; cada 3 días hábiles" se lee "cada 3 … Flotas: cada 1" y se guarda. Sin desborde a 390 px.
+- **Con una API de Anthropic falsa** (un servidor local en `ANTHROPIC_BASE_URL`, fuera del repo; no sale nada a internet): prender la IA de Cotización desde la configuración muestra el botón. Una sugerencia que el parser no entiende no va al campo y lo dice; una válida va al campo con su lectura y, al recargar sin guardar, sigue la de antes; al guardar queda. Los 3 pedidos fueron a `claude-haiku-5-5` con salida estructurada (`json_schema`), con los ramos, el máximo, la estrategia actual y lo pedido; quedaron 3 filas `cotizacion` / `sugerir_estrategia` en `ia_uso` y 2 anotaciones en la bitácora (las válidas).
+
+**Prueba del paso 3** (con `next dev`, sobre la solicitud del paso 2): la detallada muestra las 14 filas; Sancor (por conexión directa, sin confirmar) trae "Todo riesgo con franquicia: Franquicia $ 350.000" en Daños y no hay "Mejor precio". Con La Segunda cargada a mano por $ 1.900.000 (gastos, impuestos, cristales, RC y servicios), el "Mejor precio" va a La Segunda aunque Sancor, sin confirmar, cotizó $ 1.051.749. Al confirmar Sancor pasa a Sancor. Cargar Cristales a mano en Sancor conserva su Daños. La compacta deja 4 filas. El CSV trae las columnas de cobertura y "Grúa 300 km". La pestaña sigue sin otros `<article>` (el E2E busca el de la propuesta). Sin desborde a 390 px en las dos vistas.
+
+**Prueba del paso 2** (con `next dev`, `CONECTORES_SIMULADOS_FORZAR=Sancor=ok;Mapfre=falla;Rivadavia=dato;San Cristóbal=dos_pasos` y `conector_companias` con Sancor y San Cristóbal `{api}`, Mapfre y Rivadavia `{portal}` y La Segunda `{}`): una solicitud de Flotas con las 5 desde "Nueva solicitud". Antes de aprobar, el panel dice "5 correos esperan tu aprobación". Con "Aprobar y cotizar": Sancor "Cotizó por conexión directa · Falta tu confirmación", San Cristóbal "Pedida por conexión directa" con "04/11/2026 · consulta a la compañía" (y en Seguimientos activos), Rivadavia con la pregunta en Preguntas, Mapfre con el portal caído y La Segunda pendiente. Requiere atención: Sancor (Revisar), Rivadavia (el dato) y 2 correos. Copiar dejó 6 líneas con tabuladores; Excel bajó `contactos-1043.xlsx` y el CSV trae la consulta. Un PDF de Sancor y otro de la solicitud quedan en "De la solicitud" y "Sancor". En Agente, los 8 pasos ("Pedir las cotizaciones: 3 de 5 pedidos salieron · En curso"), 3 borradores; aprobar el de La Segunda desde ahí vuelve a Agente; una huella vieja da "El resumen cambió…"; aprobar el resumen sin correo en Mi cuenta lo deja aprobado y sin enviar con "falta tu correo en Mi cuenta" y "Enviar ahora". Sin desborde a 390 px en las 4 pestañas.
+
+**Prueba del paso 1** (con `next dev` contra Postgres 18.6 recién sembrado, recorrido de Playwright fuera del repo): el inicio muestra los 4 pasos pendientes; "Agregá lo que vendés" lleva a Paquetes; con un paquete de Sancor en Automotor y un contacto de Sancor quedan listos esos dos; guardar la voz tal como viene la da por elegida; con una clave del portal de Sancor el checklist desaparece. En la nueva solicitud, 7 de 8 aseguradoras dicen "Sin paquete configurado" en Automotor (Sancor no) y en Hogar también Sancor. La solicitud 1043, solo con Sancor, muestra "Terceros completo premium" en Contactos. Sin desborde a 390 px en el inicio, la nueva solicitud y la configuración.
 
 ## Fase 3 — Configuración → Conexiones con las compañías (30/10/2026, cerrada)
-Rama `feat/cotizacion-v2-conexiones`, sin PR. Una pantalla nueva, `/configuracion/companias`, común a los 3 agentes (`?agente=cotizacion|validador|siniestros` muestra solo lo de ese agente).
+Rama `feat/cotizacion-v2-conexiones`, PR #35 (mergeado). Una pantalla nueva, `/configuracion/companias`, común a los 3 agentes (`?agente=cotizacion|validador|siniestros` muestra solo lo de ese agente).
 
 | Paso | Qué | Estado | Archivos |
 |---|---|---|---|
@@ -57,7 +182,7 @@ Rama `feat/cotizacion-v2-conexiones`, sin PR. Una pantalla nueva, `/configuracio
 **Para repetirla:** como en "Prueba contra Postgres 18.6" (más abajo), con `CONECTORES_SIMULADOS=1` en el build y en `next start`, y `CONECTORES_SIMULADOS_FORZAR=Sancor=ok;Mapfre=falla` para el recorrido.
 
 ## Fase 2 — Alinear con la base común (30/10/2026, cerrada)
-Rama `feat/cotizacion-v2-base-comun`, sin PR. Las tres partes (2a IA, 2b credenciales y 2c conectores) están hechas y probadas con la app compilada; ver "Cierre de la Fase 2" en la 2c.
+Rama `feat/cotizacion-v2-base-comun`, PR #34 (mergeado). Las tres partes (2a IA, 2b credenciales y 2c conectores) están hechas y probadas con la app compilada; ver "Cierre de la Fase 2" en la 2c.
 
 **Decisiones de Julian (30/10/2026)** sobre "Para decidir antes de la fase 2":
 1. **Enfoque de IA:** la opción A (pipeline con salida estructurada). El chat con herramientas (B) no se hace por ahora.
@@ -479,7 +604,7 @@ Evidencia por lectura del código; lo que se comprobó contra Postgres está en 
 | 3 | "Cada 3 días hábiles" con feriado en medio | Hecho | `seguimientos.test.ts`: trasladables, días puente, el 9/11/2026 y el cruce de año, más la hora que toma el cron (Fase 1); Jueves Santo y feriados de la provincia (2a) |
 | 4 | Máximo de seguimientos → no hay más y queda `requiere_atencion` | Hecho, sin test de Vitest | Contra Postgres con el cron (paso 8) |
 | 5 | Dos cotizaciones → "Mejor precio" en la menor prima total | Hecho; desde la Fase 1, solo entre las confirmadas | Con la app compilada sobre la 1042 (paso 2) |
-| 6 | Propuesta en PDF con la marca y en borrador | Parcial: borrador sí; la marca es solo el nombre, sin logo ni acentos | Paso 11 del E2E |
+| 6 | Propuesta en PDF con la marca y en borrador | **Hecho (fase 4):** con el logo y los datos de Mi cuenta, con acentos, y en borrador hasta aprobarla | Paso 11 del E2E; `propuesta-pdf.test.ts`, `logo-pdf.test.ts` y `propuesta.test.ts`; los PDF con PyMuPDF ("Prueba de la fase 4") |
 | 7 | Métricas contra un fixture calculado a mano | Hecho | `metricas.test.ts` |
 | 8 | Sin clave o con la IA apagada funciona, se ocultan los controles y no hay llamadas | Hecho, con `ia_configuracion` desde la 2a. También sin cuota | Con la app compilada sin clave (paso 3 y E2E); apagada y sin cuota, en "Prueba de la 2a" |
 | 9 | Cada respuesta de IA queda con modelo, tokens y costo, y nada se envía sin aprobación | Hecho (2a): cada intento queda en `ia_uso` y cuenta para el tope; lo leído espera la confirmación y el correo mejorado sigue pendiente de aprobación | "Prueba de la 2a", con una API de Anthropic falsa |
@@ -527,7 +652,7 @@ Docker descartable (`postgres:18.6`), `db:preparar` desde cero con los datos de 
 
 **Migraciones:** esta sesión no agrega ninguna. Las del plan se prueban sobre una base con los datos de `main` antes de mergear, como en el Validador (con `db:preparar` desde un worktree de `main` primero).
 
-## Plan propuesto (fases 1 a 3 hechas el 30/10/2026)
+## Plan propuesto (fases 1 a 4 hechas el 30/10/2026)
 Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6, commit y este progreso al día. Las migraciones solo agregan y se prueban antes sobre una base con los datos de `main`. Nada se envía de verdad: conectores simulados, correos como borradores y, sin `ANTHROPIC_API_KEY`, el agente funciona igual.
 
 | Fase | Qué | Sesiones | Criterios |
@@ -583,7 +708,7 @@ Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6
 - Cada agente ve solo lo suyo: Cotización, cotizar y coberturas; el Validador, cobranza y cancelaciones; Siniestros, lo de siniestros.
 - La pestaña Credenciales del Validador y la sección Portales de Cotización pasan a ser un enlace a esta pantalla.
 
-### Fase 4 — Lo que falta de las pantallas (en orden de prioridad)
+### Fase 4 — Lo que falta de las pantallas (en orden de prioridad) — hecha, ver arriba
 1. Checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud.
 2. Detalle:
    - en Contactos, el próximo seguimiento, Copiar y Excel;
@@ -640,14 +765,12 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-**La Fase 3 está cerrada** (rama `feat/cotizacion-v2-conexiones`, sin PR; sale de `main` con el PR #34). Siguiente: la **Fase 4, lo que falta de las pantallas** (ver el plan, "Fase 4"), en orden:
-1. checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud;
-2. detalle: en Contactos, el próximo seguimiento, Copiar y Excel; en el panel, "Requiere atención" con detalle, los seguimientos activos y los archivos por compañía; en Agente, la línea de tiempo y el borrador al ejecutivo;
-3. comparativo con las filas de la spec y la vista compacta o detallada;
-4. ABM de Tipos de seguro y "Sugerir con IA" para la estrategia;
-5. la bitácora con `cotizacion_eventos` y filtros, y las métricas medidas desde que salió el envío;
-6. la propuesta con el logo de la cuenta y con acentos.
+**La Fase 4 está cerrada** (rama `feat/cotizacion-v2-pantallas`, sin PR; sale de `main` con el PR #35; sin migraciones). Ver "Fase 4 — Lo que falta de las pantallas", arriba de todo. Siguiente: la **Fase 5, el cierre de Cotización v2** (ver el plan, "Fase 5"):
+1. **seed de demo:** 6 aseguradoras (una por API, una por portal, una solo por correo y el resto mezclado), con paquetes, contactos y tipos de seguro, y 5 solicitudes en distintos estados con los ramos de Cotización y sus eventos (hoy las de ejemplo no tienen `cotizacion_eventos`, así que la Bitácora arranca vacía);
+2. **el simulador de respuestas por correo** con `CONECTORES_SIMULADOS=1` y no con `NODE_ENV`, así anda con la app compilada;
+3. **E2E** con el flujo completo (criterio 15): crear → aprobar y cotizar → la API cotiza, el portal falla y pasa a correo, La Segunda deja el borrador → aprobar el correo → simular su respuesta → comparar → propuesta (con logo) → completar; otro paso para el dato que pide el portal; los pasos 8 y 11 siguen pasando;
+4. README y PR.
 
-Antes, Julian decide si se abre el PR de la fase 3 (la rama no tiene migraciones).
+Sin push ni PR hasta que Julian lo diga.
 
 Pendientes que no son de esta fase: Julian desactiva Rivadavia duplicada desde la Configuración de Cotización (desde la fase 3 las dos comparten la fila de canales de "Rivadavia"), y apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.

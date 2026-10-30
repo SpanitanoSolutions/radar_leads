@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { EncabezadoAgente, Bitacora } from "@/components/agentes/Agente";
-import { obtenerCuenta, obtenerConexiones } from "@/lib/datos";
-import { agenteConfigurado, obtenerActividad, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerRespuestasSinConfirmar, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
+import { EncabezadoAgente } from "@/components/agentes/Agente";
+import { agenteConfigurado, obtenerBitacoraCotizacion, obtenerChecklistCotizacion, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerRespuestasSinConfirmar, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
+import { pasosConfiguracionCotizacion } from "@/lib/cotizacion/configuracion";
+import { ACTORES_EVENTO, filtrarBitacora, GRUPOS_EVENTO, nombreActor } from "@/lib/cotizacion/bitacora";
+import { nombreEvento } from "@/lib/cotizacion/eventos";
+import { diaYHora } from "@/lib/fechas";
 import { estadoVisible, estaCerrada, mejorCotizacion, filtrarSolicitudes, resumenCotizacion, soloConfirmadas, ESTADOS_COTIZACION, ESTADOS_VISIBLES_COTIZACION } from "@/lib/cotizacion";
 import { diaEnArgentina } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
@@ -57,6 +60,15 @@ function fechaCorta(fecha: string): string {
   return new Intl.DateTimeFormat("es-AR", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${fecha}T00:00:00Z`));
 }
 
+/** Eventos que muestra la bitácora: los más nuevos que pasan los filtros. */
+const BITACORA_VISIBLE = 200;
+
+/** 30 → "30 h"; 50 → "2,1 días". */
+function textoDuracion(horas: number | null): string {
+  if (horas == null) return "—";
+  return horas < 48 ? `${Math.round(horas)} h` : `${(horas / 24).toLocaleString("es-AR", { maximumFractionDigits: 1 })} días`;
+}
+
 function nombreOrigen(origen: string): string {
   return ORIGENES.find((opcion) => opcion.id === origen)?.texto ?? origen;
 }
@@ -87,12 +99,11 @@ export default async function Cotizacion({
   const ejecutivo = typeof sp.ejecutivo === "string" ? sp.ejecutivo : "";
   const desde = typeof sp.desde === "string" ? sp.desde : "";
   const hasta = typeof sp.hasta === "string" ? sp.hasta : "";
-  const [registros, actividad, activo, conexiones, cuenta, enviosCotizacion, datosMetricas, sinConfirmar] = await Promise.all([
+  const [registros, eventosBitacora, activo, datosChecklist, enviosCotizacion, datosMetricas, sinConfirmar] = await Promise.all([
     obtenerSolicitudesCotizacion(),
-    tab === "bitacora" ? obtenerActividad("cotizacion") : Promise.resolve([]),
+    tab === "bitacora" ? obtenerBitacoraCotizacion() : Promise.resolve([]),
     agenteConfigurado("cotizacion"),
-    obtenerConexiones(),
-    obtenerCuenta(),
+    obtenerChecklistCotizacion(),
     obtenerEnviosCotizacion(),
     tab === "desempeno" ? obtenerMetricasCotizacion() : Promise.resolve({ envios: [], solicitudes: [] }),
     obtenerRespuestasSinConfirmar(),
@@ -124,25 +135,23 @@ export default async function Cotizacion({
   }
   const primeraCompania = [...preciosPorCompania].sort((a, b) => b[1] - a[1])[0];
   const metricasAseguradoras = metricasPorAseguradora(datosMetricas.envios);
-  const ranking = rankingProductores(datosMetricas.envios);
+  const ranking = rankingProductores(datosMetricas.envios, datosMetricas.solicitudes);
   const detenidas = solicitudesDetenidas(datosMetricas.solicitudes, new Date());
+  const filtrosBitacora = {
+    q, desde, hasta,
+    compania: typeof sp.compania === "string" ? sp.compania : "",
+    actor: typeof sp.actor === "string" ? sp.actor : "",
+    grupo: typeof sp.grupo === "string" ? sp.grupo : "",
+  };
+  const bitacora = filtrarBitacora(eventosBitacora, filtrosBitacora);
+  const companiasBitacora = [...new Set(eventosBitacora.flatMap((evento) => evento.compania ? [evento.compania] : []))].sort((a, b) => a.localeCompare(b, "es"));
   const aviso = typeof sp.aviso === "string"
     ? AVISOS[sp.aviso] ?? (/^solicitud-(\d+)$/.test(sp.aviso)
       ? { texto: `Creaste la solicitud ${sp.aviso.slice("solicitud-".length)}.`, error: false }
       : null)
     : null;
   const estados = ESTADOS_COTIZACION;
-  const portales = conexiones.filter((conexion) => conexion.tipo === "portal");
-  const checklist = [
-    { listo: activo, texto: "Activá el agente", href: "/agentes/cotizacion" },
-    {
-      listo: portales.length > 0 && portales.every((conexion) => conexion.estado === "conectado" || conexion.estado === "por_email"),
-      texto: "Conectá los portales o agregá el email de tus compañías",
-      href: "/configuracion",
-    },
-    { listo: conexiones.some((conexion) => conexion.clave === "email" && conexion.estado === "conectado"), texto: "Conectá el correo", href: "/configuracion?panel=email" },
-    { listo: Boolean(cuenta.nombre), texto: "Completá el nombre del productor para la firma", href: "/configuracion?tab=cuenta" },
-  ];
+  const checklist = pasosConfiguracionCotizacion(datosChecklist);
   const faltaConfigurar = checklist.some((paso) => !paso.listo);
 
   return (
@@ -163,14 +172,18 @@ export default async function Cotizacion({
       {faltaConfigurar && (
         <section className="cotizacion-configuracion" aria-labelledby="cotizacion-checklist">
           <div>
-            <h2 id="cotizacion-checklist">Termina de configurar tu agente</h2>
-            <p>Los pedidos solo incluirán compañías configuradas en tu cuenta. El envío a portales todavía requiere integrar la conexión real de cada compañía.</p>
+            <h2 id="cotizacion-checklist">Terminá de configurar tu agente de cotización</h2>
+            <p>{checklist.filter((paso) => paso.listo).length} de {checklist.length} listos. Cada paso lleva a su sección de la configuración.</p>
           </div>
           <ol>
             {checklist.map((paso) => (
-              <li key={paso.texto} className={paso.listo ? "listo" : "pendiente"}>
+              <li key={paso.id} className={paso.listo ? "listo" : "pendiente"}>
                 <span aria-hidden="true">{paso.listo ? "✓" : "○"}</span>
-                {paso.listo ? <span>{paso.texto}</span> : <Link href={paso.href}>{paso.texto}</Link>}
+                <span className="cotizacion-checklist-paso">
+                  {paso.listo ? <span>{paso.texto}</span> : <Link href={paso.href}>{paso.texto}</Link>}
+                  <small>{paso.listo ? "Listo" : paso.detalle}</small>
+                </span>
+                <span className="visualmente-oculto">{paso.listo ? " (listo)" : " (pendiente)"}</span>
               </li>
             ))}
           </ol>
@@ -179,7 +192,7 @@ export default async function Cotizacion({
 
       <nav aria-label="Secciones del agente" className="pestanas">
         <Link href="/agentes/cotizacion?tab=solicitudes" aria-current={tab === "solicitudes" ? "page" : undefined} className="pestana">Solicitudes</Link>
-        <Link href="/agentes/cotizacion?tab=bitacora" aria-current={tab === "bitacora" ? "page" : undefined} className="pestana">Historial</Link>
+        <Link href="/agentes/cotizacion?tab=bitacora" aria-current={tab === "bitacora" ? "page" : undefined} className="pestana">Bitácora</Link>
         <Link href="/agentes/cotizacion?tab=desempeno" aria-current={tab === "desempeno" ? "page" : undefined} className="pestana">Desempeño</Link>
       </nav>
 
@@ -298,19 +311,49 @@ export default async function Cotizacion({
         </>
       )}
 
-      {tab === "bitacora" && <Bitacora actividad={actividad} />}
+      {tab === "bitacora" && (
+        <section aria-label="Bitácora del agente" className="tarjeta cotizacion-tabla-tarjeta">
+          <form action="/agentes/cotizacion" className="cotizacion-filtros">
+            <input type="hidden" name="tab" value="bitacora" />
+            <label className="visualmente-oculto" htmlFor="bitacora-q">Buscar solicitud, cliente o texto</label>
+            <input id="bitacora-q" type="search" name="q" defaultValue={q} placeholder="Buscar solicitud, cliente o texto" />
+            <label className="visualmente-oculto" htmlFor="bitacora-compania">Compañía</label>
+            <select id="bitacora-compania" name="compania" defaultValue={filtrosBitacora.compania}><option value="">Todas las compañías</option>{companiasBitacora.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+            <label className="visualmente-oculto" htmlFor="bitacora-actor">Quién</label>
+            <select id="bitacora-actor" name="actor" defaultValue={filtrosBitacora.actor}><option value="">Todos</option>{ACTORES_EVENTO.map((item) => <option key={item.id} value={item.id}>{item.texto}</option>)}</select>
+            <label className="visualmente-oculto" htmlFor="bitacora-grupo">Tipo de evento</label>
+            <select id="bitacora-grupo" name="grupo" defaultValue={filtrosBitacora.grupo}><option value="">Todos los eventos</option>{GRUPOS_EVENTO.map((item) => <option key={item.id} value={item.id}>{item.texto}</option>)}</select>
+            <label className="visualmente-oculto" htmlFor="bitacora-desde">Desde</label><input id="bitacora-desde" type="date" name="desde" defaultValue={desde} />
+            <label className="visualmente-oculto" htmlFor="bitacora-hasta">Hasta</label><input id="bitacora-hasta" type="date" name="hasta" defaultValue={hasta} />
+            <button type="submit" className="boton">Filtrar</button>
+            {(q || desde || hasta || filtrosBitacora.compania || filtrosBitacora.actor || filtrosBitacora.grupo) && <Link href="/agentes/cotizacion?tab=bitacora" className="cotizacion-limpiar">Limpiar</Link>}
+          </form>
+          <p className="cotizacion-bitacora-cuenta" role="status">{bitacora.length === 0 ? "No hay eventos con estos filtros." : bitacora.length > BITACORA_VISIBLE ? `Mostramos los ${BITACORA_VISIBLE} más nuevos de ${bitacora.length} eventos. Filtrá para ver otros.` : `${bitacora.length === 1 ? "1 evento" : `${bitacora.length} eventos`}.`}</p>
+          {bitacora.length > 0 && <div className="tabla-scroll"><table className="tabla cotizacion-tabla-bitacora">
+            <thead><tr><th>Fecha</th><th>Solicitud</th><th>Compañía</th><th>Quién</th><th>Evento</th><th>Detalle</th></tr></thead>
+            <tbody>{bitacora.slice(0, BITACORA_VISIBLE).map((evento) => <tr key={evento.id}>
+              <td>{diaYHora(evento.fecha)}</td>
+              <td><Link href={`/agentes/cotizacion/${evento.solicitudId}?tab=agente`}><strong>{evento.numero}</strong></Link><span className="cotizacion-relacion">{evento.cliente}</span></td>
+              <td>{evento.compania ?? "—"}</td>
+              <td>{nombreActor(evento.actor)}</td>
+              <td>{nombreEvento(evento.tipo)}</td>
+              <td>{evento.detalle}</td>
+            </tr>)}</tbody>
+          </table></div>}
+        </section>
+      )}
 
       {tab === "desempeno" && (
         <div className="cotizacion-metricas">
-          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Desempeño por aseguradora</h2><div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Intentos</th><th>Cotizadas</th><th>Rechazos</th><th>Respuesta promedio</th><th>Seguimientos</th><th>Prima neta promedio</th></tr></thead><tbody>
-            {metricasAseguradoras.map((item) => <tr key={item.compania}><td>{item.compania}</td><td>{item.intentos}</td><td>{Math.round(item.tasaCotizacion * 100)} %</td><td>{Math.round(item.tasaRechazo * 100)} %</td><td>{item.tiempoPromedioHoras == null ? "—" : `${item.tiempoPromedioHoras.toFixed(1)} h`}</td><td>{item.seguimientosPromedio.toFixed(1)}</td><td>{item.primaNetaPromedio == null ? "—" : pesos(item.primaNetaPromedio)}</td></tr>)}
-            {!metricasAseguradoras.length && <tr><td colSpan={7}>Todavía no hay envíos registrados.</td></tr>}
+          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Desempeño por aseguradora</h2><p className="texto-suave">La respuesta se mide desde que salió el pedido (el correo enviado o la conexión con la compañía), no desde que se preparó el borrador.</p><div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Intentos</th><th>Cotizadas</th><th>Rechazos</th><th>Respuesta promedio</th><th>Seguimientos</th><th>Prima neta promedio</th><th>Volumen</th></tr></thead><tbody>
+            {metricasAseguradoras.map((item) => <tr key={item.compania}><td>{item.compania}</td><td>{item.intentos}</td><td>{Math.round(item.tasaCotizacion * 100)} %</td><td>{Math.round(item.tasaRechazo * 100)} %</td><td>{item.tiempoPromedioHoras == null ? "—" : `${item.tiempoPromedioHoras.toFixed(1)} h`}</td><td>{item.seguimientosPromedio.toFixed(1)}</td><td>{item.primaNetaPromedio == null ? "—" : pesos(item.primaNetaPromedio)}</td><td>{item.volumen === 1 ? "1 cotización" : `${item.volumen} cotizaciones`}</td></tr>)}
+            {!metricasAseguradoras.length && <tr><td colSpan={8}>Todavía no hay envíos registrados.</td></tr>}
           </tbody></table></div></section>
-          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Ranking de productores</h2><div className="tabla-scroll"><table className="tabla"><thead><tr><th>Productor</th><th>Solicitudes</th><th>Cerradas</th><th>Activas</th><th>Tasa de cotización</th><th>Pendientes</th></tr></thead><tbody>
-            {ranking.map((item) => <tr key={item.productor}><td>{item.productor}</td><td>{item.solicitudes}</td><td>{item.cerradas}</td><td>{item.activas}</td><td>{Math.round(item.tasaCotizacion * 100)} %</td><td>{item.pendientes}</td></tr>)}
-            {!ranking.length && <tr><td colSpan={6}>Todavía no hay actividad para medir.</td></tr>}
+          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Ranking de productores</h2><div className="tabla-scroll"><table className="tabla"><thead><tr><th>Productor</th><th>Solicitudes</th><th>Cerradas</th><th>Activas</th><th>Tasa de cotización</th><th>Cierre promedio</th><th>Pendientes</th></tr></thead><tbody>
+            {ranking.map((item) => <tr key={item.productor}><td>{item.productor}</td><td>{item.solicitudes}</td><td>{item.cerradas}</td><td>{item.activas}</td><td>{Math.round(item.tasaCotizacion * 100)} %</td><td>{textoDuracion(item.tiempoPromedioCierreHoras)}</td><td>{item.pendientes}</td></tr>)}
+            {!ranking.length && <tr><td colSpan={7}>Todavía no hay actividad para medir.</td></tr>}
           </tbody></table></div></section>
-          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Solicitudes detenidas</h2>{detenidas.length ? <ul>{detenidas.slice(0, 10).map((item) => <li key={item.id}><Link href={`/agentes/cotizacion/${item.id}`}>Solicitud {item.id}</Link> · {item.estado} · desde {fechaActualizada(item.actualizadoEl)}</li>)}</ul> : <p>No hay solicitudes activas detenidas.</p>}</section>
+          <section className="tarjeta cotizacion-ajuste-seccion"><h2>Solicitudes detenidas</h2>{detenidas.length ? <ul>{detenidas.slice(0, 10).map((item) => <li key={item.id}><Link href={`/agentes/cotizacion/${item.id}`}>Solicitud {item.numero}</Link> · {ESTADOS_VISIBLES_COTIZACION.find((estadoItem) => estadoItem.id === estadoVisible(item))?.texto ?? item.estado} · desde {fechaActualizada(item.actualizadoEl)}</li>)}</ul> : <p>No hay solicitudes activas detenidas.</p>}</section>
           <div className="cotizacion-desempeno"><article className="tarjeta"><span>Tasa de cierre ganada</span><strong>{tasaGanada === null ? "—" : `${kpis.ganadas} de ${kpis.cerradas} · ${tasaGanada} %`}</strong></article><article className="tarjeta"><span>Compañía con más primeros puestos</span><strong>{primeraCompania ? `${primeraCompania[0]} · ${primeraCompania[1]}` : "Todavía no hay comparativas"}</strong></article></div>
         </div>
       )}

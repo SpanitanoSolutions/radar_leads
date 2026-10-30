@@ -1653,6 +1653,7 @@
 .cotizacion-contacto-sin-resultados a { color: var(--acento-texto); font-weight: 650; }
 .cotizacion-contacto-pista { margin: 3px 6px 0; padding: 9px 7px 6px; border-top: 1px solid var(--borde-suave); color: var(--etiqueta); font-size: 11px; line-height: 1.4; }
 .cotizacion-campo-error { display: block; margin-top: 6px; color: var(--rojo-texto); font-size: 12px; }
+.cotizacion-campo-ayuda { display: block; margin-top: 6px; color: var(--etiqueta); font-size: 12px; }
 .cotizacion-tipos-solicitud { min-width: 0; margin: 0 0 19px 44px; padding: 0; border: 0; }
 .cotizacion-tipos-solicitud legend { margin-bottom: 8px; }
 .cotizacion-tipos-opciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -1743,6 +1744,8 @@
 .cotizacion-aseguradora-detalle { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .cotizacion-aseguradora-detalle strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .cotizacion-aseguradora-detalle small { color: var(--etiqueta); font-size: 10px; }
+.cotizacion-aseguradora-detalle small.cotizacion-sin-paquete { color: var(--ambar-texto); font-size: 11px; }
+.cotizacion-aviso-paquete { margin: 10px 0 0 44px; padding: 10px 12px; border: 1px solid var(--ambar-borde); border-radius: 8px; background: var(--ambar-claro); font-size: 12px; line-height: 1.45; }
 .cotizacion-sin-aseguradoras { display: flex; align-items: center; gap: 13px; margin-left: 44px; padding: 16px; border: 1px solid var(--ambar-borde); border-radius: 9px; background: var(--ambar-claro); }
 .cotizacion-sin-aseguradoras > span { color: var(--ambar-texto); font-size: 21px; }
 .cotizacion-sin-aseguradoras div { flex: 1; }
@@ -1835,6 +1838,21 @@
 }
 .cotizacion-configuracion li.pendiente > span:first-child {
   color: var(--ambar-texto);
+}
+.cotizacion-configuracion li:has(.cotizacion-checklist-paso) {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+.cotizacion-checklist-paso {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cotizacion-checklist-paso small {
+  color: var(--etiqueta);
+  font-size: 12px;
 }
 .cotizacion-kpis {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
@@ -2039,6 +2057,65 @@
   display: grid;
   gap: 16px;
 }
+/* El checklist del inicio lleva a cada sección por su ancla. */
+.cotizacion-ajustes > section[id] {
+  scroll-margin-top: 16px;
+}
+/* Tipos de seguro: tabla de texto, sin el mínimo de 980 px ni la última columna a la derecha. */
+.cotizacion-tabla-tipos {
+  min-width: 640px;
+}
+.cotizacion-tabla-tipos td {
+  vertical-align: top;
+}
+.cotizacion-tabla-tipos th:last-child,
+.cotizacion-tabla-tipos td:last-child {
+  min-width: 210px;
+  text-align: left;
+}
+.cotizacion-editar-tipo summary {
+  list-style: none;
+  cursor: pointer;
+}
+.cotizacion-editar-tipo summary::-webkit-details-marker {
+  display: none;
+}
+.cotizacion-editar-tipo[open] {
+  flex-basis: 100%;
+}
+.cotizacion-editar-tipo .cotizacion-ajuste-form {
+  margin-top: 8px;
+}
+/* La estrategia de seguimiento ocupa todo el ancho del formulario. */
+.cotizacion-estrategia {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+.cotizacion-estrategia > label,
+.cotizacion-estrategia-ia label {
+  display: grid;
+  gap: 5px;
+  color: var(--etiqueta);
+  font-size: 13px;
+}
+.cotizacion-estrategia-lectura {
+  margin: 0;
+  color: var(--verde-texto);
+  font-size: 13px;
+}
+.cotizacion-estrategia-lectura.error {
+  color: var(--rojo-texto);
+}
+.cotizacion-estrategia-ia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+.cotizacion-estrategia-ia label {
+  flex: 1 1 260px;
+}
 .cotizacion-ajuste-seccion {
   display: grid;
   gap: 14px;
@@ -2151,6 +2228,56 @@
   color: var(--verde-texto);
   font-size: 11px;
 }
+/* El comparativo es una tabla de texto: sin el mínimo de 980 px ni la última columna a la derecha. */
+.cotizacion-comparativo {
+  min-width: 0;
+}
+.cotizacion-comparativo th,
+.cotizacion-comparativo td {
+  min-width: 140px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.cotizacion-comparativo th:last-child,
+.cotizacion-comparativo td:last-child {
+  text-align: left;
+}
+/* Las cabeceras de fila (Prima total, Daños…) se leen como texto, no como títulos de columna. */
+.cotizacion-comparativo tbody th {
+  border-bottom-color: var(--borde-suave);
+  color: var(--etiqueta);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+}
+.cotizacion-fila-precio td {
+  font-weight: 600;
+}
+.cotizacion-celda-mejor {
+  background: var(--verde-suave);
+  color: var(--verde-texto);
+}
+.cotizacion-vistas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+.cotizacion-vistas a {
+  padding: 5px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  color: var(--texto);
+  text-decoration: none;
+}
+.cotizacion-vistas a[aria-current="page"] {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  font-weight: 600;
+}
 .cotizacion-datos-riesgo {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -2164,6 +2291,36 @@
 .cotizacion-datos-riesgo dt {
   color: var(--etiqueta);
   font-size: 12px;
+}
+/* Contactos: tabla de texto, la última columna (fecha) no va a la derecha. */
+.cotizacion-tabla-contactos th:last-child,
+.cotizacion-tabla-contactos td:last-child {
+  text-align: left;
+  white-space: nowrap;
+}
+.cotizacion-tabla-contactos td {
+  vertical-align: top;
+}
+/* Bitácora: tabla de texto; el detalle se lee entero y la última columna no va a la derecha. */
+.cotizacion-tabla-bitacora {
+  min-width: 760px;
+}
+.cotizacion-tabla-bitacora td {
+  vertical-align: top;
+}
+.cotizacion-tabla-bitacora td:first-child {
+  white-space: nowrap;
+}
+.cotizacion-tabla-bitacora th:last-child,
+.cotizacion-tabla-bitacora td:last-child {
+  min-width: 260px;
+  text-align: left;
+}
+.cotizacion-bitacora-cuenta {
+  margin: 0;
+  padding: 0 16px 10px;
+  color: var(--etiqueta);
+  font-size: 13px;
 }
 .cotizacion-datos-riesgo dd {
   margin: 4px 0 0;
@@ -2182,6 +2339,176 @@
 .cotizacion-eventos time {
   color: var(--etiqueta);
   font-size: 12px;
+}
+/* Línea de tiempo de la pestaña Agente. */
+.cotizacion-pasos {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cotizacion-pasos li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  padding-bottom: 14px;
+}
+.cotizacion-pasos li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: 2px;
+  left: 11px;
+  width: 2px;
+  background: var(--borde);
+}
+.cotizacion-paso-marca {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--borde);
+  border-radius: 999px;
+  background: var(--tarjeta);
+  font-size: 12px;
+  font-weight: 700;
+}
+.cotizacion-paso-hecho .cotizacion-paso-marca {
+  border-color: var(--acento);
+  background: var(--acento);
+  color: var(--acento-contraste);
+}
+.cotizacion-paso-en_curso .cotizacion-paso-marca {
+  border-color: var(--ambar-texto);
+  color: var(--ambar-texto);
+}
+.cotizacion-pasos p {
+  margin: 2px 0 0;
+  color: var(--etiqueta);
+  font-size: 13px;
+}
+.cotizacion-pasos time {
+  color: var(--etiqueta);
+  font-size: 12px;
+}
+.cotizacion-paso-estado {
+  color: var(--etiqueta);
+  font-size: 12px;
+}
+.cotizacion-paso-pendiente strong {
+  color: var(--etiqueta);
+}
+.cotizacion-borrador-correo {
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+}
+.cotizacion-borrador-correo summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.cotizacion-borrador-correo pre,
+.cotizacion-ejecutivo pre {
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--fondo-suave);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cotizacion-ejecutivo {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde);
+}
+.cotizacion-ejecutivo pre {
+  margin: 0;
+}
+.cotizacion-ejecutivo-datos {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  font-size: 13px;
+}
+.cotizacion-ejecutivo-datos div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cotizacion-ejecutivo-datos dt {
+  color: var(--etiqueta);
+}
+.cotizacion-ejecutivo-datos dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.cotizacion-ejecutivo-ultimo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.cotizacion-ejecutivo-ultimo.error {
+  padding: 10px 12px;
+  border: 1px solid var(--rojo-borde);
+  border-radius: 8px;
+  background: var(--rojo-suave);
+  color: var(--rojo-texto);
+}
+/* Panel de la derecha del detalle. */
+.cotizacion-atencion {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--rojo-borde);
+  border-radius: 8px;
+  background: var(--rojo-suave);
+}
+.cotizacion-atencion h3 {
+  color: var(--rojo-texto);
+  font-size: 13px;
+}
+.cotizacion-atencion ul,
+.cotizacion-lista-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.cotizacion-lista-panel li {
+  display: grid;
+  gap: 2px;
+}
+.cotizacion-lista-panel span {
+  color: var(--etiqueta);
+  font-size: 12px;
+}
+.cotizacion-grupo-archivos {
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.cotizacion-grupo-archivos h3 {
+  color: var(--etiqueta);
+  font-size: 12px;
+  font-weight: 600;
+}
+.cotizacion-mostrar-mas summary {
+  cursor: pointer;
+  color: var(--acento-texto);
+  font-size: 13px;
+}
+.cotizacion-mostrar-mas[open] summary {
+  margin-bottom: 8px;
 }
 .cotizacion-resultado-manual {
   display: grid;
@@ -2233,6 +2560,7 @@
   .cotizacion-aseguradoras-acciones,
   .cotizacion-aseguradoras-grid,
   .cotizacion-sin-aseguradoras,
+  .cotizacion-aviso-paquete,
   .cotizacion-archivo-campo { margin-left: 0; }
   .cotizacion-tipos-opciones,
   .cotizacion-nueva-grid,

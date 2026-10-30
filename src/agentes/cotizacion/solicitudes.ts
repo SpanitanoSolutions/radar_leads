@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { agregarRespuesta, type RespuestaConfirmada } from "@/lib/cotizacion";
 import type { Moneda } from "@/lib/conectores/tipos";
+import { paqueteParaEnvio } from "@/lib/cotizacion/configuracion";
 import { armarBorradorSolicitud } from "@/lib/cotizacion/correo";
 import { ramoCanonico } from "@/lib/ramos";
 import { autorizarCotizacion, despacharCotizaciones } from "./cotizar";
@@ -45,9 +46,10 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
     throw new Error("La solicitud incluye una compañía que no está configurada para cotizar.");
   }
   const companias = habilitadas.filter((compania) => solicitadas.includes(compania));
-  const [[config], [ajustes]] = await Promise.all([
+  const [[config], [ajustes], paquetes] = await Promise.all([
     db.select().from(schema.cotizacionConfig).limit(1),
     db.select({ productor: schema.ajustes.productorNombre, organizacion: schema.ajustes.productorOrganizacion }).from(schema.ajustes).where(eq(schema.ajustes.id, 1)),
+    db.select({ id: schema.cotizacionPaquetes.id, aseguradoraId: schema.cotizacionPaquetes.aseguradoraId, ramo: schema.cotizacionPaquetes.ramo }).from(schema.cotizacionPaquetes),
   ]);
   // Los mismos valores que muestra la cuenta (obtenerCuenta()).
   const cuenta = { productor: ajustes?.productor ?? process.env.NOMBRE_PRODUCTOR ?? null, organizacion: ajustes ? ajustes.organizacion : "HR Productores" };
@@ -85,6 +87,7 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
         solicitudId: insertada.id,
         aseguradoraId: aseguradora?.id,
         compania,
+        paqueteId: paqueteParaEnvio(aseguradora?.id, s.ramo, paquetes),
         canal: aseguradora?.canal ?? "correo" as const,
         estado: "pendiente" as const,
         asuntoBorrador: asunto,
@@ -94,7 +97,7 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
     const insertados = await tx.insert(schema.cotizacionEnvios).values(envios).returning({ id: schema.cotizacionEnvios.id, compania: schema.cotizacionEnvios.compania });
     await tx.insert(schema.cotizacionEventos).values([
       { solicitudId: insertada.id, tipo: "solicitud_creada", detalle: "Se creó la solicitud y quedaron borradores pendientes de aprobación." },
-      ...insertados.map(({ id, compania }) => ({ solicitudId: insertada.id, envioId: id, tipo: "borrador_creado", detalle: `Borrador preparado para ${compania}; requiere aprobación del productor.` })),
+      ...insertados.map(({ id, compania }) => ({ solicitudId: insertada.id, envioId: id, actor: "agente", tipo: "borrador_creado", detalle: `Borrador preparado para ${compania}; requiere aprobación del productor.` })),
     ]);
     await tx.insert(schema.actividadAgentes).values({
       agente: "cotizacion",
@@ -191,7 +194,8 @@ export async function registrarResultadoCotizacion(datos: {
         condiciones: datos.condiciones ?? null,
         vigencia: datos.vigencia ?? null,
         ...(datos.moneda ? { moneda: datos.moneda } : {}),
-        coberturas: datos.coberturas ?? [],
+        // Sin coberturas en los datos (la carga rápida de la lista), quedan las que había.
+        ...(datos.coberturas !== undefined || !existente ? { coberturas: datos.coberturas ?? [] } : {}),
         riesgoCotizado: datos.riesgoCotizado ?? {},
         confirmado,
       };

@@ -10,16 +10,21 @@ import {
   cuerpoVerificado,
   esquemaChatIA,
   esquemaCorreoIA,
+  esquemaEstrategiaIA,
   esquemaRespuestaCompaniaIA,
+  estrategiaVerificada,
+  mensajeEstrategia,
   mensajeExtraccion,
   OPERACIONES_IA_COTIZACION as OPERACIONES,
   respuestaLeida,
   resumenLectura,
   SISTEMA_CHAT,
   SISTEMA_CORREO,
+  SISTEMA_ESTRATEGIA,
   SISTEMA_EXTRACCION,
   textoDeChat,
 } from "@/lib/cotizacion/ia";
+import { ramosParaSolicitud } from "@/lib/cotizacion/tipos-seguro";
 import { registrarResultadoCotizacion } from "./solicitudes";
 
 // La IA de Cotización pasa toda por ejecutarIA(), que elige el modelo de cada
@@ -241,4 +246,32 @@ export async function manejarExtraerRespuesta(archivoId: number) {
 
 export async function obtenerBorradoresIA(solicitudId: number) {
   return db.select().from(schema.cotizacionBorradoresIA).where(eq(schema.cotizacionBorradoresIA.solicitudId, solicitudId)).orderBy(schema.cotizacionBorradoresIA.creadoEl);
+}
+
+export type SugerenciaEstrategia = { ok: true; estrategia: string; descripcion: string } | { ok: false; motivo: MotivoSinIA };
+
+/**
+ * "Sugerir con IA" de la estrategia de seguimiento. La IA la redacta con los
+ * ramos que vende el productor y lo que pide; el parser la valida y, si el
+ * agente no la entiende, no se ofrece. No guarda nada: la sugerencia va al
+ * campo y el productor la revisa y la guarda (y ahí se vuelve a validar).
+ */
+export async function sugerirEstrategiaSeguimiento(pedido: string): Promise<SugerenciaEstrategia> {
+  const [[config], tipos] = await Promise.all([
+    db.select({ estrategia: schema.cotizacionConfig.estrategiaSeguimiento, maximo: schema.cotizacionConfig.maxSeguimientos }).from(schema.cotizacionConfig).limit(1),
+    db.select({ ramo: schema.cotizacionTiposSeguro.ramo, descripcion: schema.cotizacionTiposSeguro.descripcion, activo: schema.cotizacionTiposSeguro.activo }).from(schema.cotizacionTiposSeguro).orderBy(schema.cotizacionTiposSeguro.id),
+  ]);
+  const r = await ejecutarIA({
+    agente: AGENTE,
+    operacion: OPERACIONES.sugerirEstrategia,
+    tarea: "redactar",
+    system: SISTEMA_ESTRATEGIA,
+    mensaje: mensajeEstrategia({ ramos: ramosParaSolicitud(tipos).map((tipo) => tipo.ramo), maximo: config?.maximo ?? 3, actual: config?.estrategia ?? "", pedido }),
+    esquema: esquemaEstrategiaIA,
+  });
+  if (!r.ok) return r;
+  const verificada = estrategiaVerificada(r.datos.estrategia);
+  if (!verificada) return { ok: false, motivo: "invalida" };
+  await db.insert(schema.actividadAgentes).values({ agente: AGENTE, referencia: "configuracion:estrategia", texto: "La IA sugirió una estrategia de seguimiento. No se guarda hasta que la revises y la guardes." });
+  return { ok: true, ...verificada };
 }
