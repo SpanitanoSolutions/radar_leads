@@ -343,14 +343,14 @@ Evidencia por lectura del código; lo que se comprobó contra Postgres está en 
 |---|---|---|---|
 | 1 | 3 aseguradoras en Automotor → 3 envíos `pendiente` y 3 borradores según la plantilla | Hecho. Los dos detalles ("Productor" y "UNIQO" fijos, sin `instrucciones_cuerpo`) se arreglaron en la Fase 1 | Contra Postgres con la app compilada (pasos 4 y 5 de la prueba) |
 | 2 | Borrador sin aprobar → no se registra el envío | Hecho | Contra Postgres (paso 6) |
-| 3 | "Cada 3 días hábiles" con feriado en medio | Hecho | `seguimientos.test.ts` (Fase 1): trasladables, días puente, el 9/11/2026 y el cruce de año, más la hora que toma el cron |
+| 3 | "Cada 3 días hábiles" con feriado en medio | Hecho | `seguimientos.test.ts`: trasladables, días puente, el 9/11/2026 y el cruce de año, más la hora que toma el cron (Fase 1); Jueves Santo y feriados de la provincia (2a) |
 | 4 | Máximo de seguimientos → no hay más y queda `requiere_atencion` | Hecho, sin test de Vitest | Contra Postgres con el cron (paso 8) |
 | 5 | Dos cotizaciones → "Mejor precio" en la menor prima total | Hecho; desde la Fase 1, solo entre las confirmadas | Con la app compilada sobre la 1042 (paso 2) |
 | 6 | Propuesta en PDF con la marca y en borrador | Parcial: borrador sí; la marca es solo el nombre, sin logo ni acentos | Paso 11 del E2E |
 | 7 | Métricas contra un fixture calculado a mano | Hecho | `metricas.test.ts` |
-| 8 | Sin clave o con la IA apagada funciona, se ocultan los controles y no hay llamadas | Hecho con el interruptor propio, no con `ia_configuracion`. El texto técnico se sacó en la Fase 1 | Con la app compilada sin clave (paso 3) |
-| 9 | Cada respuesta de IA queda con modelo, tokens y costo, y nada se envía sin aprobación | Parcial: queda en `cotizacion_eventos`, pero no en `ia_uso` ni en la cuota (Fase 2). Desde la Fase 1, la extracción espera la confirmación del productor | Lectura de `src/lib/ia/cotizacion.ts` |
-| 10 | Ninguna credencial en texto plano | Hecho para lo suyo, pero en `conexiones.datos` y no en `credenciales_portal` | Contra Postgres: la clave no está en el volcado de la base ni en el log (paso 10) |
+| 8 | Sin clave o con la IA apagada funciona, se ocultan los controles y no hay llamadas | Hecho, con `ia_configuracion` desde la 2a. También sin cuota | Con la app compilada sin clave (paso 3 y E2E); apagada y sin cuota, en "Prueba de la 2a" |
+| 9 | Cada respuesta de IA queda con modelo, tokens y costo, y nada se envía sin aprobación | Hecho (2a): cada intento queda en `ia_uso` y cuenta para el tope; lo leído espera la confirmación y el correo mejorado sigue pendiente de aprobación | "Prueba de la 2a", con una API de Anthropic falsa |
+| 10 | Ninguna credencial en texto plano | Hecho, en `credenciales_portal` desde la 2b | "Prueba de la 2b": la clave no está en la base ni en el log, ni vuelve a la pantalla |
 | 11 | API + portal + correo → las dos primeras cotizan solas y las tres terminan en el mismo comparativo | **Falta** | No hay orquestador. Además, el registro simulado le da API y portal a todas las compañías: no hay cómo decir "esta solo por portal" |
 | 12 | Si el portal falla → borrador de correo, error registrado y salud actualizada | **Falta** en Cotización (la base común ya lo hace en `ejecutarEnCompania()` y `conector_salud`) | — |
 | 13 | El portal pide un dato → `requiere_atencion` con la pregunta, y al responder se reintenta | **Falta** | El simulador pone una pregunta genérica; no hay cómo responderla |
