@@ -1,12 +1,13 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
+import { guardarInterruptorIACotizacion } from "@/agentes/cotizacion/ia";
 import { requerirSesion } from "@/lib/auth";
 import { interpretarEstrategiaSeguimiento } from "@/lib/cotizacion";
-import { cifrarCredencial } from "@/lib/cotizacion/credenciales";
+import { ALCANCE_CREDENCIALES } from "@/lib/cotizacion/credenciales";
+import { guardarCredencial, listarCredenciales } from "@/lib/conectores/credenciales";
 import { leerXlsx } from "@/lib/xlsx";
 import { celdasCsv } from "@/fuentes/csv";
 import { normalizar } from "@/fuentes/clasificacion";
@@ -112,23 +113,25 @@ export async function guardarPaqueteCotizacion(formData: FormData) {
   redirect("/agentes/cotizacion/configuracion?aviso=paquete-guardado");
 }
 
+/**
+ * La clave del portal de una compañía va a credenciales_portal, la misma que usa el Validador.
+ * Si la compañía ya tiene una, se le cambian el usuario y la clave; si no, se crea.
+ */
 export async function guardarCredencialPortal(formData: FormData) {
   await requerirSesion();
   const compania = texto(formData, "compania", 120);
   const usuario = texto(formData, "usuario", 200);
   const clavePortal = texto(formData, "clavePortal", 1000);
   if (!compania || !usuario || !clavePortal) redirect("/agentes/cotizacion/configuracion?aviso=credencial-invalida");
-  let credencialesCifradas: string;
+  let guardada = false;
   try {
-    credencialesCifradas = cifrarCredencial(JSON.stringify({ usuario, clave: clavePortal }), process.env.COTIZACION_CREDENTIALS_KEY);
+    const [actual] = await listarCredenciales(ALCANCE_CREDENCIALES, compania);
+    await guardarCredencial({ id: actual?.id, compania, etiqueta: actual?.etiqueta ?? "Principal", usuario, secreto: clavePortal }, ALCANCE_CREDENCIALES);
+    guardada = true;
   } catch {
-    redirect("/agentes/cotizacion/configuracion?aviso=clave-cifrado-faltante");
+    // Sin clave de cifrado en el servidor no se guarda nada; se avisa abajo, fuera del try.
   }
-  const clave = `portal:${compania}`;
-  const [actual] = await db.select({ datos: schema.conexiones.datos }).from(schema.conexiones).where(eq(schema.conexiones.clave, clave));
-  const datos = { ...(actual?.datos ?? {}), credencialesCifradas, credencialesActualizadasEl: new Date().toISOString() };
-  await db.insert(schema.conexiones).values({ clave, tipo: "portal", compania, estado: "sin_conectar", datos })
-    .onConflictDoUpdate({ target: schema.conexiones.clave, set: { datos, actualizadoEl: new Date() } });
+  if (!guardada) redirect("/agentes/cotizacion/configuracion?aviso=clave-cifrado-faltante");
   revalidatePath("/agentes/cotizacion/configuracion");
   redirect("/agentes/cotizacion/configuracion?aviso=credencial-guardada");
 }
@@ -137,17 +140,19 @@ export async function importarAseguradorasCotizacion(formData: FormData) {
   await requerirSesion();
   const archivo = formData.get("archivoAseguradoras");
   if (!(archivo instanceof File) || archivo.size === 0 || archivo.size > 5 * 1024 * 1024) redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
+  // Fuera del try: redirect() lanza un error propio de Next que el catch atraparía.
+  if (!/\.(xlsx|csv)$/i.test(archivo.name)) redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
   let filas: string[][];
   try {
     const bytes = new Uint8Array(await archivo.arrayBuffer());
     if (/\.xlsx$/i.test(archivo.name)) filas = await leerXlsx(bytes);
-    else if (/\.csv$/i.test(archivo.name)) {
+    else {
       const contenido = new TextDecoder("utf-8").decode(bytes);
       const separador = contenido.split("\n", 1)[0].includes(";") ? ";" : ",";
       const generador = celdasCsv([contenido], separador);
       filas = [];
       for await (const fila of generador) filas.push(fila);
-    } else redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
+    }
   } catch {
     redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
   }
@@ -185,11 +190,7 @@ export async function importarAseguradorasCotizacion(formData: FormData) {
 export async function guardarFeatureCotizacionIA(formData: FormData) {
   await requerirSesion();
   if (!process.env.ANTHROPIC_API_KEY) redirect("/agentes/cotizacion/configuracion?aviso=ia-sin-clave");
-  const activa = formData.get("iaActiva") === "on";
-  const [actual] = await db.select({ id: schema.orgFeatures.id }).from(schema.orgFeatures)
-    .where(and(isNull(schema.orgFeatures.orgId), eq(schema.orgFeatures.feature, "cotizacion_ia"))).limit(1);
-  if (actual) await db.update(schema.orgFeatures).set({ activa, actualizadoEl: new Date() }).where(eq(schema.orgFeatures.id, actual.id));
-  else await db.insert(schema.orgFeatures).values({ orgId: null, feature: "cotizacion_ia", activa });
+  await guardarInterruptorIACotizacion(formData.get("iaActiva") === "on");
   revalidatePath("/agentes/cotizacion");
   redirect("/agentes/cotizacion/configuracion?aviso=ia-guardada");
 }

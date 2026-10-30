@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { efectoEnSalud, ejecutarConCanales, ordenarCanales, pasaAlSiguiente, type IntentoCanal } from "./canales";
+import { canalesValidos, efectoEnSalud, ejecutarConCanales, ordenarCanales, pasaAlSiguiente, type IntentoCanal } from "./canales";
 import { autorizacion, conPermisos } from "./permisos";
-import { crearRegistroSimulado, RegistroConectores, simulacionHabilitada } from "./registro";
+import { claveCompania, crearRegistroSimulado, leerForzados, RegistroConectores, simulacionHabilitada } from "./registro";
 import { SimuladaApi } from "./simulada-api";
 import { SimuladaPortal } from "./simulada-portal";
 import { ErrorConector, type Capacidad, type ConectorCompania, type DenunciaSiniestro, type TipoConector } from "./tipos";
@@ -40,6 +40,22 @@ describe("ordenarCanales", () => {
     const salud = (c: ConectorCompania) => c.tipo === "api" ? { credencialVencida: true, portalCambiado: false } : c.tipo === "portal" ? { credencialVencida: false, portalCambiado: true } : undefined;
     expect(ordenarCanales([api, portal, archivo], "obtenerCuotas", salud)).toEqual([archivo]);
   });
+
+  it("con el orden de la compañía, solo esos canales y en ese orden", () => {
+    expect(ordenarCanales([archivo, portal, api], "obtenerCuotas", undefined, ["portal", "api"])).toEqual([portal, api]);
+    expect(ordenarCanales([archivo, portal, api], "obtenerCuotas", undefined, ["portal"])).toEqual([portal]);
+  });
+
+  it("una lista vacía deja solo el canal manual", () => {
+    expect(ordenarCanales([archivo, portal, api], "obtenerCuotas", undefined, [])).toEqual([]);
+  });
+});
+
+describe("canalesValidos", () => {
+  it("deja los canales conocidos, sin repetir y en su orden", () => {
+    expect(canalesValidos(["portal", "correo", "api", "portal", "API"])).toEqual(["portal", "api"]);
+    expect(canalesValidos([])).toEqual([]);
+  });
 });
 
 describe("ejecutarConCanales", () => {
@@ -63,6 +79,25 @@ describe("ejecutarConCanales", () => {
     expect(resultado.intentos).toHaveLength(2);
   });
 
+  it("respeta el orden de la compañía: el portal antes que la API", async () => {
+    let llamadasApi = 0;
+    const resultado = await ejecutarConCanales(
+      [conector("api", { obtenerCuotas: async () => { llamadasApi++; return []; } }), conector("portal", { obtenerCuotas: async () => [] })],
+      "obtenerCuotas",
+      ["P"],
+      { canales: ["portal", "api"] },
+    );
+    expect(resultado).toMatchObject({ ok: true, canal: "portal" });
+    expect(llamadasApi).toBe(0);
+  });
+
+  it("solo correo: no llama a ningún conector", async () => {
+    let llamadas = 0;
+    const api = conector("api", { obtenerCuotas: async () => { llamadas++; return []; } });
+    expect(await ejecutarConCanales([api], "obtenerCuotas", ["P"], { canales: [] })).toEqual({ ok: false, motivo: "manual", intentos: [] });
+    expect(llamadas).toBe(0);
+  });
+
   it("sin conectores también es manual", async () => {
     expect(await ejecutarConCanales([], "obtenerCuotas", ["P"])).toEqual({ ok: false, motivo: "manual", intentos: [] });
   });
@@ -71,7 +106,7 @@ describe("ejecutarConCanales", () => {
     const portal = new SimuladaPortal({ compania: "Sancor", hoy, demoraMs: 0, probabilidadFalla: 0, forzar: { datoExtra: true } });
     const otro = conector("archivo", { cotizar: async () => ({ estado: "cotizada" }) });
     const resultado = await ejecutarConCanales([portal, otro], "cotizar", [{ referencia: "S", ramo: "Auto", tipo: "nueva", riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS", vigenciaDesde: null }, []]);
-    expect(resultado).toMatchObject({ ok: false, motivo: "requiere_dato", canal: "portal", pregunta: expect.stringContaining("uso del vehículo") });
+    expect(resultado).toMatchObject({ ok: false, motivo: "requiere_dato", canal: "portal", campo: "uso", pregunta: expect.stringContaining("uso del vehículo") });
     expect(resultado.intentos).toHaveLength(1);
   });
 
@@ -172,6 +207,36 @@ describe("registro", () => {
     const pedido = await api.cotizar!({ referencia: "S", ramo: "Auto", tipo: "nueva", riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS", vigenciaDesde: null }, []);
     const [mismaApi] = registro.conectoresPara("Sancor");
     expect((await mismaApi.consultarCotizacion!(pedido.numero)).estado).toBe("cotizada");
+  });
+
+  it("dos registros con las mismas instancias (como las acciones y el cron) ven la misma cotización en dos pasos", async () => {
+    const compartidas = new Map();
+    const deLaAccion = crearRegistroSimulado({ api: { modo: "dos_pasos", hoy } }, compartidas);
+    const delCron = crearRegistroSimulado({ api: { modo: "dos_pasos", hoy } }, compartidas);
+    const pedido = await deLaAccion.conectoresPara("Sancor")[0].cotizar!({ referencia: "S", ramo: "Auto", tipo: "nueva", riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS", vigenciaDesde: null }, []);
+    expect((await delCron.conectoresPara("Sancor")[0].consultarCotizacion!(pedido.numero)).estado).toBe("cotizada");
+  });
+
+  it("CONECTORES_SIMULADOS_FORZAR: lo forzado por compañía, sin distinguir acentos ni mayúsculas", () => {
+    const forzados = leerForzados("Federación Patronal=falla; rivadavia = dato,dos_pasos;Sancor=ok;Mapfre=volar;=falla;La Segunda");
+    expect([...forzados.entries()]).toEqual([
+      ["federacion patronal", { falla: true }],
+      ["rivadavia", { dato: true, dosPasos: true }],
+      ["sancor", { ok: true }],
+    ]);
+    expect(leerForzados(undefined).size).toBe(0);
+    expect(claveCompania("  Federación   PATRONAL ")).toBe("federacion patronal");
+  });
+
+  it("con lo forzado, el portal falla o pide el dato siempre, y la conexión directa cotiza en dos pasos", async () => {
+    const registro = crearRegistroSimulado({ portal: { demoraMs: 0, hoy }, api: { hoy }, forzar: leerForzados("Federación Patronal=falla;Rivadavia=dato;Sancor=dos_pasos") });
+    const pedido = { referencia: "S", ramo: "Flota", tipo: "nueva" as const, riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS" as const, vigenciaDesde: null };
+    const portalDe = (compania: string) => registro.conectoresPara(compania).find((conector) => conector.tipo === "portal")!;
+    for (let vez = 0; vez < 3; vez++) await expect(portalDe("Federación Patronal").cotizar!(pedido, [])).rejects.toMatchObject({ codigo: "no_disponible" });
+    await expect(portalDe("Rivadavia").cotizar!(pedido, [])).rejects.toMatchObject({ codigo: "requiere_dato", campo: "uso" });
+    expect((await portalDe("Rivadavia").cotizar!({ ...pedido, riesgo: { uso: "particular" } }, [])).estado).toBe("cotizada");
+    const [apiSancor] = registro.conectoresPara("Sancor");
+    expect((await apiSancor.cotizar!(pedido, [])).estado).toBe("pendiente");
   });
 
   it("la simulación se prende con la variable y nunca en producción", () => {

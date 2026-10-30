@@ -1,6 +1,8 @@
 import { normalizar } from "@/fuentes/clasificacion";
 
 export type EstadoCotizacion = "atencion" | "esperando" | "lista" | "enviada" | "ganada" | "perdida";
+/** Lo que se muestra: el estado guardado, o "completada" si el productor la marcó así. */
+export type EstadoVisibleCotizacion = EstadoCotizacion | "completada";
 export type FiltroCotizacion = { q?: string; estado?: string; ramo?: string; origen?: string; ejecutivo?: string; desde?: string; hasta?: string };
 
 export type SolicitudParaLista = {
@@ -13,6 +15,7 @@ export type SolicitudParaLista = {
   cotizaciones: { compania: string; precio: number | null }[];
   ejecutivo?: string | null;
   creadoEl?: Date;
+  completadoEl?: Date | null;
 };
 
 export const ESTADOS_COTIZACION: { id: EstadoCotizacion; texto: string }[] = [
@@ -24,10 +27,29 @@ export const ESTADOS_COTIZACION: { id: EstadoCotizacion; texto: string }[] = [
   { id: "perdida", texto: "Perdida" },
 ];
 
+/** Los estados del filtro de la lista: los guardados más "Completada". */
+export const ESTADOS_VISIBLES_COTIZACION: { id: EstadoVisibleCotizacion; texto: string }[] = [
+  ...ESTADOS_COTIZACION,
+  { id: "completada", texto: "Completada" },
+];
+
+/**
+ * "Marcar completada" cierra la solicitud sin tocar su estado guardado. Ganada y perdida se
+ * siguen mostrando como tales; cualquier otra, como completada.
+ */
+export function estadoVisible(solicitud: { estado: EstadoCotizacion; completadoEl?: Date | null }): EstadoVisibleCotizacion {
+  return solicitud.completadoEl && solicitud.estado !== "ganada" && solicitud.estado !== "perdida" ? "completada" : solicitud.estado;
+}
+
+/** Ganada, perdida o completada: ya no está activa ni detenida. */
+export function estaCerrada(solicitud: { estado: EstadoCotizacion; completadoEl?: Date | null }): boolean {
+  return ["ganada", "perdida", "completada"].includes(estadoVisible(solicitud));
+}
+
 export function filtrarSolicitudes<T extends SolicitudParaLista>(solicitudes: T[], filtros: FiltroCotizacion): T[] {
   const q = normalizar(filtros.q?.trim() ?? "");
   return solicitudes.filter((solicitud) => {
-    if (filtros.estado && solicitud.estado !== filtros.estado) return false;
+    if (filtros.estado && estadoVisible(solicitud) !== filtros.estado) return false;
     if (filtros.ramo && solicitud.ramo !== filtros.ramo) return false;
     if (filtros.origen && solicitud.origen !== filtros.origen) return false;
     if (filtros.ejecutivo && solicitud.ejecutivo !== filtros.ejecutivo) return false;
@@ -44,11 +66,65 @@ export function mejorCotizacion(cotizaciones: { compania: string; precio: number
     .sort((a, b) => a.precio - b.precio)[0] ?? null;
 }
 
-export function resumenCotizacion(solicitudes: SolicitudParaLista[]) {
-  const mes = solicitudes.filter((solicitud) => !["ganada", "perdida"].includes(solicitud.estado));
+/** "Mejor precio" del comparativo: la menor prima total entre las respuestas que el productor confirmó. */
+export function mejorResultadoConfirmado<T extends { primaTotal: number; confirmado: boolean }>(resultados: T[]): T | null {
+  return resultados.filter((resultado) => resultado.confirmado).sort((a, b) => a.primaTotal - b.primaTotal)[0] ?? null;
+}
+
+/**
+ * La lista cuenta solo lo confirmado: el precio de una compañía cuya respuesta
+ * todavía espera la confirmación del productor queda como pendiente.
+ */
+export function soloConfirmadas<T extends { compania: string; precio: number | null }>(cotizaciones: T[], sinConfirmar: string[]): T[] {
+  return cotizaciones.map((cotizacion) => sinConfirmar.includes(cotizacion.compania) ? { ...cotizacion, precio: null } : cotizacion);
+}
+
+/** Un envío está cerrado cuando la compañía cotizó (y el productor confirmó), rechazó o falló. */
+export const ESTADOS_ENVIO_CERRADOS = ["cotizado", "rechazado", "error"] as const;
+
+/** Porcentaje de la solicitud completado: envíos cerrados sobre el total, redondeado. */
+export function porcentajeCerrados(envios: { estado: string }[]): number {
+  if (!envios.length) return 0;
+  const cerrados = envios.filter((envio) => (ESTADOS_ENVIO_CERRADOS as readonly string[]).includes(envio.estado)).length;
+  return Math.round((cerrados / envios.length) * 100);
+}
+
+export type RespuestaConfirmada ={ compania: string; precio: number; observacion?: string; origen: "portal" | "manual" };
+
+/** Suma una respuesta confirmada a la comparativa de la lista y recalcula el estado y la nota de la solicitud. */
+export function agregarRespuesta<T extends { compania: string; precio: number | null }>(
+  solicitud: { companias: string[]; cotizaciones: T[] },
+  respuesta: RespuestaConfirmada,
+  recibidaEl: string,
+): { cotizaciones: (T | (RespuestaConfirmada & { recibidaEl: string; estado: "recibida" }))[]; estado: EstadoCotizacion; nota: string; pendientes: string[] } {
+  const cotizaciones = [
+    ...solicitud.cotizaciones.filter((cotizacion) => cotizacion.compania !== respuesta.compania),
+    {
+      compania: respuesta.compania,
+      precio: respuesta.precio,
+      recibidaEl,
+      estado: "recibida" as const,
+      ...(respuesta.observacion ? { observacion: respuesta.observacion } : {}),
+      origen: respuesta.origen,
+    },
+  ];
+  const pendientes = solicitud.companias.filter(
+    (compania) => !cotizaciones.some((cotizacion) => cotizacion.compania === compania && cotizacion.precio !== null),
+  );
   return {
-    activas: mes.length,
-    atencion: solicitudes.filter((solicitud) => solicitud.estado === "atencion").length,
+    cotizaciones,
+    estado: pendientes.length ? "esperando" : "lista",
+    nota: pendientes.length
+      ? `Respuesta recibida de ${respuesta.compania}. Pendiente: ${pendientes.join(", ")}.`
+      : "Ya llegaron todas las respuestas; comparativa lista.",
+    pendientes,
+  };
+}
+
+export function resumenCotizacion(solicitudes: SolicitudParaLista[]) {
+  return {
+    activas: solicitudes.filter((solicitud) => !estaCerrada(solicitud)).length,
+    atencion: solicitudes.filter((solicitud) => estadoVisible(solicitud) === "atencion").length,
     delMes: solicitudes.length,
     recibidas: solicitudes.reduce(
       (total, solicitud) => total + solicitud.cotizaciones.filter((cotizacion) => cotizacion.precio !== null).length,

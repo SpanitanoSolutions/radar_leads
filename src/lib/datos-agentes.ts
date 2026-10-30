@@ -372,10 +372,16 @@ export async function obtenerDetalleCotizacion(id: number) {
     db.select().from(schema.cotizacionEventos).where(eq(schema.cotizacionEventos.solicitudId, id)).orderBy(desc(schema.cotizacionEventos.fecha)),
   ]);
   const envioIds = envios.map((envio) => envio.id);
-  const resultados = envioIds.length
-    ? await db.select().from(schema.cotizacionResultados).where(inArray(schema.cotizacionResultados.envioId, envioIds))
-    : [];
-  return { solicitud, asegurado, lead, envios, archivos, propuestas, eventos, resultados };
+  const paqueteIds = [...new Set(envios.flatMap((envio) => envio.paqueteId == null ? [] : [envio.paqueteId]))];
+  const [resultados, paquetes] = await Promise.all([
+    envioIds.length
+      ? db.select().from(schema.cotizacionResultados).where(inArray(schema.cotizacionResultados.envioId, envioIds))
+      : Promise.resolve([]),
+    paqueteIds.length
+      ? db.select({ id: schema.cotizacionPaquetes.id, nombre: schema.cotizacionPaquetes.nombre }).from(schema.cotizacionPaquetes).where(inArray(schema.cotizacionPaquetes.id, paqueteIds))
+      : Promise.resolve([]),
+  ]);
+  return { solicitud, asegurado, lead, envios, archivos, propuestas, eventos, resultados, paquetes };
 }
 
 export async function obtenerAseguradorasCotizacion() {
@@ -388,11 +394,24 @@ export async function obtenerEnviosCotizacion() {
   return db.select().from(schema.cotizacionEnvios).orderBy(desc(schema.cotizacionEnvios.creadoEl));
 }
 
+/** Compañías de cada solicitud cuya respuesta todavía espera la confirmación del productor. */
+export async function obtenerRespuestasSinConfirmar(): Promise<Map<number, string[]>> {
+  await connection();
+  const filas = await db
+    .select({ solicitudId: schema.cotizacionEnvios.solicitudId, compania: schema.cotizacionEnvios.compania })
+    .from(schema.cotizacionResultados)
+    .innerJoin(schema.cotizacionEnvios, eq(schema.cotizacionEnvios.id, schema.cotizacionResultados.envioId))
+    .where(eq(schema.cotizacionResultados.confirmado, false));
+  const porSolicitud = new Map<number, string[]>();
+  for (const { solicitudId, compania } of filas) porSolicitud.set(solicitudId, [...(porSolicitud.get(solicitudId) ?? []), compania]);
+  return porSolicitud;
+}
+
 export async function obtenerMetricasCotizacion() {
   await connection();
   const [envios, solicitudes, resultados] = await Promise.all([
     db.select().from(schema.cotizacionEnvios),
-    db.select({ id: schema.solicitudesCotizacion.id, productor: schema.solicitudesCotizacion.ejecutivo, creadoEl: schema.solicitudesCotizacion.creadoEl, estado: schema.solicitudesCotizacion.estado, actualizadoEl: schema.solicitudesCotizacion.actualizadoEl }).from(schema.solicitudesCotizacion),
+    db.select({ id: schema.solicitudesCotizacion.id, productor: schema.solicitudesCotizacion.ejecutivo, creadoEl: schema.solicitudesCotizacion.creadoEl, estado: schema.solicitudesCotizacion.estado, actualizadoEl: schema.solicitudesCotizacion.actualizadoEl, completadoEl: schema.solicitudesCotizacion.completadoEl }).from(schema.solicitudesCotizacion),
     db.select().from(schema.cotizacionResultados),
   ]);
   const solicitudesPorId = new Map(solicitudes.map((solicitud) => [solicitud.id, solicitud]));

@@ -2,20 +2,22 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
-import { estadoIAcotizacion } from "@/lib/ia/cotizacion";
+import { estadoIACotizacion } from "@/agentes/cotizacion/ia";
+import { listarCredenciales } from "@/lib/conectores/credenciales";
+import { ALCANCE_CREDENCIALES } from "@/lib/cotizacion/credenciales";
 import { guardarAseguradoraCotizacion, guardarConfiguracionCotizacion, guardarPaqueteCotizacion, guardarCredencialPortal, importarAseguradorasCotizacion, guardarFeatureCotizacionIA } from "./actions";
 import "../../agentes.css";
 
 export default async function ConfiguracionCotizacion({ searchParams }: { searchParams: Promise<{ aviso?: string }> }) {
   await connection();
-  const [{ aviso }, aseguradoras, paquetes, configuraciones, conexiones, estadoIA] = await Promise.all([
+  const [{ aviso }, aseguradoras, paquetes, configuraciones, credenciales, estadoIA] = await Promise.all([
     searchParams,
     db.select().from(schema.cotizacionAseguradoras).orderBy(schema.cotizacionAseguradoras.nombre),
     db.select({ paquete: schema.cotizacionPaquetes, aseguradora: schema.cotizacionAseguradoras.nombre })
       .from(schema.cotizacionPaquetes).innerJoin(schema.cotizacionAseguradoras, eq(schema.cotizacionAseguradoras.id, schema.cotizacionPaquetes.aseguradoraId)),
     db.select().from(schema.cotizacionConfig).limit(1),
-    db.select({ clave: schema.conexiones.clave, estado: schema.conexiones.estado, datos: schema.conexiones.datos }).from(schema.conexiones).where(eq(schema.conexiones.tipo, "portal")),
-    estadoIAcotizacion(),
+    listarCredenciales(ALCANCE_CREDENCIALES),
+    estadoIACotizacion(),
   ]);
   const config = configuraciones[0];
   const nombresAviso: Record<string, string> = {
@@ -26,9 +28,9 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
     "aseguradora-guardada": "Guardaste la aseguradora.",
     "paquete-invalido": "Revisá los datos del paquete.",
     "paquete-guardado": "Guardaste el paquete.",
-    "clave-cifrado-faltante": "No se guardaron las credenciales: falta configurar la clave de cifrado en el servidor.",
+    "clave-cifrado-faltante": "No se guardó la clave: falta configurar la clave de cifrado en el servidor (CREDENCIALES_PORTAL_KEY).",
     "credencial-invalida": "Completá la compañía, el usuario y la clave.",
-    "credencial-guardada": "Guardamos las credenciales cifradas. El portal sigue simulado.",
+    "credencial-guardada": "Guardamos la clave cifrada. El portal sigue simulado.",
     "archivo-catalogo-invalido": "Subí un CSV o Excel de hasta 5 MB con aseguradora y ramo.",
     "encabezados-catalogo-invalidos": "El archivo debe tener columnas Aseguradora y Ramos.",
     "datos-catalogo-invalidos": "Revisá que cada fila tenga nombre, ramos y un canal válido (correo, portal o ambos).",
@@ -80,8 +82,8 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
           <label>Plantilla del correo<textarea name="plantillaCuerpo" defaultValue={config?.plantillaCuerpo ?? "Buenos días. Solicitamos una propuesta para {cliente}, CUIT {cuit}, ramo {ramo}. Productor: {productor}. Organización: {organizacion}. Moneda: {moneda}. Forma de pago: {forma_de_pago}."} rows={5} maxLength={5000} /></label>
           <label>Instrucciones fijas<textarea name="instruccionesCuerpo" defaultValue={config?.instruccionesCuerpo ?? ""} rows={2} maxLength={2000} /></label>
           <label>Cuenta saliente<input name="cuentaSaliente" type="email" defaultValue={config?.cuentaSaliente ?? ""} maxLength={254} /></label>
-          <label className="cotizacion-check"><input name="cotizarAutomaticamente" type="checkbox" defaultChecked={config?.cotizarAutomaticamente ?? false} /> Seleccionar todas las aseguradoras activas del ramo al crear una solicitud</label>
-          <p className="texto-suave">Aunque esta opción esté activa, nunca se manda un correo sin que lo apruebes.</p>
+          <label className="cotizacion-check"><input name="cotizarAutomaticamente" type="checkbox" defaultChecked={config?.cotizarAutomaticamente ?? false} /> Cotizar automáticamente: al crear una solicitud, el agente pide la cotización por conexión directa o portal a las compañías conectadas</label>
+          <p className="texto-suave">Aunque esta opción esté activa, nunca se manda un correo sin que lo apruebes. Sin ella, el agente cotiza cuando tocás “Aprobar y cotizar” en la solicitud.</p>
           <label className="cotizacion-check"><input name="agenteActivo" type="checkbox" defaultChecked={config?.agenteActivo ?? false} /> Activar la preparación de seguimientos</label>
           <button className="boton boton-primario">Guardar configuración</button>
         </form>
@@ -89,10 +91,10 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
 
       <section className="tarjeta cotizacion-ajuste-seccion">
         <h2>Asistencia con IA</h2>
-        <p>{estadoIA.motivo === "sin_clave" ? "Para habilitarla, configurá ANTHROPIC_API_KEY en el servidor." : estadoIA.habilitada ? "Activa para redactar borradores, responder consultas y extraer datos de cotizaciones." : "Desactivada para esta organización."}</p>
+        <p>{estadoIA.motivo === "sin_clave" ? "Para habilitarla, configurá ANTHROPIC_API_KEY en el servidor." : estadoIA.motivo === "sin_cuota" ? "Activa, pero se llegó al tope de gasto de IA de este mes: vuelve el mes que viene." : estadoIA.habilitada ? "Activa para mejorar los correos, responder consultas y leer las cotizaciones en PDF." : "Desactivada."}</p>
         <form action={guardarFeatureCotizacionIA} className="cotizacion-ajuste-form">
-          <label className="cotizacion-check"><input name="iaActiva" type="checkbox" defaultChecked={estadoIA.habilitada} disabled={estadoIA.motivo === "sin_clave"} /> Activar IA para Cotización</label>
-          <p className="texto-suave">Los datos de la solicitud solo pasan por el proveedor de IA detrás de la capa propia. El agente propone; vos confirmás. Cada resultado registra modelo, tokens y costo estimado.</p>
+          <label className="cotizacion-check"><input name="iaActiva" type="checkbox" defaultChecked={estadoIA.motivo === "activa" || estadoIA.motivo === "sin_cuota"} disabled={estadoIA.motivo === "sin_clave"} /> Activar IA para Cotización</label>
+          <p className="texto-suave">El agente propone y vos confirmás: lo que lee de un PDF no cuenta hasta que lo revisás, y los correos siguen esperando tu aprobación. Lo que gasta entra en el tope mensual de IA de la cuenta.</p>
           <button className="boton">Guardar preferencia de IA</button>
         </form>
       </section>
@@ -112,16 +114,16 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
       </section>
 
       <section className="tarjeta cotizacion-ajuste-seccion">
-        <h2>Portales</h2><p>Guardar credenciales no conecta el portal. Esta pantalla mantiene la clave cifrada con AES-GCM; el adaptador sigue simulado.</p>
+        <h2>Portales</h2><p>Guardar la clave no conecta el portal todavía: las conexiones con las compañías siguen simuladas. La clave se guarda cifrada y es la misma que usa el Validador.</p>
         {aseguradoras.filter((aseguradora) => aseguradora.canal !== "correo").map((aseguradora) => {
-          const conexion = conexiones.find((item) => item.clave === `portal:${aseguradora.nombre}`);
+          const credencial = credenciales.find((item) => item.compania === aseguradora.nombre);
           return <div key={aseguradora.id} className="cotizacion-portal-credencial">
-            <p><strong>{aseguradora.nombre}</strong> · {conexion?.datos.credencialesCifradas ? "credenciales guardadas" : "sin credenciales"} · conexión simulada</p>
+            <p><strong>{aseguradora.nombre}</strong> · {credencial ? `clave guardada para ${credencial.usuario}${credencial.estado === "activa" ? "" : credencial.estado === "vencida" ? " (vencida)" : " (desactivada)"}` : "sin clave"} · conexión simulada</p>
             <form action={guardarCredencialPortal} className="cotizacion-ajuste-form">
               <input type="hidden" name="compania" value={aseguradora.nombre} />
               <label>Usuario<input name="usuario" autoComplete="off" maxLength={200} required /></label>
               <label>Clave<input name="clavePortal" type="password" autoComplete="new-password" maxLength={1000} required /></label>
-              <button className="boton">Guardar cifrada</button>
+              <button className="boton">{credencial ? "Cambiar usuario y clave" : "Guardar cifrada"}</button>
             </form>
           </div>;
         })}

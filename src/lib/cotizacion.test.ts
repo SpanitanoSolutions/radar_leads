@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filtrarSolicitudes, interpretarEstrategiaSeguimiento, mejorCotizacion, resumenCotizacion, sumarDiasHabiles, validarCuitCuil, validarDatosRiesgo, validarCotizacionContraSolicitud, type SolicitudParaLista } from "./cotizacion";
+import { agregarRespuesta, estadoVisible, estaCerrada, filtrarSolicitudes, interpretarEstrategiaSeguimiento, mejorCotizacion, mejorResultadoConfirmado, porcentajeCerrados, resumenCotizacion, soloConfirmadas, sumarDiasHabiles, validarCuitCuil, validarDatosRiesgo, validarCotizacionContraSolicitud, type SolicitudParaLista } from "./cotizacion";
 
 const solicitudes: SolicitudParaLista[] = [
   { numero: 1042, cliente: "Gómez, Lucía", ramo: "Auto", bien: "Peugeot 208", origen: "whatsapp", estado: "lista", cotizaciones: [{ compania: "Sancor", precio: 912000 }, { compania: "Mapfre", precio: 958000 }] },
@@ -22,8 +22,61 @@ describe("cotización", () => {
     expect(mejorCotizacion([{ compania: "Sancor", precio: null }])).toBeNull();
   });
 
+  it("el mejor precio sale solo de las respuestas confirmadas", () => {
+    const resultados = [
+      { envioId: 1, primaTotal: 800_000, confirmado: false },
+      { envioId: 2, primaTotal: 912_000, confirmado: true },
+      { envioId: 3, primaTotal: 958_000, confirmado: true },
+    ];
+    expect(mejorResultadoConfirmado(resultados)?.envioId).toBe(2);
+    expect(mejorResultadoConfirmado([{ envioId: 1, primaTotal: 800_000, confirmado: false }])).toBeNull();
+  });
+
+  it("la lista deja como pendiente el precio que falta confirmar", () => {
+    const cotizaciones = [{ compania: "Sancor", precio: 800_000 }, { compania: "Mapfre", precio: 958_000 }];
+    const lista = soloConfirmadas(cotizaciones, ["Sancor"]);
+    expect(lista).toEqual([{ compania: "Sancor", precio: null }, { compania: "Mapfre", precio: 958_000 }]);
+    expect(mejorCotizacion(lista)).toEqual({ compania: "Mapfre", precio: 958_000 });
+    expect(soloConfirmadas(cotizaciones, [])).toEqual(cotizaciones);
+  });
+
+  it("al confirmar una respuesta recalcula la comparativa, el estado y la nota", () => {
+    const solicitud = { companias: ["Sancor", "Mapfre"], cotizaciones: [{ compania: "Sancor", precio: null }, { compania: "Mapfre", precio: null }] };
+    const primera = agregarRespuesta(solicitud, { compania: "Sancor", precio: 912_000, origen: "manual" }, "2026-10-30T13:00:00.000Z");
+    expect(primera.estado).toBe("esperando");
+    expect(primera.pendientes).toEqual(["Mapfre"]);
+    expect(primera.nota).toBe("Respuesta recibida de Sancor. Pendiente: Mapfre.");
+    expect(primera.cotizaciones).toContainEqual({ compania: "Sancor", precio: 912_000, recibidaEl: "2026-10-30T13:00:00.000Z", estado: "recibida", origen: "manual" });
+    const segunda = agregarRespuesta({ companias: solicitud.companias, cotizaciones: primera.cotizaciones }, { compania: "Mapfre", precio: 958_000, observacion: "Con granizo", origen: "portal" }, "2026-10-30T14:00:00.000Z");
+    expect(segunda.estado).toBe("lista");
+    expect(segunda.nota).toBe("Ya llegaron todas las respuestas; comparativa lista.");
+    expect(segunda.cotizaciones.filter((cotizacion) => cotizacion.compania === "Mapfre")).toHaveLength(1);
+  });
+
+  it("el porcentaje del detalle cuenta los envíos cerrados: cotizados, rechazados y con error", () => {
+    expect(porcentajeCerrados([{ estado: "cotizado" }, { estado: "rechazado" }, { estado: "error" }, { estado: "enviado" }])).toBe(75);
+    expect(porcentajeCerrados([{ estado: "cotizado" }, { estado: "en_seguimiento" }, { estado: "requiere_atencion" }])).toBe(33);
+    expect(porcentajeCerrados([{ estado: "pendiente" }])).toBe(0);
+    expect(porcentajeCerrados([])).toBe(0);
+  });
+
   it("cuenta solicitudes activas, atención, cotizaciones y cierres", () => {
     expect(resumenCotizacion(solicitudes)).toEqual({ activas: 4, atencion: 1, delMes: 5, recibidas: 5, ganadas: 1, cerradas: 1 });
+  });
+
+  it("una solicitud completada cuenta como cerrada sin perder su estado guardado", () => {
+    const completada = { ...solicitudes[2], completadoEl: new Date("2026-10-30T15:00:00Z") };
+    expect(completada.estado).toBe("atencion");
+    expect(estadoVisible(completada)).toBe("completada");
+    expect(estaCerrada(completada)).toBe(true);
+    // Ganada y perdida se siguen mostrando como tales aunque también estén completadas.
+    expect(estadoVisible({ ...solicitudes[4], completadoEl: new Date() })).toBe("ganada");
+    expect(estaCerrada(solicitudes[1])).toBe(false);
+
+    const conCompletada = [...solicitudes.filter((s) => s.numero !== 1040), completada];
+    expect(resumenCotizacion(conCompletada)).toMatchObject({ activas: 3, atencion: 0, delMes: 5 });
+    expect(filtrarSolicitudes(conCompletada, { estado: "completada" }).map((s) => s.numero)).toEqual([1040]);
+    expect(filtrarSolicitudes(conCompletada, { estado: "atencion" })).toEqual([]);
   });
 
   it("valida CUIT/CUIL argentino y datos obligatorios del riesgo", () => {

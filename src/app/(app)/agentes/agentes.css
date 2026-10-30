@@ -1941,7 +1941,8 @@
   background: var(--verde-suave);
   color: var(--verde-texto);
 }
-.cotizacion-estado.perdida {
+.cotizacion-estado.perdida,
+.cotizacion-estado.completada {
   background: var(--gris-suave);
   color: var(--etiqueta);
 }
@@ -2098,6 +2099,17 @@
 }
 .cotizacion-botones-borrador form {
   margin: 0;
+}
+.cotizacion-dato {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 6px;
+  margin-top: 6px;
+}
+.cotizacion-dato label {
+  display: grid;
+  gap: 2px;
 }
 .cotizacion-detalle {
   display: grid;

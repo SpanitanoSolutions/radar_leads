@@ -65,9 +65,10 @@ export function rankingProductores(envios: EnvioParaMetricas[]) {
   }).sort((a, b) => b.solicitudes - a.solicitudes || a.productor.localeCompare(b.productor, "es"));
 }
 
-export function solicitudesDetenidas<T extends { estado: string; actualizadoEl: Date }>(solicitudes: T[], ahora: Date, limiteHoras = 48): T[] {
+/** Activas sin movimiento hace más de `limiteHoras`. Las completadas cuentan como cerradas. */
+export function solicitudesDetenidas<T extends { estado: string; actualizadoEl: Date; completadoEl?: Date | null }>(solicitudes: T[], ahora: Date, limiteHoras = 48): T[] {
   return solicitudes
-    .filter((solicitud) => !["ganada", "perdida", "enviada"].includes(solicitud.estado)
+    .filter((solicitud) => !solicitud.completadoEl && !["ganada", "perdida", "enviada"].includes(solicitud.estado)
       && ahora.getTime() - solicitud.actualizadoEl.getTime() >= limiteHoras * 3_600_000)
     .sort((a, b) => a.actualizadoEl.getTime() - b.actualizadoEl.getTime());
 }

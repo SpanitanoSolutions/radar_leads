@@ -13,6 +13,7 @@ import { portal } from "@/conexiones/portal";
 import { whatsapp } from "@/conexiones/whatsapp";
 import { requerirSesion } from "@/lib/auth";
 import { AJUSTES_POR_DEFECTO } from "@/lib/datos";
+import { provinciaValida } from "@/lib/provincias";
 
 const texto = (formData: FormData, campo: string, max = 120) => String(formData.get(campo) ?? "").trim().slice(0, max);
 
@@ -117,6 +118,7 @@ export async function guardarCuenta(_previo: EstadoFormulario, formData: FormDat
     productorOrganizacion: texto(formData, "organizacion") || null,
     productorTelefono: texto(formData, "telefono", 40) || null,
     productorEmail: correo || null,
+    provincia: provinciaValida(texto(formData, "provincia")),
     actualizadoEl: new Date(),
   };
   const cambios = {

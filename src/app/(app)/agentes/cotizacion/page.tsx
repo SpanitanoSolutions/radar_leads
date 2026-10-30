@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { EncabezadoAgente, Bitacora } from "@/components/agentes/Agente";
 import { obtenerCuenta, obtenerConexiones } from "@/lib/datos";
-import { agenteConfigurado, obtenerActividad, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
-import { mejorCotizacion, filtrarSolicitudes, resumenCotizacion, ESTADOS_COTIZACION } from "@/lib/cotizacion";
+import { agenteConfigurado, obtenerActividad, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerRespuestasSinConfirmar, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
+import { estadoVisible, estaCerrada, mejorCotizacion, filtrarSolicitudes, resumenCotizacion, soloConfirmadas, ESTADOS_COTIZACION, ESTADOS_VISIBLES_COTIZACION } from "@/lib/cotizacion";
 import { diaEnArgentina } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
 import { metricasPorAseguradora, rankingProductores, solicitudesDetenidas } from "@/lib/cotizacion/metricas";
 import { actualizarSolicitud, aprobarEnvioCotizacion, cargarResultadoCotizacion, omitirBorradorCotizacion } from "./actions";
+import { estadoEnvioVisible } from "@/lib/cotizacion/orquestador";
 import "../agentes.css";
 
 export const instant = false;
@@ -30,7 +31,9 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   "resultado-cotizacion-guardado": { texto: "Guardamos la respuesta y actualizamos la comparativa." },
   "resultado-cotizacion-invalido": { texto: "Ingresá una compañía y un precio anual mayor que cero.", error: true },
   "error-resultado-cotizacion": { texto: "No pudimos guardar esa respuesta. Revisá si la solicitud sigue abierta y si la compañía pertenece a ella.", error: true },
-  "envio-aprobado": { texto: "Aprobaste el borrador. La salida quedó registrada como simulada." },
+  "envio-aprobado": { texto: "Aprobaste el correo y salió desde tu correo conectado." },
+  "correo-enviado": { texto: "Salió el correo que habías aprobado." },
+  "envio-aprobado-sin-enviar": { texto: "Aprobaste el correo, pero no salió: falta conectar tu correo en Configuración → Conexiones o cargar el contacto de la compañía. En el detalle de la solicitud está el motivo y el botón “Enviar ahora”.", error: true },
   "borrador-omitido": { texto: "Omitiste el borrador; no se envió nada." },
   "borrador-no-disponible": { texto: "Ese borrador ya no está pendiente de aprobación.", error: true },
   "envio-invalido": { texto: "No encontramos ese envío.", error: true },
@@ -84,7 +87,7 @@ export default async function Cotizacion({
   const ejecutivo = typeof sp.ejecutivo === "string" ? sp.ejecutivo : "";
   const desde = typeof sp.desde === "string" ? sp.desde : "";
   const hasta = typeof sp.hasta === "string" ? sp.hasta : "";
-  const [registros, actividad, activo, conexiones, cuenta, enviosCotizacion, datosMetricas] = await Promise.all([
+  const [registros, actividad, activo, conexiones, cuenta, enviosCotizacion, datosMetricas, sinConfirmar] = await Promise.all([
     obtenerSolicitudesCotizacion(),
     tab === "bitacora" ? obtenerActividad("cotizacion") : Promise.resolve([]),
     agenteConfigurado("cotizacion"),
@@ -92,15 +95,20 @@ export default async function Cotizacion({
     obtenerCuenta(),
     obtenerEnviosCotizacion(),
     tab === "desempeno" ? obtenerMetricasCotizacion() : Promise.resolve({ envios: [], solicitudes: [] }),
+    obtenerRespuestasSinConfirmar(),
   ]);
-  const solicitudes = registros.map(({ solicitud, asegurado, lead }) => ({
-    ...solicitud,
-    cliente: asegurado ?? lead ?? solicitud.cliente,
-    relacion: asegurado ? `Asegurado · ${solicitud.tipo}` : lead ? "Prospecto · desde Leads" : `Contacto · ${solicitud.tipo}`,
-    origenTexto: nombreOrigen(solicitud.origen),
-    mejor: mejorCotizacion(solicitud.cotizaciones),
-    respuestas: solicitud.cotizaciones.filter((cotizacion) => cotizacion.precio !== null).length,
-  }));
+  const solicitudes = registros.map(({ solicitud, asegurado, lead }) => {
+    const cotizaciones = soloConfirmadas(solicitud.cotizaciones, sinConfirmar.get(solicitud.id) ?? []);
+    return {
+      ...solicitud,
+      cotizaciones,
+      cliente: asegurado ?? lead ?? solicitud.cliente,
+      relacion: asegurado ? `Asegurado · ${solicitud.tipo}` : lead ? "Prospecto · desde Leads" : `Contacto · ${solicitud.tipo}`,
+      origenTexto: nombreOrigen(solicitud.origen),
+      mejor: mejorCotizacion(cotizaciones),
+      respuestas: cotizaciones.filter((cotizacion) => cotizacion.precio !== null).length,
+    };
+  });
   const mesSolicitudes = solicitudes.filter((solicitud) => solicitud.creadoEl >= desdeInicioDeMes());
   const kpis = resumenCotizacion(mesSolicitudes);
   const filtradas = filtrarSolicitudes(solicitudes, { q, estado, ramo, origen, ejecutivo, desde, hasta });
@@ -194,7 +202,7 @@ export default async function Cotizacion({
               <label className="visualmente-oculto" htmlFor="cotizacion-q">Buscar cliente o número</label>
               <input id="cotizacion-q" type="search" name="q" defaultValue={q} placeholder="Buscar cliente o número" />
               <label className="visualmente-oculto" htmlFor="cotizacion-estado">Estado</label>
-              <select id="cotizacion-estado" name="estado" defaultValue={estado}><option value="">Todos los estados</option>{estados.map((e) => <option key={e.id} value={e.id}>{e.texto}</option>)}</select>
+              <select id="cotizacion-estado" name="estado" defaultValue={estado}><option value="">Todos los estados</option>{ESTADOS_VISIBLES_COTIZACION.map((e) => <option key={e.id} value={e.id}>{e.texto}</option>)}</select>
               <label className="visualmente-oculto" htmlFor="cotizacion-ramo">Ramo</label>
               <select id="cotizacion-ramo" name="ramo" defaultValue={ramo}><option value="">Todos los ramos</option>{ramos.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <label className="visualmente-oculto" htmlFor="cotizacion-origen">Origen</label>
@@ -213,7 +221,8 @@ export default async function Cotizacion({
                 <tbody>
                   {filtradas.map((solicitud) => {
                     const porcentaje = solicitud.companias.length ? Math.round((solicitud.respuestas / solicitud.companias.length) * 100) : 0;
-                    const estadoSolicitud = estados.find((item) => item.id === solicitud.estado);
+                    const visible = estadoVisible(solicitud);
+                    const estadoSolicitud = ESTADOS_VISIBLES_COTIZACION.find((item) => item.id === visible);
                     return (
                       <tr key={solicitud.id}>
                         <td><Link href={`/agentes/cotizacion/${solicitud.id}`}><strong>{solicitud.numero}</strong></Link></td>
@@ -233,13 +242,13 @@ export default async function Cotizacion({
                                 return (
                                   <section key={compania}>
                                     <strong>{compania}</strong>
-                                    {cotizacion ? <p>{pesos(cotizacion.precio!)}{cotizacion.recibidaEl ? ` · recibida ${cotizacion.recibidaEl.slice(0, 10)}` : ""}</p> : envio?.estadoBorrador === "pendiente" ? <p>Borrador pendiente de tu aprobación.</p> : envio?.estadoBorrador === "omitido" ? <p>Omitido; no se envió nada.</p> : envio?.estado === "enviado" ? <p>Salida simulada aprobada; esperando respuesta.</p> : resultado?.estado === "error" ? <p role="alert">No se envió el pedido.</p> : <p>Pendiente</p>}
+                                    {cotizacion ? <p>{pesos(cotizacion.precio!)}{cotizacion.recibidaEl ? ` · recibida ${cotizacion.recibidaEl.slice(0, 10)}` : ""}</p> : sinConfirmar.get(solicitud.id)?.includes(compania) ? <p>Llegó una respuesta que falta confirmar. <Link href={`/agentes/cotizacion/${solicitud.id}?tab=cotizaciones`}>Revisala en el detalle</Link>.</p> : envio?.estadoBorrador === "pendiente" ? <p>Borrador pendiente de tu aprobación.</p> : envio?.estadoBorrador === "omitido" && !envio.canalUsado ? <p>Omitido; no se envió nada.</p> : envio ? <p>{[estadoEnvioVisible(envio).texto, estadoEnvioVisible(envio).detalle].filter(Boolean).join(". ")}</p> : resultado?.estado === "error" ? <p role="alert">No se envió el pedido.</p> : <p>Pendiente</p>}
                                     {cotizacion?.observacion && <p>{cotizacion.observacion}</p>}
                                     {envio?.estadoBorrador === "pendiente" && <div className="cotizacion-botones-borrador">
                                       <form action={aprobarEnvioCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton boton-primario">Aprobar borrador</button></form>
                                       <form action={omitirBorradorCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Omitir</button></form>
                                     </div>}
-                                    {["ganada", "perdida"].includes(solicitud.estado) ? <p>Solicitud cerrada.</p> : (
+                                    {estaCerrada(solicitud) ? <p>Solicitud cerrada.</p> : (
                                       <form action={cargarResultadoCotizacion}>
                                         <input type="hidden" name="solicitudId" value={solicitud.id} />
                                         <input type="hidden" name="compania" value={compania} />
@@ -261,7 +270,7 @@ export default async function Cotizacion({
                         </td>
                         <td className="numero">{solicitud.mejor ? <><strong>{pesos(solicitud.mejor.precio)}</strong><span className="cotizacion-relacion">{solicitud.mejor.compania}</span></> : "—"}</td>
                         <td>
-                          <span className={`pastilla cotizacion-estado ${solicitud.estado}`}>{estadoSolicitud?.texto ?? solicitud.estado}</span>
+                          <span className={`pastilla cotizacion-estado ${visible}`}>{estadoSolicitud?.texto ?? visible}</span>
                           {solicitud.nota && <span className="cotizacion-relacion">{solicitud.nota}</span>}
                           <details className="cotizacion-actualizar">
                             <summary>Actualizar</summary>

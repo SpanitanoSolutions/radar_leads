@@ -23,9 +23,6 @@ const ACTIVA: ConfiguracionIA = { activa: true, proveedor: null, modelo: null, l
 function proveedorFalso(respuestas: (Partial<RespuestaEstructuradaIA> | Error)[]) {
   const pedidos: SolicitudIA[] = [];
   const proveedor: ProveedorIA = {
-    async generar() {
-      throw new Error("no se usa");
-    },
     async generarEstructurado(solicitud) {
       pedidos.push(solicitud);
       const respuesta = respuestas[pedidos.length - 1];

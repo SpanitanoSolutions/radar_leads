@@ -34,20 +34,6 @@ function textoDe(bloques: { type: string; text?: string }[]): string {
 
 /** Único lugar de la aplicación que usa el SDK de Anthropic. */
 export class ProveedorClaude implements ProveedorIA {
-  async generar(solicitud: SolicitudIA) {
-    const modelo = solicitud.modelo || process.env.ANTHROPIC_MODEL_COTIZACION || MODELO_POR_DEFECTO;
-    const respuesta = await cliente().messages.create({
-      model: modelo,
-      max_tokens: solicitud.maxTokens ?? 1200,
-      system: solicitud.system,
-      messages: [{ role: "user", content: contenido(solicitud) }],
-    });
-    const texto = textoDe(respuesta.content);
-    const tokensEntrada = respuesta.usage.input_tokens;
-    const tokensSalida = respuesta.usage.output_tokens;
-    return { texto, modelo, tokensEntrada, tokensSalida, costoUsd: estimarCostoIA(modelo, tokensEntrada, tokensSalida) };
-  }
-
   /**
    * Pide la salida como JSON con el esquema (salidas estructuradas). No la
    * valida: `datos` vuelve tal cual o null si no es JSON, y el motor la valida

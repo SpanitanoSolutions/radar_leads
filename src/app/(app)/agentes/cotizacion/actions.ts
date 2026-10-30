@@ -4,13 +4,16 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
-import { crearSolicitud, registrarResultadoCotizacion, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
+import { confirmarResultadoCotizacion, crearSolicitud, registrarResultadoCotizacion, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
 import type { EstadoCotizacion } from "@/lib/cotizacion";
 import { requerirSesion } from "@/lib/auth";
-import { validarDatosRiesgo } from "@/lib/cotizacion";
-import { adaptadorSalidaCotizacion } from "@/conexiones/cotizacion";
-import { calcularProximoSeguimiento, feriadosNacionalesArgentina } from "@/lib/cotizacion/seguimientos";
-import { extraerCotizacionPdfIA, generarChatCotizacionIA, redactarCorreoCotizacionIA } from "@/lib/ia/cotizacion";
+import { mejorResultadoConfirmado, validarDatosRiesgo } from "@/lib/cotizacion";
+import { aprobarCorreoCotizacion, reenviarCorreoCotizacion, type ResultadoCorreo } from "@/agentes/cotizacion/correo";
+import { encolarLecturaPdf, redactarCorreoCotizacion, responderChatCotizacion, type ResultadoIACotizacion } from "@/agentes/cotizacion/ia";
+import { autorizarCotizacion, despacharCotizaciones } from "@/agentes/cotizacion/cotizar";
+import { responderDatoPedido } from "@/agentes/cotizacion/orquestador";
+import { despachadorTrabajos } from "@/lib/ia/manejadores";
+import type { MotivoSinIA } from "@/lib/ia/motor";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
 
 const ESTADOS: EstadoCotizacion[] = ["atencion", "esperando", "lista", "enviada", "ganada", "perdida"];
@@ -123,43 +126,72 @@ export async function nuevaSolicitud(formData: FormData) {
   volver(`solicitud-${numero}`, "?tab=solicitudes");
 }
 
+/** Después de aprobar u omitir: al detalle si el botón estaba ahí, y si no a la lista. */
+function volverDelCorreo(formData: FormData, solicitudId: number | null, aviso: string): never {
+  revalidatePath("/agentes/cotizacion");
+  if (solicitudId && mensajeDe(formData, "volverDetalle") === "on") {
+    revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+    redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);
+  }
+  volver(aviso, "?tab=solicitudes");
+}
+
+/** El correo aprobado sale por la salida común; sin el correo de la cuenta conectado queda aprobado y sin enviar. */
 export async function aprobarEnvioCotizacion(formData: FormData) {
   await requerirSesion();
   const envioId = Number(mensajeDe(formData, "envioId"));
   if (!Number.isInteger(envioId) || envioId <= 0) volver("envio-invalido", "?tab=solicitudes");
-  try {
-    const [envio] = await db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.id, envioId));
-    if (!envio || envio.estadoBorrador !== "pendiente" || !envio.asuntoBorrador || !envio.cuerpoBorrador) volver("borrador-no-disponible", "?tab=solicitudes");
-    const [[solicitud], [config]] = await Promise.all([
-      db.select({ ramo: schema.solicitudesCotizacion.ramo }).from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, envio.solicitudId)),
-      db.select().from(schema.cotizacionConfig).limit(1),
-    ]);
-    const ahora = new Date();
-    const esSeguimiento = envio.estado === "en_seguimiento";
-    const cantidadSeguimientos = envio.cantidadSeguimientos + (esSeguimiento ? 1 : 0);
-    const maxSeguimientos = config?.maxSeguimientos ?? 3;
-    const proximoSeguimiento = solicitud
-      ? calcularProximoSeguimiento(ahora, solicitud.ramo, config?.estrategiaSeguimiento ?? "Cada 3 días hábiles", feriadosNacionalesArgentina(ahora.getFullYear()))
-      : null;
-    const respuesta = await adaptadorSalidaCotizacion.enviarBorrador({ compania: envio.compania, asunto: envio.asuntoBorrador, cuerpo: envio.cuerpoBorrador });
-    await db.transaction(async (tx) => {
-      await tx.update(schema.cotizacionEnvios).set({
-        estado: esSeguimiento && cantidadSeguimientos >= maxSeguimientos ? "requiere_atencion" : esSeguimiento ? "en_seguimiento" : "enviado",
-        estadoBorrador: "aprobado", aprobadoEl: new Date(),
-        cantidadSeguimientos,
-        ultimaActividad: new Date(), proximoSeguimiento: esSeguimiento && cantidadSeguimientos >= maxSeguimientos ? null : proximoSeguimiento,
-      }).where(eq(schema.cotizacionEnvios.id, envioId));
-      await tx.insert(schema.cotizacionEventos).values({
-        solicitudId: envio.solicitudId, envioId, actor: "productor", tipo: "borrador_aprobado",
-        detalle: respuesta.simulado ? `El productor aprobó el borrador para ${envio.compania}; referencia simulada ${respuesta.referencia}.` : `El productor aprobó el borrador para ${envio.compania}.`,
-      });
-      await tx.insert(schema.actividadAgentes).values({ agente: "cotizacion", referencia: `solicitud:${envio.solicitudId}`, texto: `Aprobaste el borrador para ${envio.compania}; conexión simulada.` });
-    });
-  } catch {
-    volver("error-aprobar-envio", "?tab=solicitudes");
-  }
+  let resultado: ResultadoCorreo | null | "fallo";
+  try { resultado = await aprobarCorreoCotizacion(envioId); }
+  catch { resultado = "fallo"; }
+  // Fuera del try: redirect() lanza un error propio de Next y el catch lo convertiría en "No pudimos aprobar".
+  if (resultado === null) volver("borrador-no-disponible", "?tab=solicitudes");
+  if (resultado === "fallo") volver("error-aprobar-envio", "?tab=solicitudes");
+  volverDelCorreo(formData, resultado.solicitudId, resultado.enviado ? "envio-aprobado" : "envio-aprobado-sin-enviar");
+}
+
+/** "Enviar ahora": vuelve a intentar un correo aprobado que no salió. */
+export async function reenviarCorreoCotizacionAccion(formData: FormData) {
+  await requerirSesion();
+  const envioId = Number(mensajeDe(formData, "envioId"));
+  if (!Number.isInteger(envioId) || envioId <= 0) volver("envio-invalido", "?tab=solicitudes");
+  let resultado: ResultadoCorreo | null | "fallo";
+  try { resultado = await reenviarCorreoCotizacion(envioId); }
+  catch { resultado = "fallo"; }
+  if (resultado === null) volver("borrador-no-disponible", "?tab=solicitudes");
+  if (resultado === "fallo") volver("error-aprobar-envio", "?tab=solicitudes");
+  volverDelCorreo(formData, resultado.solicitudId, resultado.enviado ? "correo-enviado" : "envio-aprobado-sin-enviar");
+}
+
+/** "Aprobar y cotizar": autoriza al agente a cotizar por conexión directa o portal. Los correos siguen esperando su aprobación. */
+export async function aprobarYCotizarSolicitud(formData: FormData) {
+  await requerirSesion();
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  if (!Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
+  let encolados: number | null | "fallo";
+  try { encolados = await autorizarCotizacion(solicitudId, "aprobada"); }
+  catch { encolados = "fallo"; }
+  // El agente cotiza en segundo plano; si no termina acá, lo retoma el cron de la cola.
+  if (typeof encolados === "number") await despacharCotizaciones(encolados);
   revalidatePath("/agentes/cotizacion");
-  volver("envio-aprobado", "?tab=solicitudes");
+  revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+  const aviso = encolados === "fallo" ? "error-cotizar" : encolados === null ? "solicitud-cerrada" : encolados > 0 ? "cotizando" : "nada-para-cotizar";
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);
+}
+
+/** El productor responde el dato que pidió la compañía: se guarda en el riesgo y el agente vuelve a cotizar. */
+export async function responderDatoCotizacion(formData: FormData) {
+  await requerirSesion();
+  const envioId = Number(mensajeDe(formData, "envioId"));
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  if (!Number.isInteger(envioId) || envioId <= 0 || !Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=envio-invalido");
+  let resultado: Awaited<ReturnType<typeof responderDatoPedido>> | "fallo";
+  try { resultado = await responderDatoPedido(envioId, mensajeDe(formData, "respuesta")); }
+  catch { resultado = "fallo"; }
+  if (resultado && typeof resultado === "object") await despacharCotizaciones(1);
+  revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+  const aviso = resultado === "invalida" ? "dato-vacio" : resultado === "fallo" ? "error-dato" : resultado === null ? "dato-no-disponible" : "dato-respondido";
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);
 }
 
 export async function omitirBorradorCotizacion(formData: FormData) {
@@ -172,8 +204,7 @@ export async function omitirBorradorCotizacion(formData: FormData) {
     await tx.update(schema.cotizacionEnvios).set({ estadoBorrador: "omitido", ultimaActividad: new Date() }).where(eq(schema.cotizacionEnvios.id, envioId));
     await tx.insert(schema.cotizacionEventos).values({ solicitudId: envio.solicitudId, envioId, actor: "productor", tipo: "borrador_omitido", detalle: `El productor omitió el borrador para ${envio.compania}.` });
   });
-  revalidatePath("/agentes/cotizacion");
-  volver("borrador-omitido", "?tab=solicitudes");
+  volverDelCorreo(formData, envio.solicitudId, "borrador-omitido");
 }
 
 export async function cargarArchivoCotizacion(formData: FormData) {
@@ -223,7 +254,7 @@ export async function simularRespuestaCotizacion(formData: FormData) {
   const [solicitud] = await db.select().from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, envio.solicitudId));
   if (!solicitud?.esEjemplo) redirect("/agentes/cotizacion?aviso=simulador-no-disponible");
   if (escenario === "cotizado") {
-    await registrarResultadoCotizacion({ solicitudId: solicitud.id, compania: envio.compania, precio: 100000, primaNeta: 80000, observacion: "Respuesta generada por el simulador de desarrollo.", origen: "portal", confirmado: false });
+    await registrarResultadoCotizacion({ solicitudId: solicitud.id, compania: envio.compania, precio: 100000, primaNeta: 80000, observacion: "Respuesta generada por el simulador de desarrollo.", origen: "portal", confirmado: false, actor: "simulador" });
   } else {
     const cambio = escenario === "pregunta"
       ? { estado: "requiere_atencion" as const, preguntasPendientes: "La compañía solicita información adicional." }
@@ -237,18 +268,25 @@ export async function simularRespuestaCotizacion(formData: FormData) {
   redirect(`/agentes/cotizacion/${solicitud.id}?tab=contactos&aviso=respuesta-simulada`);
 }
 
+/** Por qué no hubo resultado de la IA, como aviso para el detalle. */
+function avisoSinIA(motivo: MotivoSinIA | "fallo"): string {
+  if (motivo === "sin_clave" || motivo === "desactivada") return "ia-no-disponible";
+  if (motivo === "sin_cuota") return "ia-sin-cuota";
+  return "ia-sin-resultado";
+}
+
 export async function chatearCotizacionIA(formData: FormData) {
   await requerirSesion();
   const solicitudId = Number(mensajeDe(formData, "solicitudId"));
   const mensaje = mensajeDe(formData, "mensaje");
   if (!Number.isInteger(solicitudId) || solicitudId <= 0 || !mensaje) redirect("/agentes/cotizacion?aviso=ia-no-disponible");
-  let id: number;
-  try { id = await generarChatCotizacionIA(solicitudId, mensaje); }
-  catch {
-    redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&aviso=ia-no-disponible`);
-  }
+  let resultado: ResultadoIACotizacion | null | "fallo";
+  try { resultado = await responderChatCotizacion(solicitudId, mensaje); }
+  catch { resultado = "fallo"; }
+  if (resultado === null) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
-  redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&ia=${id}`);
+  if (resultado === "fallo" || !resultado.ok) redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&aviso=${avisoSinIA(resultado === "fallo" ? resultado : resultado.motivo)}`);
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&ia=${resultado.borradorId}`);
 }
 
 export async function redactarCorreoConIA(formData: FormData) {
@@ -257,12 +295,12 @@ export async function redactarCorreoConIA(formData: FormData) {
   if (!Number.isInteger(envioId) || envioId <= 0) redirect("/agentes/cotizacion?aviso=ia-no-disponible");
   const [envio] = await db.select({ solicitudId: schema.cotizacionEnvios.solicitudId }).from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.id, envioId));
   if (!envio) redirect("/agentes/cotizacion?aviso=envio-invalido");
-  try { await redactarCorreoCotizacionIA(envioId); }
-  catch {
-    redirect(`/agentes/cotizacion/${envio.solicitudId}?tab=contactos&aviso=ia-no-disponible`);
-  }
+  let resultado: ResultadoIACotizacion | null | "fallo";
+  try { resultado = await redactarCorreoCotizacion(envioId); }
+  catch { resultado = "fallo"; }
   revalidatePath(`/agentes/cotizacion/${envio.solicitudId}`);
-  redirect(`/agentes/cotizacion/${envio.solicitudId}?tab=contactos&aviso=ia-generada`);
+  const aviso = resultado === null ? "borrador-no-disponible" : resultado === "fallo" || !resultado.ok ? avisoSinIA(resultado === "fallo" ? resultado : resultado.motivo) : "ia-generada";
+  redirect(`/agentes/cotizacion/${envio.solicitudId}?tab=contactos&aviso=${aviso}`);
 }
 
 export async function extraerPdfConIA(formData: FormData) {
@@ -270,13 +308,31 @@ export async function extraerPdfConIA(formData: FormData) {
   const archivoId = Number(mensajeDe(formData, "archivoId"));
   const solicitudId = Number(mensajeDe(formData, "solicitudId"));
   if (!Number.isInteger(archivoId) || archivoId <= 0 || !Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=ia-no-disponible");
-  let borradorId: number;
-  try { borradorId = await extraerCotizacionPdfIA(archivoId); }
-  catch {
-    redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=ia-no-disponible`);
-  }
+  let lectura: Awaited<ReturnType<typeof encolarLecturaPdf>> | "fallo";
+  try { lectura = await encolarLecturaPdf(archivoId, solicitudId); }
+  catch { lectura = "fallo"; }
+  // La IA lee en segundo plano; si no termina acá, la retoma el cron de la cola.
+  if (lectura === "encolada") await despachadorTrabajos.despachar(archivoId);
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
-  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&ia=${borradorId}`);
+  const aviso = lectura === "encolada" || lectura === "en_curso" ? "ia-leyendo" : lectura === null ? "archivo-invalido" : "ia-sin-resultado";
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=${aviso}`);
+}
+
+export async function confirmarResultadoCotizacionAccion(formData: FormData) {
+  await requerirSesion();
+  const resultadoId = Number(mensajeDe(formData, "resultadoId"));
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  if (!Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
+  let confirmada = false;
+  try {
+    await confirmarResultadoCotizacion(resultadoId);
+    confirmada = true;
+  } catch {
+    // Se avisa abajo, fuera del try: un redirect adentro terminaría en este catch.
+  }
+  revalidatePath("/agentes/cotizacion");
+  revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=${confirmada ? "resultado-confirmado" : "error-confirmar-resultado"}`);
 }
 
 export async function generarPropuestaCotizacion(formData: FormData) {
@@ -290,7 +346,7 @@ export async function generarPropuestaCotizacion(formData: FormData) {
   const ids = envios.map((envio) => envio.id);
   const resultados = ids.length ? await db.select().from(schema.cotizacionResultados).where(inArray(schema.cotizacionResultados.envioId, ids)) : [];
   const porEnvio = new Map(resultados.map((resultado) => [resultado.envioId, resultado]));
-  const mejor = resultados.filter((resultado) => resultado.confirmado).sort((a, b) => a.primaTotal - b.primaTotal)[0];
+  const mejor = mejorResultadoConfirmado(resultados);
   const filas = [
     { etiqueta: "Organizacion", valor: ajustes?.productorOrganizacion ?? "Productor de seguros" },
     { etiqueta: "Cliente", valor: solicitud.cliente }, { etiqueta: "Ramo", valor: solicitud.ramo },

@@ -14,7 +14,7 @@ import {
   unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import type { Moneda, PagoNormalizado } from "../lib/conectores/tipos";
+import type { Moneda, PagoNormalizado, TipoConector } from "../lib/conectores/tipos";
 
 export const prioridadEnum = pgEnum("prioridad", ["alta", "media", "baja"]);
 export const estadoEnum = pgEnum("estado_lead", [
@@ -70,6 +70,8 @@ export const ajustes = pgTable("ajustes", {
   productorLogo: text("productor_logo"),
   productorTelefono: text("productor_telefono"),
   productorEmail: text("productor_email"),
+  /** Para los feriados que no son nacionales (seguimientos de Cotización). */
+  provincia: text("provincia").notNull().default("Buenos Aires"),
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -749,6 +751,22 @@ export type CotizacionRecibida = {
   error?: string;
 };
 
+/**
+ * Un intento de pedir la cotización por un canal (cotizacion_envios.intentos).
+ * `resultado` es lo que respondió la compañía, o `error` con su código.
+ * `detalle` lleva el motivo de un rechazo o la pregunta de un dato, y `campo`
+ * el nombre del dato pedido en el riesgo de UNIQO.
+ */
+export type IntentoEnvio = {
+  canal: TipoConector | "correo";
+  resultado: "cotizada" | "pendiente" | "rechazada" | "requiere_dato" | "error" | "enviado";
+  codigo?: string | null;
+  campo?: string | null;
+  detalle?: string | null;
+  /** ISO. */
+  fecha: string;
+};
+
 export const solicitudesCotizacion = pgTable("solicitudes_cotizacion", {
   id: serial("id").primaryKey(),
   /** Número visible (1042). */
@@ -862,6 +880,13 @@ export const cotizacionEnvios = pgTable("cotizacion_envios", {
   cuerpoBorrador: text("cuerpo_borrador"),
   estadoBorrador: estadoBorradorCotizacionEnum("estado_borrador").notNull().default("pendiente"),
   aprobadoEl: timestamp("aprobado_el", { withTimezone: true }),
+  /** api, portal o correo: por dónde salió el pedido. Null mientras no salió por ninguno. */
+  canalUsado: text("canal_usado"),
+  intentos: jsonb("intentos").$type<IntentoEnvio[]>().notNull().default([]),
+  /** Número de cotización de la compañía: con él se consultan las que tardan. */
+  numeroCompania: text("numero_compania"),
+  /** Lo último que salió mal, para el productor: el portal no respondió, el correo no salió. */
+  ultimoError: text("ultimo_error"),
   orgId: text("org_id"),
   producerId: text("producer_id"),
   creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
@@ -1107,6 +1132,20 @@ export const conectorSalud = pgTable("conector_salud", {
   producerId: text("producer_id"),
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("conector_salud_canal_idx").on(t.compania, t.canal, t.orgId, t.producerId)]);
+
+/**
+ * Canales automáticos de cada compañía, en orden (api, portal, archivo),
+ * compartidos por los agentes. Sin fila se usan todos los conectores
+ * registrados en el orden de siempre; con la lista vacía, solo correo o carga manual.
+ */
+export const conectorCompanias = pgTable("conector_companias", {
+  id: serial("id").primaryKey(),
+  compania: text("compania").notNull(),
+  canales: text("canales").array().notNull().default([]),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique("conector_companias_alcance_uq").on(t.compania, t.orgId, t.producerId).nullsNotDistinct()]);
 
 /**
  * Mapeos aprendidos y confirmados por compañía × ramo × operación, con

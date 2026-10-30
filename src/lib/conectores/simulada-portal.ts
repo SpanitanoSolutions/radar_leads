@@ -76,7 +76,7 @@ export class SimuladaPortal implements ConectorCompania {
     await esperar(this.demora());
     const falla = this.forzar?.falla ?? (this.azar() < this.probabilidadFalla ? FALLAS_AL_AZAR[Math.floor(this.azar() * FALLAS_AL_AZAR.length)] : null);
     if (falla) throw new ErrorConector(falla, MENSAJES[falla]);
-    if (pedirDato?.()) throw new ErrorConector("requiere_dato", "El portal pidió un dato que no está en la solicitud.", DATO_EXTRA_COTIZAR.pregunta);
+    if (pedirDato?.()) throw new ErrorConector("requiere_dato", "El portal pidió un dato que no está en la solicitud.", DATO_EXTRA_COTIZAR.pregunta, DATO_EXTRA_COTIZAR.campo);
     return trabajo();
   }
 
