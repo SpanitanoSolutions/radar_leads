@@ -1,13 +1,13 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
 import { guardarInterruptorIACotizacion } from "@/agentes/cotizacion/ia";
 import { requerirSesion } from "@/lib/auth";
 import { interpretarEstrategiaSeguimiento } from "@/lib/cotizacion";
-import { cifrarCredencial } from "@/lib/cotizacion/credenciales";
+import { ALCANCE_CREDENCIALES } from "@/lib/cotizacion/credenciales";
+import { guardarCredencial, listarCredenciales } from "@/lib/conectores/credenciales";
 import { leerXlsx } from "@/lib/xlsx";
 import { celdasCsv } from "@/fuentes/csv";
 import { normalizar } from "@/fuentes/clasificacion";
@@ -113,23 +113,25 @@ export async function guardarPaqueteCotizacion(formData: FormData) {
   redirect("/agentes/cotizacion/configuracion?aviso=paquete-guardado");
 }
 
+/**
+ * La clave del portal de una compañía va a credenciales_portal, la misma que usa el Validador.
+ * Si la compañía ya tiene una, se le cambian el usuario y la clave; si no, se crea.
+ */
 export async function guardarCredencialPortal(formData: FormData) {
   await requerirSesion();
   const compania = texto(formData, "compania", 120);
   const usuario = texto(formData, "usuario", 200);
   const clavePortal = texto(formData, "clavePortal", 1000);
   if (!compania || !usuario || !clavePortal) redirect("/agentes/cotizacion/configuracion?aviso=credencial-invalida");
-  let credencialesCifradas: string;
+  let guardada = false;
   try {
-    credencialesCifradas = cifrarCredencial(JSON.stringify({ usuario, clave: clavePortal }), process.env.COTIZACION_CREDENTIALS_KEY);
+    const [actual] = await listarCredenciales(ALCANCE_CREDENCIALES, compania);
+    await guardarCredencial({ id: actual?.id, compania, etiqueta: actual?.etiqueta ?? "Principal", usuario, secreto: clavePortal }, ALCANCE_CREDENCIALES);
+    guardada = true;
   } catch {
-    redirect("/agentes/cotizacion/configuracion?aviso=clave-cifrado-faltante");
+    // Sin clave de cifrado en el servidor no se guarda nada; se avisa abajo, fuera del try.
   }
-  const clave = `portal:${compania}`;
-  const [actual] = await db.select({ datos: schema.conexiones.datos }).from(schema.conexiones).where(eq(schema.conexiones.clave, clave));
-  const datos = { ...(actual?.datos ?? {}), credencialesCifradas, credencialesActualizadasEl: new Date().toISOString() };
-  await db.insert(schema.conexiones).values({ clave, tipo: "portal", compania, estado: "sin_conectar", datos })
-    .onConflictDoUpdate({ target: schema.conexiones.clave, set: { datos, actualizadoEl: new Date() } });
+  if (!guardada) redirect("/agentes/cotizacion/configuracion?aviso=clave-cifrado-faltante");
   revalidatePath("/agentes/cotizacion/configuracion");
   redirect("/agentes/cotizacion/configuracion?aviso=credencial-guardada");
 }

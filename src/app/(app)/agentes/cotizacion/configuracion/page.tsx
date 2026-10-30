@@ -3,18 +3,20 @@ import { connection } from "next/server";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { estadoIACotizacion } from "@/agentes/cotizacion/ia";
+import { listarCredenciales } from "@/lib/conectores/credenciales";
+import { ALCANCE_CREDENCIALES } from "@/lib/cotizacion/credenciales";
 import { guardarAseguradoraCotizacion, guardarConfiguracionCotizacion, guardarPaqueteCotizacion, guardarCredencialPortal, importarAseguradorasCotizacion, guardarFeatureCotizacionIA } from "./actions";
 import "../../agentes.css";
 
 export default async function ConfiguracionCotizacion({ searchParams }: { searchParams: Promise<{ aviso?: string }> }) {
   await connection();
-  const [{ aviso }, aseguradoras, paquetes, configuraciones, conexiones, estadoIA] = await Promise.all([
+  const [{ aviso }, aseguradoras, paquetes, configuraciones, credenciales, estadoIA] = await Promise.all([
     searchParams,
     db.select().from(schema.cotizacionAseguradoras).orderBy(schema.cotizacionAseguradoras.nombre),
     db.select({ paquete: schema.cotizacionPaquetes, aseguradora: schema.cotizacionAseguradoras.nombre })
       .from(schema.cotizacionPaquetes).innerJoin(schema.cotizacionAseguradoras, eq(schema.cotizacionAseguradoras.id, schema.cotizacionPaquetes.aseguradoraId)),
     db.select().from(schema.cotizacionConfig).limit(1),
-    db.select({ clave: schema.conexiones.clave, estado: schema.conexiones.estado, datos: schema.conexiones.datos }).from(schema.conexiones).where(eq(schema.conexiones.tipo, "portal")),
+    listarCredenciales(ALCANCE_CREDENCIALES),
     estadoIACotizacion(),
   ]);
   const config = configuraciones[0];
@@ -26,9 +28,9 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
     "aseguradora-guardada": "Guardaste la aseguradora.",
     "paquete-invalido": "Revisá los datos del paquete.",
     "paquete-guardado": "Guardaste el paquete.",
-    "clave-cifrado-faltante": "No se guardaron las credenciales: falta configurar la clave de cifrado en el servidor.",
+    "clave-cifrado-faltante": "No se guardó la clave: falta configurar la clave de cifrado en el servidor (CREDENCIALES_PORTAL_KEY).",
     "credencial-invalida": "Completá la compañía, el usuario y la clave.",
-    "credencial-guardada": "Guardamos las credenciales cifradas. El portal sigue simulado.",
+    "credencial-guardada": "Guardamos la clave cifrada. El portal sigue simulado.",
     "archivo-catalogo-invalido": "Subí un CSV o Excel de hasta 5 MB con aseguradora y ramo.",
     "encabezados-catalogo-invalidos": "El archivo debe tener columnas Aseguradora y Ramos.",
     "datos-catalogo-invalidos": "Revisá que cada fila tenga nombre, ramos y un canal válido (correo, portal o ambos).",
@@ -112,16 +114,16 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
       </section>
 
       <section className="tarjeta cotizacion-ajuste-seccion">
-        <h2>Portales</h2><p>Guardar credenciales no conecta el portal. Esta pantalla mantiene la clave cifrada con AES-GCM; el adaptador sigue simulado.</p>
+        <h2>Portales</h2><p>Guardar la clave no conecta el portal todavía: las conexiones con las compañías siguen simuladas. La clave se guarda cifrada y es la misma que usa el Validador.</p>
         {aseguradoras.filter((aseguradora) => aseguradora.canal !== "correo").map((aseguradora) => {
-          const conexion = conexiones.find((item) => item.clave === `portal:${aseguradora.nombre}`);
+          const credencial = credenciales.find((item) => item.compania === aseguradora.nombre);
           return <div key={aseguradora.id} className="cotizacion-portal-credencial">
-            <p><strong>{aseguradora.nombre}</strong> · {conexion?.datos.credencialesCifradas ? "credenciales guardadas" : "sin credenciales"} · conexión simulada</p>
+            <p><strong>{aseguradora.nombre}</strong> · {credencial ? `clave guardada para ${credencial.usuario}${credencial.estado === "activa" ? "" : credencial.estado === "vencida" ? " (vencida)" : " (desactivada)"}` : "sin clave"} · conexión simulada</p>
             <form action={guardarCredencialPortal} className="cotizacion-ajuste-form">
               <input type="hidden" name="compania" value={aseguradora.nombre} />
               <label>Usuario<input name="usuario" autoComplete="off" maxLength={200} required /></label>
               <label>Clave<input name="clavePortal" type="password" autoComplete="new-password" maxLength={1000} required /></label>
-              <button className="boton">Guardar cifrada</button>
+              <button className="boton">{credencial ? "Cambiar usuario y clave" : "Guardar cifrada"}</button>
             </form>
           </div>;
         })}

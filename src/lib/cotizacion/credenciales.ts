@@ -1,7 +1,7 @@
-import "server-only";
-import { cifrar } from "@/lib/cifrado";
+import type { AlcanceCredencial } from "@/lib/conectores/credenciales";
 
-/** Cifra un secreto con AES-256-GCM. La clave debe ser base64 de 32 bytes. */
-export function cifrarCredencial(valor: string, claveBase64: string | undefined): string {
-  return cifrar(valor, claveBase64, "COTIZACION_CREDENTIALS_KEY");
-}
+/**
+ * Las claves de los portales viven en credenciales_portal (src/lib/conectores/credenciales.ts),
+ * compartidas con el Validador: por ahora todo es de una sola cuenta, el mismo alcance que su cartera.
+ */
+export const ALCANCE_CREDENCIALES: AlcanceCredencial = { orgId: null, producerId: null };

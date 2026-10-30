@@ -42,6 +42,14 @@ Rama `feat/cotizacion-v2-base-comun`.
 
 **Hallazgo (de antes, sin tocar):** el webhook de la v1 nunca fue alcanzable desde afuera. `src/proxy.ts` pide sesión en todo salvo `/api/cron/`, así que una llamada sin sesión termina en `/login` aunque traiga el secreto. No lo abrí: sería una dirección pública nueva. Queda para decidir en la 2c (sacarlo, ya que lo reemplazan los conectores, o dejarlo pasar en el proxy con su secreto).
 
+**2b. Las claves de los portales en `credenciales_portal`:**
+- La sección Portales de la Configuración de Cotización guarda con `guardarCredencial()` y lee con `listarCredenciales()`, con el mismo alcance que la cartera del Validador (`ALCANCE_CREDENCIALES`, sin organización ni productor por ahora). Así los dos agentes usan la misma clave de cada compañía.
+- Si la compañía ya tiene una clave, "Cambiar usuario y clave" actualiza esa fila; si no, se crea una con la etiqueta "Principal". La pantalla muestra el usuario y si la clave está vencida o desactivada, nunca la clave.
+- Cifra con `CREDENCIALES_PORTAL_KEY` (o `COTIZACION_CREDENTIALS_KEY` si no está, como ya hacía la base común). Sin ninguna, avisa y no guarda.
+- No se copia nada de `conexiones`: en producción no hay claves ahí (consulta del punto 4). `cifrarCredencial()` de Cotización ya no existe.
+
+**Prueba de la 2b** (app compilada sobre una base nueva): guardar la clave de Sancor crea una fila cifrada en `credenciales_portal` (el texto de la clave no aparece en la base) y nada en `conexiones`. Cambiarla actualiza la misma fila. El Validador la ve en su pestaña Credenciales. La clave no vuelve a la pantalla ni aparece en el log del servidor. Antes, el E2E pasó entero (23 pasos) sobre esa base recién sembrada, sin clave de IA.
+
 ### Prueba de la 2a (30/10/2026)
 - `npm test`: pasan 513 de 518 (los 5 que fallan son los de antes); 16 tests nuevos. Lint sin errores (las 3 advertencias viejas). Build OK.
 - **Migración sobre una base con los datos de `main`:** `db:preparar` desde un worktree de `main` contra Postgres 18.6, con la fila `*` / `*` activa y tope de USD 20 (como producción) y `org_features.cotizacion_ia` prendido. Después, `db:preparar` desde esta rama: quedó la fila `cotizacion` / `*` en `true` (copiada), la `*` / `*` igual, `org_features` sin tocar y la cuenta con provincia "Buenos Aires".
@@ -57,7 +65,7 @@ Rama `feat/cotizacion-v2-base-comun`.
   - **Mi cuenta:** la provincia viene en Buenos Aires, se cambia a Córdoba, se guarda y se vuelve a cambiar.
   - **Webhook de la v1** (con sesión, por el hallazgo de arriba): con envío deja la respuesta sin confirmar (`{"resultado":"sin_confirmar"}`, el envío sigue `pendiente` y el JSON de la lista no cambia). En una solicitud sin envíos contesta 422 con el mensaje, y con otro secreto, 401.
   - En los logs del servidor no hay errores de Cotización, claves ni datos de asegurados.
-| 2b | Credenciales en `credenciales_portal` (sin copia: en producción no hay ninguna) | Pendiente | — |
+| 2b | Credenciales en `credenciales_portal` (sin copia: en producción no hay ninguna) | Hecho y probado | `configuracion/actions.ts` y `configuracion/page.tsx` de Cotización, `src/lib/cotizacion/credenciales.ts` |
 | 2c | Conectores con el orden de canales | Pendiente | — |
 
 ## Fase 1 — Arreglos (30/10/2026, cerrada)
@@ -499,6 +507,13 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-**Fase 2 en curso** (rama `feat/cotizacion-v2-base-comun`). Las decisiones están al principio de este archivo. La 2a y lo de los puntos 5 y 6 están hechos y probados. Siguiente: la **2b**, que la sección Portales de la Configuración de Cotización guarde con `guardarCredencial()` en `credenciales_portal` y lea de ahí (sin copiar nada: en producción no hay credenciales en `conexiones`).
+**Fase 2 en curso** (rama `feat/cotizacion-v2-base-comun`). Las decisiones están al principio de este archivo. La 2a, la 2b y lo de los puntos 5 y 6 están hechos y probados. Siguiente: la **2c**, los conectores con el orden de canales (ver el plan, "2c. Conectores"):
+1. la migración `0030` (solo agrega): en `cotizacion_envios`, `canal_usado`, `intentos`, `numero_compania` y `ultimo_error`, y la tabla compartida `conector_companias`;
+2. la opción `canales` de `ejecutarEnCompania()`, con tests;
+3. el orquestador: "Aprobar y cotizar" encola `cotizacion:cotizar_envio` por compañía; las respuestas entran sin confirmar (punto 5);
+4. `CONECTORES_SIMULADOS_FORZAR` para probar los criterios 12 y 13;
+5. el correo aprobado por la salida común (`src/agentes/envio.ts`), y se borra `src/conexiones/cotizacion.ts`.
+
+Antes de la 2c, Julian decide qué hacer con el webhook de la v1 (ver "Hallazgo"): sacarlo o dejarlo pasar en el proxy con su secreto.
 
 Apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.
