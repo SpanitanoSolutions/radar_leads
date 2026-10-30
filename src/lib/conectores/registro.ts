@@ -21,9 +21,56 @@ export class RegistroConectores {
   }
 }
 
+/**
+ * Lo que hace siempre una compañía simulada, para que el E2E y las pruebas no
+ * dependan del azar (CONECTORES_SIMULADOS_FORZAR).
+ */
+export type ForzadoSimulado = {
+  /** El portal falla siempre: está fuera de servicio. */
+  falla?: boolean;
+  /** El portal pide el uso del vehículo al cotizar, mientras la solicitud no lo traiga. */
+  dato?: boolean;
+  /** El portal nunca falla ni pide datos por azar. */
+  ok?: boolean;
+  /** La conexión directa cotiza en dos pasos: da un número y la cotización llega al consultarla. */
+  dosPasos?: boolean;
+};
+
+const VALORES_FORZADOS: Record<string, keyof ForzadoSimulado> = { falla: "falla", dato: "dato", ok: "ok", dos_pasos: "dosPasos" };
+
+/** El nombre de la compañía sin mayúsculas, acentos ni espacios de más. */
+export function claveCompania(compania: string): string {
+  return compania.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** "Federación Patronal=falla;Rivadavia=dato,dos_pasos" → lo forzado por compañía. Lo que no se entiende se ignora. */
+export function leerForzados(texto: string | undefined): Map<string, ForzadoSimulado> {
+  const forzados = new Map<string, ForzadoSimulado>();
+  for (const parte of (texto ?? "").split(";")) {
+    const [nombre, valores = ""] = parte.split("=");
+    const compania = claveCompania(nombre ?? "");
+    const forzado: ForzadoSimulado = {};
+    for (const valor of valores.split(",")) {
+      const clave = VALORES_FORZADOS[valor.trim().toLowerCase()];
+      if (clave) forzado[clave] = true;
+    }
+    if (compania && Object.keys(forzado).length) forzados.set(compania, { ...forzados.get(compania), ...forzado });
+  }
+  return forzados;
+}
+
+function opcionesDelPortal(forzado: ForzadoSimulado | undefined): Partial<OpcionesSimuladaPortal> {
+  if (forzado?.falla) return { forzar: { falla: "no_disponible" } };
+  if (forzado?.dato) return { probabilidadFalla: 0, forzar: { datoExtra: true } };
+  if (forzado?.ok) return { probabilidadFalla: 0, probabilidadDatoExtra: 0 };
+  return {};
+}
+
 export type OpcionesSimulacion = {
   api?: Omit<OpcionesSimuladaApi, "compania">;
   portal?: Omit<OpcionesSimuladaPortal, "compania">;
+  /** Por compañía (con claveCompania()): lo que hace siempre. */
+  forzar?: Map<string, ForzadoSimulado>;
 };
 
 /**
@@ -37,7 +84,11 @@ export function crearRegistroSimulado(opciones: OpcionesSimulacion = {}): Regist
   registro.registrar((compania) => {
     let conectores = porCompania.get(compania);
     if (!conectores) {
-      conectores = [new SimuladaApi({ ...opciones.api, compania }), new SimuladaPortal({ ...opciones.portal, compania })];
+      const forzado = opciones.forzar?.get(claveCompania(compania));
+      conectores = [
+        new SimuladaApi({ ...opciones.api, compania, ...(forzado?.dosPasos ? { modo: "dos_pasos" as const } : {}) }),
+        new SimuladaPortal({ ...opciones.portal, compania, ...opcionesDelPortal(forzado) }),
+      ];
       porCompania.set(compania, conectores);
     }
     return conectores;
@@ -50,4 +101,6 @@ export function simulacionHabilitada(entorno: Record<string, string | undefined>
   return entorno.CONECTORES_SIMULADOS === "1" && entorno.VERCEL_ENV !== "production";
 }
 
-export const registroConectores: RegistroConectores = simulacionHabilitada() ? crearRegistroSimulado() : new RegistroConectores();
+export const registroConectores: RegistroConectores = simulacionHabilitada()
+  ? crearRegistroSimulado({ forzar: leerForzados(process.env.CONECTORES_SIMULADOS_FORZAR) })
+  : new RegistroConectores();

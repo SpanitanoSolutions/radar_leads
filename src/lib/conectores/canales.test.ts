@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canalesValidos, efectoEnSalud, ejecutarConCanales, ordenarCanales, pasaAlSiguiente, type IntentoCanal } from "./canales";
 import { autorizacion, conPermisos } from "./permisos";
-import { crearRegistroSimulado, RegistroConectores, simulacionHabilitada } from "./registro";
+import { claveCompania, crearRegistroSimulado, leerForzados, RegistroConectores, simulacionHabilitada } from "./registro";
 import { SimuladaApi } from "./simulada-api";
 import { SimuladaPortal } from "./simulada-portal";
 import { ErrorConector, type Capacidad, type ConectorCompania, type DenunciaSiniestro, type TipoConector } from "./tipos";
@@ -207,6 +207,28 @@ describe("registro", () => {
     const pedido = await api.cotizar!({ referencia: "S", ramo: "Auto", tipo: "nueva", riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS", vigenciaDesde: null }, []);
     const [mismaApi] = registro.conectoresPara("Sancor");
     expect((await mismaApi.consultarCotizacion!(pedido.numero)).estado).toBe("cotizada");
+  });
+
+  it("CONECTORES_SIMULADOS_FORZAR: lo forzado por compañía, sin distinguir acentos ni mayúsculas", () => {
+    const forzados = leerForzados("Federación Patronal=falla; rivadavia = dato,dos_pasos;Sancor=ok;Mapfre=volar;=falla;La Segunda");
+    expect([...forzados.entries()]).toEqual([
+      ["federacion patronal", { falla: true }],
+      ["rivadavia", { dato: true, dosPasos: true }],
+      ["sancor", { ok: true }],
+    ]);
+    expect(leerForzados(undefined).size).toBe(0);
+    expect(claveCompania("  Federación   PATRONAL ")).toBe("federacion patronal");
+  });
+
+  it("con lo forzado, el portal falla o pide el dato siempre, y la conexión directa cotiza en dos pasos", async () => {
+    const registro = crearRegistroSimulado({ portal: { demoraMs: 0, hoy }, api: { hoy }, forzar: leerForzados("Federación Patronal=falla;Rivadavia=dato;Sancor=dos_pasos") });
+    const pedido = { referencia: "S", ramo: "Flota", tipo: "nueva" as const, riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS" as const, vigenciaDesde: null };
+    const portalDe = (compania: string) => registro.conectoresPara(compania).find((conector) => conector.tipo === "portal")!;
+    for (let vez = 0; vez < 3; vez++) await expect(portalDe("Federación Patronal").cotizar!(pedido, [])).rejects.toMatchObject({ codigo: "no_disponible" });
+    await expect(portalDe("Rivadavia").cotizar!(pedido, [])).rejects.toMatchObject({ codigo: "requiere_dato", campo: "uso" });
+    expect((await portalDe("Rivadavia").cotizar!({ ...pedido, riesgo: { uso: "particular" } }, [])).estado).toBe("cotizada");
+    const [apiSancor] = registro.conectoresPara("Sancor");
+    expect((await apiSancor.cotizar!(pedido, [])).estado).toBe("pendiente");
   });
 
   it("la simulación se prende con la variable y nunca en producción", () => {

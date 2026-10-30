@@ -74,7 +74,7 @@ Rama `feat/cotizacion-v2-base-comun`.
 | 1 | Migración `0030_cotizacion_conectores` | Hecho y probado | `drizzle/0030_cotizacion_conectores.sql` (+ snapshot), `src/db/schema.ts` |
 | 2 | Opción `canales` de `ejecutarEnCompania()` | Hecho, con tests | `src/lib/conectores/canales.ts` (+ test), `ejecutar.ts` (+ test nuevo), `companias.ts` (nuevo), `auditoria.ts` |
 | 3 | Orquestador (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`) | Hecho, con tests (se prueba con la app en el cierre) | `src/lib/cotizacion/orquestador.ts` (+ test, nuevos), `src/agentes/cotizacion/orquestador.ts` y `cotizar.ts` (nuevos), `trabajos.ts`, `solicitudes.ts`, `actions.ts`, `[id]/page.tsx`, `[id]/ActualizarMientrasLee.tsx`, `configuracion/page.tsx` y `agentes.css`; en la base común, `tipos.ts`, `canales.ts` y `simulada-portal.ts` (el campo del dato pedido) |
-| 4 | `CONECTORES_SIMULADOS_FORZAR` | Pendiente | — |
+| 4 | `CONECTORES_SIMULADOS_FORZAR` | Hecho, con tests | `src/lib/conectores/registro.ts`, `canales.test.ts`, `.env.example` |
 | 5 | El correo aprobado por la salida común; se borra `src/conexiones/cotizacion.ts` | Pendiente | — |
 | 6 | Se saca el webhook de la v1 | Pendiente | — |
 
@@ -100,6 +100,14 @@ Rama `feat/cotizacion-v2-base-comun`.
 - **Pantalla:** Contactos muestra el estado de cada compañía en palabras ("Cotizando por conexión directa o portal…", "Cotizó por portal · Falta tu confirmación", "Pedida por conexión directa", "Rechazada" con el motivo), la columna Canal y el número de la compañía como folio. Se actualiza sola mientras cotiza. En la Configuración, la casilla se llama "Cotizar automáticamente" y dice qué hace.
 - **Sin IA:** lo que devuelve un conector ya viene normalizado por la interfaz común, así que se pasa a `cotizacion_resultados` con código, sin IA.
 - Tests: 26 nuevos en `orquestador.test.ts`.
+
+**Paso 4. `CONECTORES_SIMULADOS_FORZAR`** (solo con `CONECTORES_SIMULADOS=1`), por ejemplo `Federación Patronal=falla;Rivadavia=dato`. Por compañía, sin distinguir mayúsculas ni acentos, y varios valores separados por coma:
+- `falla`: el portal está siempre fuera de servicio (`no_disponible`);
+- `dato`: el portal pide el uso del vehículo mientras la solicitud no lo traiga, y no falla por azar;
+- `ok`: el portal nunca falla ni pide datos por azar;
+- `dos_pasos`: la conexión directa da un número y la cotización llega al consultarla.
+
+Lo que no se entiende se ignora. Afecta a los conectores simulados de esa compañía para todos los agentes. Para que el portal sea el que cotiza, la compañía tiene que tener el portal primero en `conector_companias` (sin fila, la conexión directa va antes y responde ella). Tests: 2 nuevos en `canales.test.ts`.
 
 **Prueba del paso 1:** `db:preparar` desde un worktree de `main` contra Postgres 18.6 en Docker (29 migraciones, la cartera de ejemplo y 16 envíos). Después, `db:preparar` desde esta rama: 31 migraciones, los 16 envíos con el mismo hash de sus columnas de antes, `intentos = []` y lo demás en null, y `conector_companias` vacía.
 
