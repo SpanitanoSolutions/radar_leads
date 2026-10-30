@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { BotonCopiar } from "@/components/BotonCopiar";
 import { obtenerDetalleCotizacion } from "@/lib/datos-agentes";
@@ -51,6 +51,12 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   "correo-enviado": { texto: "Salió el correo que habías aprobado." },
   "envio-aprobado-sin-enviar": { texto: "Aprobaste el correo, pero no salió. En la tabla está el motivo; cuando lo resuelvas, tocá “Enviar ahora”.", error: true },
   "borrador-omitido": { texto: "Omitiste el borrador; no se envió nada." },
+  "propuesta-generada": { texto: "Generaste la propuesta con tu logo. Queda como borrador hasta que la apruebes." },
+  "propuesta-sin-logo": { texto: "Generaste la propuesta. No lleva logo: cargalo en Mi cuenta para que salga en las próximas. Queda como borrador hasta que la apruebes." },
+  "propuesta-sin-logo-webp": { texto: "Generaste la propuesta sin tu logo: está en WebP y el PDF solo acepta PNG o JPG. Subilo en uno de esos formatos en Mi cuenta.", error: true },
+  "propuesta-sin-logo-invalido": { texto: "Generaste la propuesta sin tu logo: no lo pudimos leer. Volvé a subirlo en PNG o JPG en Mi cuenta.", error: true },
+  "propuesta-aprobada": { texto: "Aprobaste la propuesta. Ya podés descargarla; compartirla con el cliente queda a tu cargo." },
+  "sin-resultados-confirmados": { texto: "Para generar la propuesta, confirmá al menos una respuesta en el comparativo.", error: true },
   "resumen-enviado": { texto: "Aprobaste el resumen y salió a tu correo." },
   "resumen-sin-enviar": { texto: "Aprobaste el resumen, pero no salió. Abajo está el motivo y el botón “Enviar ahora”.", error: true },
   "resumen-cambio": { texto: "El resumen cambió mientras lo mirabas (llegó algo nuevo). Revisalo de nuevo antes de aprobarlo.", error: true },
@@ -69,13 +75,15 @@ export default async function DetalleCotizacion({ params, searchParams }: {
   const { solicitud, asegurado, lead, envios, archivos, propuestas, eventos, resultados, paquetes } = detalle;
   const pdfsDeCompanias = archivos.filter((archivo) => archivo.mime === "application/pdf" && archivo.envioId);
   const tab = TABS.some(([valor]) => valor === sp.tab) ? sp.tab! : "contactos";
-  const [estadoIA, borradoresIA, lecturas, ctx, [config], ejecutivo, resumenes] = await Promise.all([
+  const [estadoIA, borradoresIA, lecturas, ctx, [config], ejecutivo, resumenes, [marca]] = await Promise.all([
     estadoIACotizacion(), obtenerBorradoresIA(id), lecturasDePdfs(pdfsDeCompanias.map((archivo) => archivo.id)),
     contextoDeEnvios(envios, resultados, paquetes),
     db.select({ persona: schema.cotizacionConfig.persona, nombreAgente: schema.cotizacionConfig.nombreAgente, personalidad: schema.cotizacionConfig.personalidad, maxSeguimientos: schema.cotizacionConfig.maxSeguimientos })
       .from(schema.cotizacionConfig).where(eq(schema.cotizacionConfig.id, 1)),
     tab === "agente" ? borradorEjecutivo(id) : Promise.resolve(null),
     tab === "agente" ? resumenesAprobados(id) : Promise.resolve([]),
+    // Solo el comienzo del logo (data URI): alcanza para saber si hay y en qué formato.
+    db.select({ logo: sql<string | null>`left(${schema.ajustes.productorLogo}, 30)` }).from(schema.ajustes).where(eq(schema.ajustes.id, 1)),
   ]);
   const { cotizando, sinEnviar } = ctx;
   const leyendo = [...lecturas.values()].some((lectura) => lectura.estado === "pendiente" || lectura.estado === "procesando");
@@ -196,7 +204,10 @@ export default async function DetalleCotizacion({ params, searchParams }: {
                 <form action={cargarArchivoCotizacion} className="cotizacion-ajuste-form"><input type="hidden" name="solicitudId" value={id} /><input type="hidden" name="envioId" value={envio.id} /><label>Adjuntar PDF recibido<input type="file" name="archivo" accept=".pdf" required /></label><button className="boton">Guardar PDF</button></form>
               </section>;
             })}
-            <form action={generarPropuestaCotizacion}><input type="hidden" name="solicitudId" value={id} /><button className="boton boton-primario">Generar propuesta PDF</button></form>
+            <div className="cotizacion-botones-borrador">
+              <form action={generarPropuestaCotizacion}><input type="hidden" name="solicitudId" value={id} /><button className="boton boton-primario">Generar propuesta PDF</button></form>
+              <span className="texto-suave">{!marca?.logo ? <>Sin logo: cargalo en <Link href="/configuracion?tab=cuenta">Mi cuenta</Link> (PNG o JPG) para que salga en la propuesta.</> : marca.logo.startsWith("data:image/webp") ? <>Tu logo está en WebP: para que salga en la propuesta, subilo en PNG o JPG en <Link href="/configuracion?tab=cuenta">Mi cuenta</Link>.</> : "Va con el logo y los datos de Mi cuenta."}</span>
+            </div>
             <p className="texto-suave">La propuesta incluye respuestas confirmadas y queda guardada como borrador. La aprobación habilita su descarga; compartirla queda a tu cargo.</p>
             {propuestas.map((propuesta) => <article key={propuesta.id} className="cotizacion-propuesta"><strong>{propuesta.nombre}</strong><span>{propuesta.estado === "aprobada" ? "Aprobada" : "Borrador · requiere aprobación"}</span><div className="cotizacion-botones-borrador"><Link className="boton" href={`/agentes/cotizacion/propuestas/${propuesta.id}`} aria-disabled={propuesta.estado !== "aprobada"}>Descargar PDF</Link>{propuesta.estado === "borrador" && <form action={aprobarPropuestaCotizacion}><input type="hidden" name="propuestaId" value={propuesta.id} /><button className="boton boton-primario">Aprobar propuesta</button></form>}</div></article>)}
             {pdfsDeCompanias.filter((archivo) => estadoIA.habilitada || lecturas.has(archivo.id)).map((archivo) => {

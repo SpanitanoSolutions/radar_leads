@@ -3,7 +3,13 @@ import { db, schema } from "@/db";
 import { requerirSesion } from "@/lib/auth";
 import { escribirXlsx } from "@/lib/xlsx-escribir";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
-import { tablaContactos } from "@/lib/cotizacion/detalle";
+import { estadoContacto, tablaContactos, type ContextoEnvios } from "@/lib/cotizacion/detalle";
+import { documentoComparativo } from "@/lib/cotizacion/propuesta";
+import { logoParaPdf } from "@/lib/cotizacion/logo-pdf";
+import { diaEnArgentina, fechaCorta } from "@/lib/fechas";
+
+/** El estado de cada compañía en el PDF, sin lo que solo importa en pantalla (cotizando, correo sin enviar). */
+const sinContexto: ContextoEnvios = { cotizando: new Set(), sinEnviar: new Set(), consultas: new Map(), nombrePaquete: new Map(), resultados: new Map() };
 import { coberturasPorFila, FILAS_COBERTURA } from "@/lib/cotizacion/comparativo";
 import { contextoDeEnvios } from "@/agentes/cotizacion/detalle";
 
@@ -53,7 +59,28 @@ export async function GET(request: Request, context: RouteContext<"/agentes/coti
   if (!envios.length) filas.push(...solicitud.cotizaciones.map((cotizacion) => [cotizacion.compania, "histórica", null, cotizacion.precio, null, null, null, null, null, cotizacion.observacion ?? null, ...FILAS_COBERTURA.map(() => null), null, "No"]));
   const formato = parametros.get("formato");
   if (formato === "pdf") {
-    const propuesta = generarPdfPropuesta(`Comparativa ${solicitud.numero} - ${solicitud.cliente}`, filas.slice(1).map((fila) => ({ etiqueta: String(fila[0] ?? ""), valor: fila.slice(1).filter((valor) => valor != null && valor !== "").join(" | ") || "Sin respuesta" })));
+    // Con la marca de la cuenta, como la propuesta.
+    const [ajustes] = await db.select().from(schema.ajustes).where(eq(schema.ajustes.id, 1));
+    const logo = logoParaPdf(ajustes?.productorLogo);
+    const propuesta = generarPdfPropuesta(documentoComparativo({
+      solicitud,
+      filas: envios.length
+        ? envios.map((envio) => ({ compania: envio.compania, estado: estadoContacto(envio, sinContexto).texto, resultado: resultadoPorEnvio.get(envio.id) ?? null }))
+        // Las de antes de los envíos: la lista vieja, con respuestas confirmadas.
+        : solicitud.cotizaciones.map((cotizacion, i) => ({
+          compania: cotizacion.compania,
+          estado: cotizacion.precio == null ? "Sin respuesta" : "Respondió",
+          resultado: cotizacion.precio == null ? null : { envioId: -(i + 1), primaTotal: cotizacion.precio, moneda: "ARS", franquicia: null, vigencia: null, coberturas: [], confirmado: true },
+        })),
+      cuenta: {
+        organizacion: ajustes ? ajustes.productorOrganizacion : "HR Productores",
+        nombre: ajustes?.productorNombre ?? process.env.NOMBRE_PRODUCTOR ?? null,
+        telefono: ajustes?.productorTelefono ?? null,
+        email: ajustes?.productorEmail ?? null,
+      },
+      logo: logo.ok ? logo.imagen : null,
+      fecha: fechaCorta(diaEnArgentina(new Date())),
+    }));
     return new Response(Buffer.from(propuesta), { headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="comparativa-${solicitud.numero}.pdf"`,

@@ -7,7 +7,7 @@ import { db, schema } from "@/db";
 import { confirmarResultadoCotizacion, crearSolicitud, registrarResultadoCotizacion, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
 import type { EstadoCotizacion } from "@/lib/cotizacion";
 import { requerirSesion } from "@/lib/auth";
-import { ESTADOS_COTIZACION, mejorResultadoConfirmado, validarDatosRiesgo } from "@/lib/cotizacion";
+import { ESTADOS_COTIZACION, validarDatosRiesgo } from "@/lib/cotizacion";
 import { aprobarCorreoCotizacion, reenviarCorreoCotizacion, type ResultadoCorreo } from "@/agentes/cotizacion/correo";
 import { encolarLecturaPdf, redactarCorreoCotizacion, responderChatCotizacion, type ResultadoIACotizacion } from "@/agentes/cotizacion/ia";
 import { autorizarCotizacion, despacharCotizaciones } from "@/agentes/cotizacion/cotizar";
@@ -16,6 +16,9 @@ import { aprobarResumenEjecutivo, reenviarResumenEjecutivo, type ResultadoResume
 import { despachadorTrabajos } from "@/lib/ia/manejadores";
 import type { MotivoSinIA } from "@/lib/ia/motor";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
+import { documentoPropuesta } from "@/lib/cotizacion/propuesta";
+import { logoParaPdf } from "@/lib/cotizacion/logo-pdf";
+import { diaEnArgentina, fechaCorta } from "@/lib/fechas";
 import { FILAS_COBERTURA, unirCoberturasManuales, type Cobertura } from "@/lib/cotizacion/comparativo";
 import { ramosParaSolicitud } from "@/lib/cotizacion/tipos-seguro";
 
@@ -382,26 +385,33 @@ export async function generarPropuestaCotizacion(formData: FormData) {
   const [solicitud] = await db.select().from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, solicitudId));
   if (!solicitud) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
   const [ajustes] = await db.select().from(schema.ajustes).where(eq(schema.ajustes.id, 1));
-  const envios = await db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.solicitudId, solicitudId));
+  const envios = await db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.solicitudId, solicitudId)).orderBy(schema.cotizacionEnvios.id);
   const ids = envios.map((envio) => envio.id);
   const resultados = ids.length ? await db.select().from(schema.cotizacionResultados).where(inArray(schema.cotizacionResultados.envioId, ids)) : [];
-  const porEnvio = new Map(resultados.map((resultado) => [resultado.envioId, resultado]));
-  const mejor = mejorResultadoConfirmado(resultados);
-  const filas = [
-    { etiqueta: "Organizacion", valor: ajustes?.productorOrganizacion ?? "Productor de seguros" },
-    { etiqueta: "Cliente", valor: solicitud.cliente }, { etiqueta: "Ramo", valor: solicitud.ramo },
-    ...envios.filter((envio) => porEnvio.get(envio.id)?.confirmado).map((envio) => {
-      const resultado = porEnvio.get(envio.id)!;
-      return { etiqueta: `${envio.compania}${mejor?.envioId === envio.id ? " (mejor precio)" : ""}`, valor: `Prima total ${resultado.moneda} ${resultado.primaTotal.toLocaleString("es-AR")}; franquicia ${resultado.franquicia ?? "a confirmar"}; vigencia ${resultado.vigencia ?? "a confirmar"}` };
-    }),
-  ];
   if (!resultados.some((resultado) => resultado.confirmado)) redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=sin-resultados-confirmados`);
-  const bytes = Buffer.from(generarPdfPropuesta(`Propuesta para ${solicitud.cliente}`, filas));
+  const paqueteIds = [...new Set(envios.flatMap((envio) => envio.paqueteId == null ? [] : [envio.paqueteId]))];
+  const paquetes = paqueteIds.length ? await db.select({ id: schema.cotizacionPaquetes.id, nombre: schema.cotizacionPaquetes.nombre }).from(schema.cotizacionPaquetes).where(inArray(schema.cotizacionPaquetes.id, paqueteIds)) : [];
+  // La marca de la cuenta (criterio 6): el logo de Mi cuenta y sus datos, con los mismos valores que muestra la cuenta.
+  const logo = logoParaPdf(ajustes?.productorLogo);
+  const documento = documentoPropuesta({
+    solicitud, envios, resultados,
+    nombrePaquete: new Map(paquetes.map((paquete) => [paquete.id, paquete.nombre])),
+    cuenta: {
+      organizacion: ajustes ? ajustes.productorOrganizacion : "HR Productores",
+      nombre: ajustes?.productorNombre ?? process.env.NOMBRE_PRODUCTOR ?? null,
+      telefono: ajustes?.productorTelefono ?? null,
+      email: ajustes?.productorEmail ?? null,
+    },
+    logo: logo.ok ? logo.imagen : null,
+    fecha: fechaCorta(diaEnArgentina(new Date())),
+  });
+  const bytes = Buffer.from(generarPdfPropuesta(documento));
   const nombre = `propuesta-${solicitud.numero}.pdf`;
   await db.insert(schema.cotizacionPropuestas).values({ solicitudId, nombre, bytes });
-  await db.insert(schema.cotizacionEventos).values({ solicitudId, actor: "productor", tipo: "propuesta_generada", detalle: "Se generó una propuesta PDF como borrador; requiere aprobación antes de compartir." });
+  await db.insert(schema.cotizacionEventos).values({ solicitudId, actor: "productor", tipo: "propuesta_generada", detalle: `Se generó una propuesta PDF ${logo.ok ? "con tu logo" : "sin logo"} como borrador; requiere aprobación antes de compartir.` });
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
-  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=propuesta-generada`);
+  const aviso = logo.ok ? "propuesta-generada" : logo.motivo === "webp" ? "propuesta-sin-logo-webp" : logo.motivo === "no_soportado" ? "propuesta-sin-logo-invalido" : "propuesta-sin-logo";
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=${aviso}`);
 }
 
 export async function aprobarPropuestaCotizacion(formData: FormData) {

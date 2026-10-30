@@ -13,7 +13,7 @@ Rama `feat/cotizacion-v2-pantallas`, sale de `main` en `f05023b` (con el PR #35)
 | 3 | Comparativo: filas de la spec y vista compacta o detallada | Hecho, 8 tests, probado con `next dev` | `src/lib/cotizacion/comparativo.ts` (+ test, nuevos), `src/agentes/cotizacion/solicitudes.ts`, `[id]/page.tsx`, `actions.ts` y `exportar/[id]/route.ts` de Cotización, `agentes.css` |
 | 4 | ABM de Tipos de seguro y "Sugerir con IA" para la estrategia | Hecho, 10 tests, probado con `next dev` (sin IA y con una API de Anthropic falsa local) | `src/lib/cotizacion/tipos-seguro.ts` (+ test, nuevos), `src/lib/cotizacion.ts` y `ia.ts` (+ tests), `src/agentes/cotizacion/ia.ts`, `configuracion/` (`page.tsx`, `actions.ts`, `EstrategiaSeguimiento.tsx` nuevo), `nueva/` y `actions.ts` de Cotización, `src/lib/datos-agentes.ts`, `agentes.css` |
 | 5 | Bitácora con `cotizacion_eventos` y filtros; métricas desde que salió el envío | Hecho, 10 tests, probado con `next dev` | `src/lib/cotizacion/bitacora.ts` (+ test, nuevos), `metricas.ts` (+ test), `src/lib/datos-agentes.ts`, `page.tsx` y `actions.ts` de Cotización, `src/agentes/cotizacion/solicitudes.ts`, `agentes.css` |
-| 6 | Propuesta en PDF con el logo de la cuenta y con acentos (criterio 6) | Por hacer | |
+| 6 | Propuesta en PDF con el logo de la cuenta y con acentos (criterio 6) | Hecho, 11 tests, probado con `next dev` | `src/lib/cotizacion/logo-pdf.ts` y `propuesta.ts` (+ tests, nuevos), `propuesta-pdf.ts` (+ test, reescrito), `actions.ts`, `[id]/page.tsx` y `exportar/[id]/route.ts` de Cotización |
 | Cierre | Tests, lint, build, E2E entero, recorrido con la app compilada, README y vault | Por hacer | |
 
 **Decisiones de Julian (30/10/2026):**
@@ -68,6 +68,20 @@ Rama `feat/cotizacion-v2-pantallas`, sale de `main` en `f05023b` (con el PR #35)
 **Decisiones de la implementación (revisables):**
 - Robo es una sola fila (total y parcial juntos, como los nombra cada compañía), porque muchas respuestas dicen solo "Robo".
 - La vista por defecto es la detallada, para no esconder datos.
+
+**Paso 6. La propuesta en PDF (criterio 6):**
+- **Con la marca de la cuenta:** el logo de Mi cuenta (`ajustes.productor_logo`, migración `0012`) arriba a la izquierda, escalado sin deformarse (hasta 150 × 56 puntos), y a la derecha la organización, el productor y el contacto (teléfono y correo), con los mismos valores que muestra la cuenta. Sin logo, la organización va como título del encabezado.
+- **Con acentos:** Helvetica y Helvetica-Bold con `WinAnsiEncoding`; los acentos, la ñ, las comillas y la raya van como escapes octales (`textoPdf()`). Antes se sacaban las tildes ("Organizacion").
+- **El logo** (`logoParaPdf()`, puro, con `node:zlib`): el JPG entra tal cual (`DCTDecode`); el PNG (8 bits, o paleta de 1 a 8 bits) se descomprime, se le sacan los filtros de cada fila y la transparencia va aparte como máscara (`SMask`). Sin dependencias nuevas.
+- **El contenido** (`documentoPropuesta()`, puro): A4, título "Propuesta de seguro para …", la solicitud, una introducción, la tabla de las respuestas **confirmadas** de la más barata a la más cara (compañía y paquete, prima total, franquicia y vigencia) con "Mejor precio" resaltado en la primera, las coberturas que informó cada compañía (las filas del comparativo) y el pie ("Documento preliminar: no es una póliza…" y la fecha de emisión). Lo que no entra en la página se resume.
+- **Sigue en borrador** hasta que el productor la aprueba (como antes) y el evento dice si salió con o sin logo. Los avisos de generar y aprobar, que antes no se mostraban, ahora están, y junto al botón dice si la propuesta va con el logo.
+- **El comparativo en PDF** (Descargar PDF) usa el mismo generador y la misma marca (`documentoComparativo()`): todas las compañías, su estado, prima total, franquicia y si falta confirmar.
+
+**Decisiones de la implementación (revisables):**
+- **Un logo en WebP no va en el PDF** (no se puede embeber sin una librería): la propuesta sale sin logo, el aviso pide subirlo en PNG o JPG en Mi cuenta y lo mismo dice la pantalla junto al botón. Mi cuenta sigue aceptando WebP para la aplicación.
+- La propuesta es de una página: con muchas compañías o coberturas, lo que no entra se resume ("Y N más en el comparativo").
+
+**Prueba del paso 6** (con `next dev`, sobre la 1042 con 4 respuestas confirmadas; los PDF pasados a imagen y a texto con PyMuPDF, fuera del repo): sin logo, la propuesta sale con "HR Productores" y el aviso pide cargar el logo. Con un PNG con transparencia (subido desde Mi cuenta) y con un JPG, sale con el logo (1 imagen en la página), "Pérez & Asociados Seguros", "Julián Pérez" y el contacto, "Propuesta de seguro para Gómez, Lucía", las 4 compañías ordenadas con "Mejor precio" en Sancor ($ 912.000) y el pie con "póliza" y "compañía" con tilde. El comparativo en PDF lleva la misma marca. Con el logo en WebP sale sin imagen y con el aviso. PyMuPDF abrió los 5 sin reparar nada.
 
 **Paso 5. Bitácora y métricas:**
 - **Bitácora** (la pestaña "Historial" pasa a llamarse **Bitácora**): todos los eventos de `cotizacion_eventos` (antes mostraba `actividad_agentes`, sin filtros), con fecha, solicitud (enlace a su pestaña Agente) y cliente, compañía, quién (Vos, el agente, la IA, la compañía), el evento en palabras y el detalle. **Filtros:** texto (número, cliente o detalle, sin tildes), compañía, quién, tipo de evento (solicitud y propuesta, correos y seguimientos, conexión con las compañías, respuestas, IA) y fechas en el día argentino (`filtrarBitacora()`, pura). Muestra los 200 más nuevos y dice cuántos hay.
@@ -741,7 +755,7 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-**La Fase 3 está cerrada** (rama `feat/cotizacion-v2-conexiones`, PR #35, mergeado). **La Fase 4 está en curso** en `feat/cotizacion-v2-pantallas` (ver "Fase 4 — Lo que falta de las pantallas", arriba de todo, con su tabla de pasos). Los pasos 1 a 5 están hechos (un commit cada uno). Siguiente: el **paso 6**, la propuesta en PDF (criterio 6) con el logo de la cuenta (`ajustes.productor_logo`, de la `0012`: data URI PNG, JPG o WebP de hasta 512 KB) y con acentos (Helvetica con `WinAnsiEncoding` y escapes octales, sin dependencias nuevas). El JPG va como `DCTDecode`; el PNG se descomprime con `node:zlib`, se le sacan los filtros por fila y la transparencia va como `SMask`; el WebP no se puede embeber sin una librería: decidir y anotar (propuesta sin logo y un aviso para subirlo en PNG o JPG). Mismo generador para el PDF del comparativo. Los pasos, en orden:
+**La Fase 3 está cerrada** (rama `feat/cotizacion-v2-conexiones`, PR #35, mergeado). **La Fase 4 está en curso** en `feat/cotizacion-v2-pantallas` (ver "Fase 4 — Lo que falta de las pantallas", arriba de todo, con su tabla de pasos). Los 6 pasos están hechos (un commit cada uno). Siguiente: el **cierre de la fase**: `npm test`, `npm run lint`, `npm run build` (con la `DATABASE_URL` del Docker, nunca la de Neon), el E2E entero contra Postgres 18.6 recién sembrado con la app compilada y `CONECTORES_SIMULADOS=1`, el recorrido de cada paso con la app compilada (scripts en el scratchpad de la sesión) y el progreso, el README y el vault al día. Los pasos, en orden:
 1. checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud;
 2. detalle: en Contactos, el próximo seguimiento, Copiar y Excel; en el panel, "Requiere atención" con detalle, los seguimientos activos y los archivos por compañía; en Agente, la línea de tiempo y el borrador al ejecutivo;
 3. comparativo con las filas de la spec y la vista compacta o detallada;
