@@ -53,10 +53,11 @@ export async function borrarCredenciales(clave: string) {
   await db.delete(schema.conexiones).where(eq(schema.conexiones.clave, clave));
 }
 
-export async function tokenVigente(clave: string, proveedor: "google" | "mercadopago"): Promise<string> {
+/** El token de acceso, renovado si venció. Con `renovar`, lo renueva aunque no haya vencido (el proveedor lo rechazó). */
+export async function tokenVigente(clave: string, proveedor: "google" | "mercadopago", renovar = false): Promise<string> {
   const actual = await leerCredenciales(clave);
   if (!actual) throw new Error("La cuenta no autorizó el acceso. Volvé a conectarla.");
-  if (!actual.venceEl || actual.venceEl > Date.now() + 60_000) return actual.accessToken;
+  if (!renovar && (!actual.venceEl || actual.venceEl > Date.now() + 60_000)) return actual.accessToken;
   if (!actual.refreshToken) throw new Error("La autorización venció. Volvé a conectar la cuenta.");
 
   const google = proveedor === "google";
@@ -76,15 +77,27 @@ export async function tokenVigente(clave: string, proveedor: "google" | "mercado
     body: google ? new URLSearchParams(parametros) : JSON.stringify(parametros),
     signal: AbortSignal.timeout(20_000),
   });
-  const cuerpo = (await respuesta.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; expires_in?: number };
+  const cuerpo = (await respuesta.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; expires_in?: number; error?: string };
+  if (cuerpo.error === "invalid_grant") {
+    // La autorización se revocó o venció: no se recupera sola. La pantalla
+    // de Configuración lo muestra y pide volver a autorizar.
+    const error = `${google ? "Google" : "Mercado Pago"} ya no acepta la autorización de esta cuenta. Volvé a autorizarla.`;
+    await guardarConexion(clave, "en_proceso", { ...(await datosSinCredenciales(clave)), error });
+    throw new Error(error);
+  }
   if (!respuesta.ok || !cuerpo.access_token) throw new Error("El proveedor rechazó renovar la autorización. Volvé a conectar la cuenta.");
   const renovada: CredencialesOAuth = {
     accessToken: cuerpo.access_token,
     refreshToken: cuerpo.refresh_token ?? actual.refreshToken,
     venceEl: cuerpo.expires_in ? Date.now() + cuerpo.expires_in * 1000 : undefined,
   };
-  const fila = await leerConexion(clave);
-  const datosGuardados = Object.fromEntries(Object.entries(fila?.datos ?? {}).filter(([nombre]) => nombre !== "credencialesCifradas")) as Record<string, string | boolean | number | null>;
-  await guardarCredenciales(clave, renovada, datosGuardados);
+  await guardarCredenciales(clave, renovada, await datosSinCredenciales(clave));
   return renovada.accessToken;
+}
+
+async function datosSinCredenciales(clave: string) {
+  const fila = await leerConexion(clave);
+  return Object.fromEntries(
+    Object.entries(fila?.datos ?? {}).filter(([nombre]) => nombre !== "credencialesCifradas" && nombre !== "error"),
+  ) as Record<string, string | boolean | number | null>;
 }

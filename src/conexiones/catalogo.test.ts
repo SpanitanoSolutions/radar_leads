@@ -33,6 +33,17 @@ describe("vistaConexion", () => {
     });
   });
 
+  it("si se cayó la autorización, dice por qué y pide volver a autorizar", () => {
+    const error = "Google ya no acepta la autorización de esta cuenta. Volvé a autorizarla.";
+    expect(vistaConexion(de("email"), { estado: "en_proceso", datos: { direccion: "yo@ejemplo.com", error } })).toMatchObject({
+      estado: "en_proceso",
+      estadoTexto: "Hay que volver a autorizar",
+      detalle: error,
+      boton: "Volver a autorizar",
+    });
+    expect(vistaConexion(de("email"), { estado: "en_proceso", datos: {} })).toMatchObject({ estadoTexto: "A medio conectar", boton: "Continuar" });
+  });
+
   it("las compañías de seguros no están en el catálogo: tienen su propia pantalla", () => {
     expect(CONEXIONES.filter((c) => c.grupo === "companias")).toEqual([]);
   });

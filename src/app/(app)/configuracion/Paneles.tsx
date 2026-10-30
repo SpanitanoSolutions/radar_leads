@@ -8,10 +8,12 @@ import type { Cuenta } from "@/lib/datos";
 import { PROVINCIAS } from "@/lib/provincias";
 import {
   desconectar,
+  gmailProbar,
   guardarCuenta,
   whatsappContinuar,
   whatsappDesconectar,
   type EstadoFormulario,
+  type EstadoPrueba,
 } from "./actions";
 
 type PasoWhatsApp = "sin_conectar" | "conectado";
@@ -72,6 +74,20 @@ export function ContenidoWhatsApp({ paso, numero, plantillas }: {
   );
 }
 
+/** "Mandar un correo de prueba" a la misma casilla conectada. */
+function PruebaGmail() {
+  const [estado, probar, probando] = useActionState<EstadoPrueba, FormData>(gmailProbar, {});
+  return (
+    <form action={probar} className="form-columna">
+      {estado.ok && <p role="status" className="aviso aviso-ok">{estado.ok}</p>}
+      {estado.error && <p role="alert" className="mensaje-error">{estado.error}</p>}
+      <button type="submit" className="boton alinear-inicio" disabled={probando}>
+        {probando ? "Mandando..." : "Mandar un correo de prueba"}
+      </button>
+    </form>
+  );
+}
+
 /** OAuth connections and providers that still require an integration agreement. */
 export function ContenidoConexion({ conexion, conectada, datos }: {
   conexion: ConexionCatalogo;
@@ -100,9 +116,10 @@ export function ContenidoConexion({ conexion, conectada, datos }: {
           <p className="aviso aviso-info">No se guarda un usuario como si fuera una conexion. Este proveedor requiere credenciales/API oficiales y autorizacion comercial.</p>
         ) : (
           <>
+            {datos.error && <p role="alert" className="aviso aviso-error">{datos.error}</p>}
             <p className="texto-suave">
               {conexion.tipo === "email"
-                ? "Google solicitara permiso para enviar correo y consultar adjuntos de liquidaciones."
+                ? "Google te va a pedir permiso solo para enviar correos desde tu casilla. UNIQO no lee tus correos."
                 : conexion.tipo === "google_calendar"
                   ? "Google solicitara permiso para crear eventos en tu calendario."
                   : "Mercado Pago solicitara autorizacion para crear links de pago y consultar cobros."}
@@ -110,6 +127,7 @@ export function ContenidoConexion({ conexion, conectada, datos }: {
             {href && <a href={href} className="boton boton-primario alinear-inicio">Autorizar con {conexion.tipo === "mercadopago" ? "Mercado Pago" : "Google"}</a>}
           </>
         )}
+        {conectada && conexion.tipo === "email" && <PruebaGmail />}
         {conectada && href && <a href={href} className="boton alinear-inicio">Volver a autorizar</a>}
         {conectada && (
           <form action={desconectar}>

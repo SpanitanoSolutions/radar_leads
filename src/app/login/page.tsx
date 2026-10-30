@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { IconoRadar } from "@/components/iconos";
 import { FormLogin } from "./FormLogin";
 
@@ -18,6 +19,10 @@ export default function LoginPage() {
         <h1 className="login-titulo">Entrar</h1>
         <FormLogin />
       </div>
+      <footer className="login-pie">
+        <Link href="/terminos">Términos y condiciones</Link>
+        <Link href="/privacidad">Política de privacidad</Link>
+      </footer>
     </main>
   );
 }

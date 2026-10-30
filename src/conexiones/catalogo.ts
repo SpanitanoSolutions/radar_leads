@@ -38,8 +38,8 @@ export const CONEXIONES: ConexionCatalogo[] = [
     sigla: "@",
     grupo: "mensajeria",
     requerida: false,
-    usan: ["Cotización", "Conciliador"],
-    detalle: "Para pedir cotizaciones y leer las liquidaciones que te mandan las compañías.",
+    usan: ["Cotización", "Siniestros", "Conciliador", "Cobranza", "Validador de pagos"],
+    detalle: "Para pedir cotizaciones y mandar denuncias, reclamos y avisos desde tu casilla.",
   },
   {
     clave: "mercadopago",
@@ -120,7 +120,10 @@ export function vistaConexion(c: ConexionCatalogo, fila: Fila): VistaConexion {
     return { estado: "conectado", estadoTexto: "Conectado", detalle: detalle || c.detalle, boton: "Administrar", primario: false };
   }
   if (fila?.estado === "en_proceso") {
-    return { estado: "en_proceso", estadoTexto: "A medio conectar", detalle: c.detalle, boton: "Continuar", primario: true };
+    // Con error: la autorización se cayó (por ejemplo, la revocaron desde la cuenta de Google).
+    return d("error")
+      ? { estado: "en_proceso", estadoTexto: "Hay que volver a autorizar", detalle: d("error"), boton: "Volver a autorizar", primario: true }
+      : { estado: "en_proceso", estadoTexto: "A medio conectar", detalle: c.detalle, boton: "Continuar", primario: true };
   }
   return {
     estado: c.requerida ? "pendiente" : "sin_conectar",

@@ -11,7 +11,7 @@ import { calendario } from "@/conexiones/google-calendar";
 import { mercadoPago } from "@/conexiones/mercadopago";
 import { whatsapp } from "@/conexiones/whatsapp";
 import { requerirSesion } from "@/lib/auth";
-import { AJUSTES_POR_DEFECTO } from "@/lib/datos";
+import { AJUSTES_POR_DEFECTO, obtenerCuenta } from "@/lib/datos";
 import { provinciaValida } from "@/lib/provincias";
 
 const texto = (formData: FormData, campo: string, max = 120) => String(formData.get(campo) ?? "").trim().slice(0, max);
@@ -54,6 +54,27 @@ export async function whatsappDesconectar() {
   await whatsapp.desconectar();
   refrescar();
   redirect("/configuracion?aviso=desconectada");
+}
+
+// ---------- Gmail ----------
+
+export type EstadoPrueba = { error?: string; ok?: string };
+
+/** Un correo a la misma casilla conectada: prueba la autorización y el envío sin escribirle a nadie más. */
+export async function gmailProbar(_previo: EstadoPrueba, _formData: FormData): Promise<EstadoPrueba> {
+  await requerirSesion();
+  const { conectado, direccion } = await email.estado();
+  if (!conectado || !direccion) return { error: "Gmail no está conectado." };
+  const cuenta = await obtenerCuenta();
+  const r = await email.enviar({
+    para: direccion,
+    remitente: cuenta.nombre,
+    asunto: "Prueba de UNIQO",
+    texto: `Este correo lo mandó UNIQO para probar la conexión con Gmail.\n\nSi lo estás leyendo, los agentes ya pueden mandar correos desde ${direccion}.`,
+  });
+  // Si Google revocó la autorización, la conexión quedó marcada: la pantalla tiene que mostrarlo.
+  refrescar();
+  return r.ok ? { ok: `Listo: le mandamos un correo de prueba a ${direccion}. Fijate en la bandeja de entrada.` } : { error: r.error };
 }
 
 // ---------- Acciones de conexiones autorizadas ----------

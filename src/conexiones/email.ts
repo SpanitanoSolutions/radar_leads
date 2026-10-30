@@ -3,22 +3,36 @@ import { borrarCredenciales, leerCredenciales, tokenVigente } from "./secretos";
 import { leerConexion } from "./estado";
 import type { ResultadoEnvio } from "./tipos";
 
+export type MensajeEmail = {
+  para: string;
+  asunto: string;
+  texto: string;
+  /** Nombre que ve quien lo recibe, al lado de la dirección conectada. */
+  remitente?: string | null;
+};
+
 export interface ConexionEmail {
   estado(): Promise<{ conectado: boolean; direccion?: string; proveedor?: string }>;
   conectar(direccion: string, proveedor: string): Promise<void>;
   desconectar(): Promise<void>;
-  enviar(mensaje: { para: string; asunto: string; texto: string }): Promise<ResultadoEnvio>;
-  liquidacionesRecibidas(): Promise<{ compania: string; periodo: string; adjunto: string }[]>;
+  enviar(mensaje: MensajeEmail): Promise<ResultadoEnvio>;
 }
 
 async function gmail(path: string, init: RequestInit = {}) {
-  const accessToken = await tokenVigente("email", "google");
-  const respuesta = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${accessToken}`, ...(init.headers ?? {}) },
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!respuesta.ok) throw new Error(`Gmail respondió ${respuesta.status}.`);
+  const pedir = async (renovar: boolean) =>
+    fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${await tokenVigente("email", "google", renovar)}`, ...(init.headers ?? {}) },
+      signal: AbortSignal.timeout(20_000),
+    });
+  let respuesta = await pedir(false);
+  // 401: el token se revocó antes de vencer. Renovarlo dice si la autorización sigue en pie.
+  if (respuesta.status === 401) respuesta = await pedir(true);
+  if (!respuesta.ok) {
+    const cuerpo = (await respuesta.json().catch(() => ({}))) as { error?: { message?: string } };
+    if (respuesta.status === 403) throw new Error("Google no dio permiso para enviar correos con esta cuenta. Volvé a autorizar Gmail.");
+    throw new Error(`Gmail respondió ${respuesta.status}${cuerpo.error?.message ? `: ${cuerpo.error.message}` : "."}`);
+  }
   return respuesta;
 }
 
@@ -26,14 +40,16 @@ function base64url(valor: string) {
   return Buffer.from(valor, "utf8").toString("base64url");
 }
 
-function hallarAdjuntos(partes: GmailParte[] = []): GmailParte[] {
-  return partes.flatMap((parte) => [
-    ...(parte.filename && parte.body?.attachmentId ? [parte] : []),
-    ...hallarAdjuntos(parte.parts ?? []),
-  ]);
+/** Encabezado con texto que puede tener acentos (RFC 2047). */
+function encabezado(valor: string) {
+  return `=?UTF-8?B?${Buffer.from(valor, "utf8").toString("base64")}?=`;
 }
 
-type GmailParte = { filename?: string; mimeType?: string; body?: { attachmentId?: string; data?: string }; parts?: GmailParte[] };
+/** "Juan Pérez <juan@gmail.com>", o solo la dirección si no hay nombre. */
+export function remitenteDe(direccion: string, nombre?: string | null) {
+  const limpio = nombre?.replace(/[\r\n"<>]+/g, " ").trim();
+  return limpio ? `${encabezado(limpio)} <${direccion}>` : direccion;
+}
 
 export const email = {
   async estado() {
@@ -50,7 +66,7 @@ export const email = {
   async desconectar() {
     await borrarCredenciales("email");
   },
-  async enviar(mensaje: { para: string; asunto: string; texto: string }): Promise<ResultadoEnvio> {
+  async enviar(mensaje: MensajeEmail): Promise<ResultadoEnvio> {
     try {
       const fila = await leerConexion("email");
       if (fila?.estado !== "conectado") return { ok: false, error: "Gmail no está conectado." };
@@ -62,8 +78,8 @@ export const email = {
       const asunto = mensaje.asunto.replace(/[\r\n]+/g, " ");
       const raw = [
         `To: ${destinatario}`,
-        `From: ${direccion}`,
-        `Subject: =?UTF-8?B?${Buffer.from(asunto).toString("base64")}?=`,
+        `From: ${remitenteDe(direccion, mensaje.remitente)}`,
+        `Subject: ${encabezado(asunto)}`,
         "MIME-Version: 1.0",
         "Content-Type: text/plain; charset=UTF-8",
         "Content-Transfer-Encoding: base64",
@@ -80,31 +96,5 @@ export const email = {
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : "No se pudo enviar por Gmail." };
     }
-  },
-  async liquidacionesRecibidas() {
-    const listado = (await gmail("messages?q=has%3Aattachment+newer_than%3A90d&maxResults=30").then((r) => r.json())) as {
-      messages?: { id: string }[];
-    };
-    const salidas: { compania: string; periodo: string; adjunto: string }[] = [];
-    for (const mensaje of listado.messages ?? []) {
-      const completo = (await gmail(`messages/${mensaje.id}?format=full`).then((r) => r.json())) as {
-        internalDate?: string;
-        payload?: { headers?: { name: string; value: string }[]; parts?: GmailParte[] };
-      };
-      const cabecera = (nombre: string) => completo.payload?.headers?.find((h) => h.name.toLowerCase() === nombre)?.value ?? "";
-      const asunto = cabecera("subject");
-      const fecha = completo.internalDate ? new Date(Number(completo.internalDate)).toISOString().slice(0, 7) : "";
-      for (const parte of hallarAdjuntos(completo.payload?.parts)) {
-        const idAdjunto = parte.body?.attachmentId;
-        if (!idAdjunto) continue;
-        const recurso = (await gmail(`messages/${mensaje.id}/attachments/${idAdjunto}`).then((r) => r.json())) as { data?: string };
-        salidas.push({
-          compania: cabecera("from").split(/[<@]/)[0].trim() || "Compañía",
-          periodo: fecha || asunto,
-          adjunto: `base64:${parte.filename}:${recurso.data ?? ""}`,
-        });
-      }
-    }
-    return salidas;
   },
 };
