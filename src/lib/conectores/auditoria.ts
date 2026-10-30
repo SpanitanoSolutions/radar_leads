@@ -14,7 +14,7 @@ export type ContextoConector = {
   entidadId?: number;
 };
 
-const igualONulo = (columna: AnyPgColumn, valor: string | null) => valor === null ? isNull(columna) : eq(columna, valor);
+export const igualONulo = (columna: AnyPgColumn, valor: string | null) => valor === null ? isNull(columna) : eq(columna, valor);
 
 function filtroSalud(compania: string, canal: TipoConector, contexto: ContextoConector) {
   return and(

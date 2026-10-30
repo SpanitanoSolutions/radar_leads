@@ -37,19 +37,29 @@ export type ResultadoCanales<T> =
   /** Ningún canal automático funcionó: queda el canal manual (correo o presentación manual). */
   | { ok: false; motivo: "manual"; intentos: IntentoCanal[] };
 
-/** Canales que tienen la capacidad y están sanos, en orden de prioridad. */
+/** Los canales válidos de una lista guardada (conector_companias.canales), sin repetir y en su orden. */
+export function canalesValidos(valores: readonly string[]): TipoConector[] {
+  return [...new Set(valores)].filter((valor): valor is TipoConector => (ORDEN_CANALES as readonly string[]).includes(valor));
+}
+
+/**
+ * Canales que tienen la capacidad y están sanos, en orden de prioridad. Con
+ * `orden` (el de la compañía), solo esos canales y en ese orden: una lista
+ * vacía deja solo el canal manual.
+ */
 export function ordenarCanales(
   conectores: ConectorCompania[],
   capacidad: Capacidad,
   salud: (conector: ConectorCompania) => SaludCanal | undefined = () => undefined,
+  orden: readonly TipoConector[] = ORDEN_CANALES,
 ): ConectorCompania[] {
   return conectores
-    .filter((conector) => conector.capacidades.includes(capacidad))
+    .filter((conector) => orden.includes(conector.tipo) && conector.capacidades.includes(capacidad))
     .filter((conector) => {
       const estado = salud(conector);
       return !estado?.credencialVencida && !estado?.portalCambiado;
     })
-    .sort((a, b) => ORDEN_CANALES.indexOf(a.tipo) - ORDEN_CANALES.indexOf(b.tipo));
+    .sort((a, b) => orden.indexOf(a.tipo) - orden.indexOf(b.tipo));
 }
 
 /**
@@ -86,6 +96,8 @@ function conTiempoMaximo<T>(promesa: Promise<T>, ms: number): Promise<T> {
 export type OpcionesCanales = {
   registrar?: (intento: IntentoCanal) => Promise<void>;
   salud?: (conector: ConectorCompania) => SaludCanal | undefined;
+  /** El orden de la compañía; sin él, API → portal → archivo. */
+  canales?: readonly TipoConector[];
   tiempoMaximoMs?: Partial<Record<TipoConector, number>>;
   reloj?: () => number;
 };
@@ -103,7 +115,7 @@ export async function ejecutarConCanales<C extends Capacidad>(
     intentos.push(intento);
     await opciones.registrar?.(intento);
   };
-  for (const conector of ordenarCanales(conectores, capacidad, opciones.salud)) {
+  for (const conector of ordenarCanales(conectores, capacidad, opciones.salud, opciones.canales)) {
     const inicio = reloj();
     const base = { compania: conector.compania, canal: conector.tipo, operacion: capacidad };
     try {

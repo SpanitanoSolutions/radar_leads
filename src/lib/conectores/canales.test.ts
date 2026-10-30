@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { efectoEnSalud, ejecutarConCanales, ordenarCanales, pasaAlSiguiente, type IntentoCanal } from "./canales";
+import { canalesValidos, efectoEnSalud, ejecutarConCanales, ordenarCanales, pasaAlSiguiente, type IntentoCanal } from "./canales";
 import { autorizacion, conPermisos } from "./permisos";
 import { crearRegistroSimulado, RegistroConectores, simulacionHabilitada } from "./registro";
 import { SimuladaApi } from "./simulada-api";
@@ -40,6 +40,22 @@ describe("ordenarCanales", () => {
     const salud = (c: ConectorCompania) => c.tipo === "api" ? { credencialVencida: true, portalCambiado: false } : c.tipo === "portal" ? { credencialVencida: false, portalCambiado: true } : undefined;
     expect(ordenarCanales([api, portal, archivo], "obtenerCuotas", salud)).toEqual([archivo]);
   });
+
+  it("con el orden de la compañía, solo esos canales y en ese orden", () => {
+    expect(ordenarCanales([archivo, portal, api], "obtenerCuotas", undefined, ["portal", "api"])).toEqual([portal, api]);
+    expect(ordenarCanales([archivo, portal, api], "obtenerCuotas", undefined, ["portal"])).toEqual([portal]);
+  });
+
+  it("una lista vacía deja solo el canal manual", () => {
+    expect(ordenarCanales([archivo, portal, api], "obtenerCuotas", undefined, [])).toEqual([]);
+  });
+});
+
+describe("canalesValidos", () => {
+  it("deja los canales conocidos, sin repetir y en su orden", () => {
+    expect(canalesValidos(["portal", "correo", "api", "portal", "API"])).toEqual(["portal", "api"]);
+    expect(canalesValidos([])).toEqual([]);
+  });
 });
 
 describe("ejecutarConCanales", () => {
@@ -61,6 +77,25 @@ describe("ejecutarConCanales", () => {
     const resultado = await ejecutarConCanales([conector("api", { obtenerCuotas: falla("timeout") }), conector("portal", { obtenerCuotas: falla("portal_cambiado") })], "obtenerCuotas", ["P"]);
     expect(resultado).toMatchObject({ ok: false, motivo: "manual" });
     expect(resultado.intentos).toHaveLength(2);
+  });
+
+  it("respeta el orden de la compañía: el portal antes que la API", async () => {
+    let llamadasApi = 0;
+    const resultado = await ejecutarConCanales(
+      [conector("api", { obtenerCuotas: async () => { llamadasApi++; return []; } }), conector("portal", { obtenerCuotas: async () => [] })],
+      "obtenerCuotas",
+      ["P"],
+      { canales: ["portal", "api"] },
+    );
+    expect(resultado).toMatchObject({ ok: true, canal: "portal" });
+    expect(llamadasApi).toBe(0);
+  });
+
+  it("solo correo: no llama a ningún conector", async () => {
+    let llamadas = 0;
+    const api = conector("api", { obtenerCuotas: async () => { llamadas++; return []; } });
+    expect(await ejecutarConCanales([api], "obtenerCuotas", ["P"], { canales: [] })).toEqual({ ok: false, motivo: "manual", intentos: [] });
+    expect(llamadas).toBe(0);
   });
 
   it("sin conectores también es manual", async () => {

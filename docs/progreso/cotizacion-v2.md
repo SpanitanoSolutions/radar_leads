@@ -72,7 +72,7 @@ Rama `feat/cotizacion-v2-base-comun`.
 | Paso | Qué | Estado | Archivos |
 |---|---|---|---|
 | 1 | Migración `0030_cotizacion_conectores` | Hecho y probado | `drizzle/0030_cotizacion_conectores.sql` (+ snapshot), `src/db/schema.ts` |
-| 2 | Opción `canales` de `ejecutarEnCompania()` | Pendiente | — |
+| 2 | Opción `canales` de `ejecutarEnCompania()` | Hecho, con tests | `src/lib/conectores/canales.ts` (+ test), `ejecutar.ts` (+ test nuevo), `companias.ts` (nuevo), `auditoria.ts` |
 | 3 | Orquestador (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`) | Pendiente | — |
 | 4 | `CONECTORES_SIMULADOS_FORZAR` | Pendiente | — |
 | 5 | El correo aprobado por la salida común; se borra `src/conexiones/cotizacion.ts` | Pendiente | — |
@@ -82,7 +82,13 @@ Rama `feat/cotizacion-v2-base-comun`.
 - en `cotizacion_envios`: `canal_usado` (texto: `api`, `portal` o `correo`; null mientras no salió), `intentos` (JSON, `[]` por defecto: canal, resultado, código, dato pedido, detalle y fecha; el tipo es `IntentoEnvio` en `schema.ts`), `numero_compania` y `ultimo_error`;
 - la tabla compartida `conector_companias` (compañía, `canales` en orden, `org_id`, `producer_id`), única por compañía y alcance (`NULLS NOT DISTINCT`). Sin fila se usan todos los conectores registrados; con la lista vacía, solo correo o carga manual.
 
-**Prueba:** `db:preparar` desde un worktree de `main` contra Postgres 18.6 en Docker (29 migraciones, la cartera de ejemplo y 16 envíos). Después, `db:preparar` desde esta rama: 31 migraciones, los 16 envíos con el mismo hash de sus columnas de antes, `intentos = []` y lo demás en null, y `conector_companias` vacía.
+**Paso 2. El orden de canales:**
+- `ordenarCanales()` y `ejecutarConCanales()` reciben el orden de la compañía: solo esos canales y en ese orden. Una lista vacía deja solo el canal manual. `canalesValidos()` limpia lo guardado (sin repetidos ni valores desconocidos).
+- `ejecutarEnCompania()` suma la opción `canales`. Si no se pasa, lee la fila de la compañía en `conector_companias` (`canalesDeCompania()`, con el mismo alcance que la salud); sin fila, API → portal → archivo, como hasta ahora. La tabla es compartida: también la respeta el Validador.
+- Una compañía sin conectores registrados vuelve enseguida como manual, sin consultar la base (en producción no hay ninguno).
+- Tests: 11 nuevos en `canales.test.ts` y `ejecutar.test.ts` (este con la auditoría y la tabla simuladas).
+
+**Prueba del paso 1:** `db:preparar` desde un worktree de `main` contra Postgres 18.6 en Docker (29 migraciones, la cartera de ejemplo y 16 envíos). Después, `db:preparar` desde esta rama: 31 migraciones, los 16 envíos con el mismo hash de sus columnas de antes, `intentos = []` y lo demás en null, y `conector_companias` vacía.
 
 ## Fase 1 — Arreglos (30/10/2026, cerrada)
 Sin migraciones. Rama `feat/cotizacion-v2-arreglos`.
