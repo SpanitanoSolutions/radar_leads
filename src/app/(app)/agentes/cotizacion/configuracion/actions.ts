@@ -137,17 +137,19 @@ export async function importarAseguradorasCotizacion(formData: FormData) {
   await requerirSesion();
   const archivo = formData.get("archivoAseguradoras");
   if (!(archivo instanceof File) || archivo.size === 0 || archivo.size > 5 * 1024 * 1024) redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
+  // Fuera del try: redirect() lanza un error propio de Next que el catch atraparía.
+  if (!/\.(xlsx|csv)$/i.test(archivo.name)) redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
   let filas: string[][];
   try {
     const bytes = new Uint8Array(await archivo.arrayBuffer());
     if (/\.xlsx$/i.test(archivo.name)) filas = await leerXlsx(bytes);
-    else if (/\.csv$/i.test(archivo.name)) {
+    else {
       const contenido = new TextDecoder("utf-8").decode(bytes);
       const separador = contenido.split("\n", 1)[0].includes(";") ? ";" : ",";
       const generador = celdasCsv([contenido], separador);
       filas = [];
       for await (const fila of generador) filas.push(fila);
-    } else redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
+    }
   } catch {
     redirect("/agentes/cotizacion/configuracion?aviso=archivo-catalogo-invalido");
   }

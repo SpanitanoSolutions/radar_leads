@@ -31,4 +31,12 @@ describe("métricas de Cotización", () => {
     ];
     expect(solicitudesDetenidas(solicitudes, ahora, 24).map((solicitud) => solicitud.numero)).toEqual([1, 2]);
   });
+
+  it("no cuenta como detenida una solicitud completada, aunque conserve su estado", () => {
+    const solicitudes = [
+      { numero: 1, estado: "atencion", actualizadoEl: new Date("2026-01-05T00:00:00Z"), completadoEl: new Date("2026-01-06T00:00:00Z") },
+      { numero: 2, estado: "esperando", actualizadoEl: new Date("2026-01-08T00:00:00Z"), completadoEl: null },
+    ];
+    expect(solicitudesDetenidas(solicitudes, ahora, 24).map((solicitud) => solicitud.numero)).toEqual([2]);
+  });
 });

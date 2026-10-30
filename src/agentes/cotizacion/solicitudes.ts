@@ -1,7 +1,8 @@
 import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { EstadoCotizacion } from "@/lib/cotizacion";
+import { agregarRespuesta, type RespuestaConfirmada } from "@/lib/cotizacion";
+import { armarBorradorSolicitud } from "@/lib/cotizacion/correo";
 import { ramoCanonico } from "@/lib/ramos";
 
 export type NuevaSolicitud = {
@@ -41,7 +42,12 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
     throw new Error("La solicitud incluye una compañía que no está configurada para cotizar.");
   }
   const companias = habilitadas.filter((compania) => solicitadas.includes(compania));
-  const config = (await db.select().from(schema.cotizacionConfig).limit(1))[0];
+  const [[config], [ajustes]] = await Promise.all([
+    db.select().from(schema.cotizacionConfig).limit(1),
+    db.select({ productor: schema.ajustes.productorNombre, organizacion: schema.ajustes.productorOrganizacion }).from(schema.ajustes).where(eq(schema.ajustes.id, 1)),
+  ]);
+  // Los mismos valores que muestra la cuenta (obtenerCuenta()).
+  const cuenta = { productor: ajustes?.productor ?? process.env.NOMBRE_PRODUCTOR ?? null, organizacion: ajustes ? ajustes.organizacion : "HR Productores" };
   const creada = await db.transaction(async (tx) => {
     const [{ numero }] = (await tx.execute(
       sql`select coalesce(max(numero), 1000)::int + 1 as numero from solicitudes_cotizacion`,
@@ -64,16 +70,14 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
     }).returning({ id: schema.solicitudesCotizacion.id });
     const envios = companias.map((compania) => {
       const aseguradora = aseguradoras.find((fila) => fila.nombre === compania);
-      const asunto = (aseguradora?.asunto || config?.plantillaAsunto || "SOLICITUD – [RAMO] – [CLIENTE] – [ASEGURADORA] – [CLAVE]")
-        .replaceAll("[RAMO]", s.ramo).replaceAll("[CLIENTE]", s.cliente).replaceAll("[ASEGURADORA]", compania)
-        .replaceAll("[CLAVE]", aseguradora?.codigoProductor ?? "");
-      const valores: Record<string, string> = {
-        productor: "Productor", organizacion: "UNIQO", aseguradora: compania, cliente: s.cliente,
-        cuit: String(s.datosRiesgo?.cuitCuil ?? ""), ramo: s.ramo, moneda: "ARS", forma_de_pago: String(s.datosRiesgo?.formaDePago ?? "a convenir"),
-      };
-      let cuerpo = config?.plantillaCuerpo ?? "Buenos días. Solicitamos una propuesta para {cliente}, CUIT {cuit}, ramo {ramo}. Productor: {productor}.";
-      for (const [clave, valor] of Object.entries(valores)) cuerpo = cuerpo.replaceAll(`{${clave}}`, valor);
-      if (aseguradora?.instrucciones) cuerpo += `\n\n${aseguradora.instrucciones}`;
+      const { asunto, cuerpo } = armarBorradorSolicitud({
+        plantillaAsunto: config?.plantillaAsunto,
+        plantillaCuerpo: config?.plantillaCuerpo,
+        instruccionesCuerpo: config?.instruccionesCuerpo,
+        aseguradora: { nombre: compania, asunto: aseguradora?.asunto, instrucciones: aseguradora?.instrucciones, codigoProductor: aseguradora?.codigoProductor },
+        solicitud: { ramo: s.ramo, cliente: s.cliente, datosRiesgo: s.datosRiesgo },
+        cuenta,
+      });
       return {
         solicitudId: insertada.id,
         aseguradoraId: aseguradora?.id,
@@ -101,7 +105,37 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
   return creada.numero;
 }
 
-/** Registra una respuesta de una compañía y actualiza la comparativa. */
+type Transaccion = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Solicitud = typeof schema.solicitudesCotizacion.$inferSelect;
+
+async function solicitudBloqueada(tx: Transaccion, solicitudId: number): Promise<Solicitud> {
+  await tx.execute(sql`select id from solicitudes_cotizacion where id = ${solicitudId} for update`);
+  const [solicitud] = await tx.select().from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, solicitudId));
+  if (!solicitud) throw new Error("Solicitud inexistente.");
+  if (["ganada", "perdida"].includes(solicitud.estado)) throw new Error("La solicitud ya está cerrada.");
+  return solicitud;
+}
+
+/** Suma la respuesta confirmada a la comparativa de la lista y da el envío por cotizado. */
+async function sumarAComparativa(tx: Transaccion, solicitud: Solicitud, respuesta: RespuestaConfirmada, envioId: number | null): Promise<string[]> {
+  const { cotizaciones, estado, nota, pendientes } = agregarRespuesta(solicitud, respuesta, new Date().toISOString());
+  await tx.update(schema.solicitudesCotizacion).set({ cotizaciones, estado, nota, actualizadoEl: new Date() }).where(eq(schema.solicitudesCotizacion.id, solicitud.id));
+  if (envioId != null) {
+    await tx.update(schema.cotizacionEnvios).set({ estado: "cotizado", proximoSeguimiento: null, ultimaActividad: new Date() }).where(eq(schema.cotizacionEnvios.id, envioId));
+  }
+  return pendientes;
+}
+
+function textoFaltan(pendientes: string[]): string {
+  return pendientes.length ? `Faltan respuestas de ${pendientes.join(", ")}.` : "La comparativa está completa.";
+}
+
+/**
+ * Registra una respuesta de una compañía. Lo que carga el productor queda confirmado y entra
+ * en la comparativa. Lo que lee la IA o llega por un portal queda sin confirmar: no cuenta
+ * como cotizado ni entra en la lista hasta que el productor lo confirme, y nunca pisa una
+ * respuesta que el productor ya confirmó.
+ */
 export async function registrarResultadoCotizacion(datos: {
   solicitudId: number;
   compania: string;
@@ -116,54 +150,31 @@ export async function registrarResultadoCotizacion(datos: {
   condiciones?: string | null;
   vigencia?: string | null;
   confirmado?: boolean;
+  /** Quién trajo la respuesta sin confirmar, para el registro de eventos. */
+  actor?: "productor" | "ia" | "simulador";
   coberturas?: { nombre: string; valor?: string; incluida?: boolean }[];
   riesgoCotizado?: Record<string, string>;
-}): Promise<void> {
+}): Promise<"confirmada" | "sin_confirmar" | "ya_confirmada"> {
   if (!Number.isInteger(datos.solicitudId) || datos.solicitudId <= 0) throw new Error("Solicitud inválida.");
   if (!Number.isFinite(datos.precio) || datos.precio <= 0) throw new Error("El precio debe ser mayor que cero.");
   const observacion = datos.observacion?.trim().slice(0, 500) || undefined;
+  const confirmado = datos.confirmado ?? true;
+  const actor = datos.actor ?? "productor";
 
-  await db.transaction(async (tx) => {
-    await tx.execute(sql`select id from solicitudes_cotizacion where id = ${datos.solicitudId} for update`);
-    const [solicitud] = await tx
-      .select()
-      .from(schema.solicitudesCotizacion)
-      .where(eq(schema.solicitudesCotizacion.id, datos.solicitudId));
-    if (!solicitud) throw new Error("Solicitud inexistente.");
-    if (["ganada", "perdida"].includes(solicitud.estado)) throw new Error("La solicitud ya está cerrada.");
+  return db.transaction(async (tx) => {
+    const solicitud = await solicitudBloqueada(tx, datos.solicitudId);
     if (!solicitud.companias.includes(datos.compania)) throw new Error("La compañía no forma parte de esta solicitud.");
-
-    const recibidaEl = new Date().toISOString();
-    const cotizaciones: typeof solicitud.cotizaciones = [
-      ...solicitud.cotizaciones.filter((cotizacion) => cotizacion.compania !== datos.compania),
-      {
-        compania: datos.compania,
-        precio: datos.precio,
-        recibidaEl,
-        estado: "recibida",
-        ...(observacion ? { observacion } : {}),
-        origen: datos.origen ?? "manual",
-      },
-    ];
-    const pendientes = solicitud.companias.filter(
-      (compania) => !cotizaciones.some((cotizacion) => cotizacion.compania === compania && cotizacion.precio !== null),
-    );
-    const estado: EstadoCotizacion = pendientes.length ? "esperando" : "lista";
-    const nota = pendientes.length
-      ? `Respuesta recibida de ${datos.compania}. Pendiente: ${pendientes.join(", ")}.`
-      : "Ya llegaron todas las respuestas; comparativa lista.";
-
-    await tx
-      .update(schema.solicitudesCotizacion)
-      .set({ cotizaciones, estado, nota, actualizadoEl: new Date() })
-      .where(eq(schema.solicitudesCotizacion.id, datos.solicitudId));
     const [envio] = await tx.select().from(schema.cotizacionEnvios).where(and(
       eq(schema.cotizacionEnvios.solicitudId, datos.solicitudId),
       eq(schema.cotizacionEnvios.compania, datos.compania),
     ));
-    if (envio) {
+    const [existente] = envio
+      ? await tx.select({ id: schema.cotizacionResultados.id, confirmado: schema.cotizacionResultados.confirmado }).from(schema.cotizacionResultados).where(eq(schema.cotizacionResultados.envioId, envio.id)).limit(1)
+      : [];
+
+    const guardarResultado = async (envioId: number) => {
       const resultado = {
-        envioId: envio.id,
+        envioId,
         primaNeta: datos.primaNeta ?? null,
         primaTotal: datos.precio,
         gastos: datos.gastos ?? 0,
@@ -174,18 +185,75 @@ export async function registrarResultadoCotizacion(datos: {
         vigencia: datos.vigencia ?? null,
         coberturas: datos.coberturas ?? [],
         riesgoCotizado: datos.riesgoCotizado ?? {},
-        confirmado: datos.confirmado ?? true,
+        confirmado,
       };
-      const [existente] = await tx.select({ id: schema.cotizacionResultados.id }).from(schema.cotizacionResultados).where(eq(schema.cotizacionResultados.envioId, envio.id)).limit(1);
       if (existente) await tx.update(schema.cotizacionResultados).set(resultado).where(eq(schema.cotizacionResultados.id, existente.id));
       else await tx.insert(schema.cotizacionResultados).values(resultado);
-      await tx.update(schema.cotizacionEnvios).set({ estado: "cotizado", ultimaActividad: new Date() }).where(eq(schema.cotizacionEnvios.id, envio.id));
-      await tx.insert(schema.cotizacionEventos).values({ solicitudId: datos.solicitudId, envioId: envio.id, actor: "productor", tipo: "cotizacion_cargada", detalle: `El productor cargó y confirmó el precio de ${datos.compania}.` });
+    };
+
+    if (!confirmado) {
+      if (!envio) throw new Error("La compañía no tiene un envío donde guardar la respuesta sin confirmar.");
+      if (existente?.confirmado) {
+        await tx.insert(schema.cotizacionEventos).values({ solicitudId: solicitud.id, envioId: envio.id, actor, tipo: "cotizacion_no_aplicada", detalle: `${actor === "ia" ? "La IA leyó" : "Llegó"} otra respuesta de ${datos.compania}, pero se mantiene la que confirmó el productor.` });
+        return "ya_confirmada";
+      }
+      await guardarResultado(envio.id);
+      // Ya hay respuesta: no hace falta seguir insistiendo, pero el envío no cuenta como cotizado hasta que el productor confirme.
+      await tx.update(schema.cotizacionEnvios).set({ proximoSeguimiento: null, ultimaActividad: new Date() }).where(eq(schema.cotizacionEnvios.id, envio.id));
+      await tx.insert(schema.cotizacionEventos).values({ solicitudId: solicitud.id, envioId: envio.id, actor, tipo: "cotizacion_sin_confirmar", detalle: `${actor === "ia" ? "La IA leyó" : "Llegó"} la respuesta de ${datos.compania}. Falta que el productor la confirme.` });
+      await tx.update(schema.solicitudesCotizacion).set({ actualizadoEl: new Date() }).where(eq(schema.solicitudesCotizacion.id, solicitud.id));
+      await tx.insert(schema.actividadAgentes).values({
+        agente: "cotizacion",
+        referencia: `solicitud:${solicitud.numero}`,
+        texto: `${actor === "ia" ? "Leyó" : "Recibió"} la respuesta de ${datos.compania} para la solicitud ${solicitud.numero}. Espera tu confirmación antes de sumarla a la comparativa.`,
+      });
+      return "sin_confirmar";
+    }
+
+    if (envio) await guardarResultado(envio.id);
+    const pendientes = await sumarAComparativa(tx, solicitud, { compania: datos.compania, precio: datos.precio, observacion, origen: datos.origen ?? "manual" }, envio?.id ?? null);
+    if (envio) {
+      await tx.insert(schema.cotizacionEventos).values({ solicitudId: solicitud.id, envioId: envio.id, actor: "productor", tipo: "cotizacion_cargada", detalle: `El productor cargó y confirmó el precio de ${datos.compania}.` });
     }
     await tx.insert(schema.actividadAgentes).values({
       agente: "cotizacion",
       referencia: `solicitud:${solicitud.numero}`,
-      texto: `Registró una respuesta de ${datos.compania}${datos.origen === "portal" ? " recibida del portal simulado" : " cargada por el productor"}. ${pendientes.length ? `Faltan respuestas de ${pendientes.join(", ")}.` : "La comparativa está completa."}`,
+      texto: `Registró una respuesta de ${datos.compania}${datos.origen === "portal" ? " recibida del portal simulado" : " cargada por el productor"}. ${textoFaltan(pendientes)}`,
+    });
+    return "confirmada";
+  });
+}
+
+export class ResultadoNoDisponibleError extends Error {
+  constructor() {
+    super("Esa respuesta ya no está para confirmar.");
+    this.name = "ResultadoNoDisponibleError";
+  }
+}
+
+/** El productor confirma una respuesta que leyó la IA o llegó por un portal: recién ahí cuenta como cotizada y entra en la lista. */
+export async function confirmarResultadoCotizacion(resultadoId: number): Promise<{ solicitudId: number }> {
+  if (!Number.isInteger(resultadoId) || resultadoId <= 0) throw new ResultadoNoDisponibleError();
+  const [fila] = await db.select({ resultado: schema.cotizacionResultados, envio: schema.cotizacionEnvios })
+    .from(schema.cotizacionResultados)
+    .innerJoin(schema.cotizacionEnvios, eq(schema.cotizacionEnvios.id, schema.cotizacionResultados.envioId))
+    .where(eq(schema.cotizacionResultados.id, resultadoId));
+  if (!fila) throw new ResultadoNoDisponibleError();
+  const { envio } = fila;
+
+  await db.transaction(async (tx) => {
+    const solicitud = await solicitudBloqueada(tx, envio.solicitudId);
+    const [resultado] = await tx.select().from(schema.cotizacionResultados).where(eq(schema.cotizacionResultados.id, resultadoId));
+    if (!resultado) throw new ResultadoNoDisponibleError();
+    if (resultado.confirmado) return;
+    await tx.update(schema.cotizacionResultados).set({ confirmado: true }).where(eq(schema.cotizacionResultados.id, resultadoId));
+    const pendientes = await sumarAComparativa(tx, solicitud, { compania: envio.compania, precio: resultado.primaTotal, origen: "portal" }, envio.id);
+    await tx.insert(schema.cotizacionEventos).values({ solicitudId: solicitud.id, envioId: envio.id, actor: "productor", tipo: "cotizacion_confirmada", detalle: `El productor revisó y confirmó la respuesta de ${envio.compania}.` });
+    await tx.insert(schema.actividadAgentes).values({
+      agente: "cotizacion",
+      referencia: `solicitud:${solicitud.numero}`,
+      texto: `Confirmaste la respuesta de ${envio.compania} para la solicitud ${solicitud.numero}. ${textoFaltan(pendientes)}`,
     });
   });
+  return { solicitudId: envio.solicitudId };
 }

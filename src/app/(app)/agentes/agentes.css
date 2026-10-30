@@ -1941,7 +1941,8 @@
   background: var(--verde-suave);
   color: var(--verde-texto);
 }
-.cotizacion-estado.perdida {
+.cotizacion-estado.perdida,
+.cotizacion-estado.completada {
   background: var(--gris-suave);
   color: var(--etiqueta);
 }

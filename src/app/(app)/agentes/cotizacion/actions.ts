@@ -4,12 +4,12 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
-import { crearSolicitud, registrarResultadoCotizacion, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
+import { confirmarResultadoCotizacion, crearSolicitud, registrarResultadoCotizacion, SinCompaniasCotizablesError } from "@/agentes/cotizacion/solicitudes";
 import type { EstadoCotizacion } from "@/lib/cotizacion";
 import { requerirSesion } from "@/lib/auth";
-import { validarDatosRiesgo } from "@/lib/cotizacion";
+import { mejorResultadoConfirmado, validarDatosRiesgo } from "@/lib/cotizacion";
 import { adaptadorSalidaCotizacion } from "@/conexiones/cotizacion";
-import { calcularProximoSeguimiento, feriadosNacionalesArgentina } from "@/lib/cotizacion/seguimientos";
+import { calcularProximoSeguimiento } from "@/lib/cotizacion/seguimientos";
 import { extraerCotizacionPdfIA, generarChatCotizacionIA, redactarCorreoCotizacionIA } from "@/lib/ia/cotizacion";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
 
@@ -127,9 +127,11 @@ export async function aprobarEnvioCotizacion(formData: FormData) {
   await requerirSesion();
   const envioId = Number(mensajeDe(formData, "envioId"));
   if (!Number.isInteger(envioId) || envioId <= 0) volver("envio-invalido", "?tab=solicitudes");
+  // Fuera del try: redirect() lanza un error propio de Next y el catch lo convertiría en "No pudimos aprobar".
+  const [envio] = await db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.id, envioId));
+  if (!envio || envio.estadoBorrador !== "pendiente" || !envio.asuntoBorrador || !envio.cuerpoBorrador) volver("borrador-no-disponible", "?tab=solicitudes");
+  const { asuntoBorrador, cuerpoBorrador } = envio;
   try {
-    const [envio] = await db.select().from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.id, envioId));
-    if (!envio || envio.estadoBorrador !== "pendiente" || !envio.asuntoBorrador || !envio.cuerpoBorrador) volver("borrador-no-disponible", "?tab=solicitudes");
     const [[solicitud], [config]] = await Promise.all([
       db.select({ ramo: schema.solicitudesCotizacion.ramo }).from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, envio.solicitudId)),
       db.select().from(schema.cotizacionConfig).limit(1),
@@ -139,9 +141,9 @@ export async function aprobarEnvioCotizacion(formData: FormData) {
     const cantidadSeguimientos = envio.cantidadSeguimientos + (esSeguimiento ? 1 : 0);
     const maxSeguimientos = config?.maxSeguimientos ?? 3;
     const proximoSeguimiento = solicitud
-      ? calcularProximoSeguimiento(ahora, solicitud.ramo, config?.estrategiaSeguimiento ?? "Cada 3 días hábiles", feriadosNacionalesArgentina(ahora.getFullYear()))
+      ? calcularProximoSeguimiento(ahora, solicitud.ramo, config?.estrategiaSeguimiento ?? "Cada 3 días hábiles")
       : null;
-    const respuesta = await adaptadorSalidaCotizacion.enviarBorrador({ compania: envio.compania, asunto: envio.asuntoBorrador, cuerpo: envio.cuerpoBorrador });
+    const respuesta = await adaptadorSalidaCotizacion.enviarBorrador({ compania: envio.compania, asunto: asuntoBorrador, cuerpo: cuerpoBorrador });
     await db.transaction(async (tx) => {
       await tx.update(schema.cotizacionEnvios).set({
         estado: esSeguimiento && cantidadSeguimientos >= maxSeguimientos ? "requiere_atencion" : esSeguimiento ? "en_seguimiento" : "enviado",
@@ -223,7 +225,7 @@ export async function simularRespuestaCotizacion(formData: FormData) {
   const [solicitud] = await db.select().from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, envio.solicitudId));
   if (!solicitud?.esEjemplo) redirect("/agentes/cotizacion?aviso=simulador-no-disponible");
   if (escenario === "cotizado") {
-    await registrarResultadoCotizacion({ solicitudId: solicitud.id, compania: envio.compania, precio: 100000, primaNeta: 80000, observacion: "Respuesta generada por el simulador de desarrollo.", origen: "portal", confirmado: false });
+    await registrarResultadoCotizacion({ solicitudId: solicitud.id, compania: envio.compania, precio: 100000, primaNeta: 80000, observacion: "Respuesta generada por el simulador de desarrollo.", origen: "portal", confirmado: false, actor: "simulador" });
   } else {
     const cambio = escenario === "pregunta"
       ? { estado: "requiere_atencion" as const, preguntasPendientes: "La compañía solicita información adicional." }
@@ -270,13 +272,30 @@ export async function extraerPdfConIA(formData: FormData) {
   const archivoId = Number(mensajeDe(formData, "archivoId"));
   const solicitudId = Number(mensajeDe(formData, "solicitudId"));
   if (!Number.isInteger(archivoId) || archivoId <= 0 || !Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=ia-no-disponible");
-  let borradorId: number;
-  try { borradorId = await extraerCotizacionPdfIA(archivoId); }
+  let extraccion: Awaited<ReturnType<typeof extraerCotizacionPdfIA>>;
+  try { extraccion = await extraerCotizacionPdfIA(archivoId); }
   catch {
     redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=ia-no-disponible`);
   }
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
-  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&ia=${borradorId}`);
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=ia-extraccion-${extraccion.resultado.replaceAll("_", "-")}`);
+}
+
+export async function confirmarResultadoCotizacionAccion(formData: FormData) {
+  await requerirSesion();
+  const resultadoId = Number(mensajeDe(formData, "resultadoId"));
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  if (!Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
+  let confirmada = false;
+  try {
+    await confirmarResultadoCotizacion(resultadoId);
+    confirmada = true;
+  } catch {
+    // Se avisa abajo, fuera del try: un redirect adentro terminaría en este catch.
+  }
+  revalidatePath("/agentes/cotizacion");
+  revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=${confirmada ? "resultado-confirmado" : "error-confirmar-resultado"}`);
 }
 
 export async function generarPropuestaCotizacion(formData: FormData) {
@@ -290,7 +309,7 @@ export async function generarPropuestaCotizacion(formData: FormData) {
   const ids = envios.map((envio) => envio.id);
   const resultados = ids.length ? await db.select().from(schema.cotizacionResultados).where(inArray(schema.cotizacionResultados.envioId, ids)) : [];
   const porEnvio = new Map(resultados.map((resultado) => [resultado.envioId, resultado]));
-  const mejor = resultados.filter((resultado) => resultado.confirmado).sort((a, b) => a.primaTotal - b.primaTotal)[0];
+  const mejor = mejorResultadoConfirmado(resultados);
   const filas = [
     { etiqueta: "Organizacion", valor: ajustes?.productorOrganizacion ?? "Productor de seguros" },
     { etiqueta: "Cliente", valor: solicitud.cliente }, { etiqueta: "Ramo", valor: solicitud.ramo },

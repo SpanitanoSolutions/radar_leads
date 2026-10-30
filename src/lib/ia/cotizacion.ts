@@ -68,7 +68,11 @@ export async function redactarCorreoCotizacionIA(envioId: number): Promise<numbe
   return borradorId;
 }
 
-export async function extraerCotizacionPdfIA(archivoId: number): Promise<number> {
+/**
+ * Lee el PDF de una compañía y deja la respuesta en el comparativo sin confirmar:
+ * no cuenta como cotizada hasta que el productor la confirme.
+ */
+export async function extraerCotizacionPdfIA(archivoId: number): Promise<{ borradorId: number; resultado: "sin_confirmar" | "ya_confirmada" | "sin_precio" }> {
   const estado = await estadoIAcotizacion();
   if (!estado.habilitada) throw new Error("La IA no está habilitada para esta organización.");
   const [archivo] = await db.select().from(schema.cotizacionArchivos).where(eq(schema.cotizacionArchivos.id, archivoId));
@@ -83,6 +87,7 @@ export async function extraerCotizacionPdfIA(archivoId: number): Promise<number>
     mensaje: `Compañía: ${envio.compania}. Ramo: ${solicitud.ramo}. Texto del PDF (confidencial):\n${text.slice(0, 24000)}`,
     maxTokens: 1200,
   });
+  let resultado: "sin_confirmar" | "ya_confirmada" | "sin_precio" = "sin_precio";
   try {
     const json = JSON.parse(respuesta.texto.replace(/^```(?:json)?\s*|\s*```$/g, "")) as Record<string, unknown>;
     const primaTotal = Number(json.primaTotal);
@@ -93,7 +98,7 @@ export async function extraerCotizacionPdfIA(archivoId: number): Promise<number>
         .map((item) => ({ nombre: item.nombre.slice(0, 120), valor: typeof item.valor === "string" ? item.valor.slice(0, 200) : undefined }))
       : [];
     if (Number.isFinite(primaTotal) && primaTotal > 0) {
-      await registrarResultadoCotizacion({
+      const registro = await registrarResultadoCotizacion({
         solicitudId: solicitud.id,
         compania: envio.compania,
         precio: primaTotal,
@@ -108,12 +113,14 @@ export async function extraerCotizacionPdfIA(archivoId: number): Promise<number>
         coberturas,
         origen: "portal",
         confirmado: false,
+        actor: "ia",
       });
+      resultado = registro === "ya_confirmada" ? "ya_confirmada" : "sin_confirmar";
     }
   } catch {
     // La respuesta sigue disponible en el borrador IA para completar la comparación a mano.
   }
-  return guardarRespuesta(solicitud.id, "extraccion", respuesta);
+  return { borradorId: await guardarRespuesta(solicitud.id, "extraccion", respuesta), resultado };
 }
 
 export async function obtenerBorradoresIA(solicitudId: number) {

@@ -1,10 +1,140 @@
 # Progreso — Agente de Cotización v2
 
 Spec: [cotizacion-v2.md](../specs/cotizacion-v2.md). Manda en todo lo de compañías: [conectores.md](../specs/conectores.md). Plan anterior: [PLAN-cotizacion-v2.md](../PLAN-cotizacion-v2.md).
-Rama: `feat/cotizacion-v2-auditoria`, que sale de `main` (`33d9a3d`, después del PR #33).
+Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`) y `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`).
 
-## Estado
-**Auditoría y plan hechos (29/10/2026).** No se implementa nada hasta el OK de Julian. Esta sesión no cambió código: solo este archivo.
+## Fase 1 — Arreglos (30/10/2026, cerrada)
+Sin migraciones. Rama `feat/cotizacion-v2-arreglos`.
+
+**Cierre:**
+- `npm test`: pasan 497 de 502. Los 5 que fallan son los de antes (`catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`). Hay 23 tests nuevos.
+- `npm run lint`: sin errores (las 3 advertencias viejas).
+- `npm run build`: OK.
+- `npm run test:e2e`: **pasa entero** (23 pasos, con los 8 y 11 de Cotización). Corrió contra Postgres 18.6 recién sembrado y la app compilada con `CONECTORES_SIMULADOS=1`, sin `ANTHROPIC_API_KEY` ni canales.
+- **Prueba de los arreglos 1, 3 y 5 con la app compilada:** ver "Prueba de la fase 1".
+
+| # | Arreglo | Estado | Archivos |
+|---|---|---|---|
+| 1 | La IA no da nada por cotizado sin tu confirmación; botón "Confirmar"; "Mejor precio" solo con confirmadas | Hecho | `src/lib/cotizacion.ts` (+ test), `src/agentes/cotizacion/solicitudes.ts`, `src/lib/ia/cotizacion.ts`, `src/lib/datos-agentes.ts`, `actions.ts`, `page.tsx`, `[id]/page.tsx` y `exportar/route.ts` de Cotización |
+| 2 | Redirect dentro del `try` | Hecho | `actions.ts` y `configuracion/actions.ts` de Cotización |
+| 3 | "Marcar completada" la saca de Activas | Hecho | `src/lib/cotizacion.ts` y `metricas.ts` (+ tests), `src/lib/datos.ts`, `datos-dashboard.ts`, `datos-agentes.ts`, `page.tsx`, `exportar/route.ts` y `agentes.css` |
+| 4 | Correo con el productor, la organización e `instrucciones_cuerpo` | Hecho | `src/lib/cotizacion/correo.ts` (+ test) y `src/agentes/cotizacion/solicitudes.ts` |
+| 5 | Feriados trasladables, días puente y hora del próximo seguimiento | Hecho | `src/lib/cotizacion/seguimientos.ts` (+ test nuevo) y `actions.ts` de Cotización |
+| 6 | Porcentaje por envíos cerrados y paquete por nombre | Hecho | `src/lib/cotizacion.ts` (+ test), `src/lib/datos-agentes.ts` y `[id]/page.tsx` |
+| 7 | Sacar el texto técnico de la pestaña Agente | Hecho | `[id]/page.tsx` |
+
+**1. Lo que lee la IA espera tu confirmación.**
+- `registrarResultadoCotizacion()` separa dos casos:
+  - **Lo que carga el productor** queda confirmado, entra en la comparativa y da el envío por `cotizado`, como antes.
+  - **Lo que lee la IA o trae el simulador** queda sin confirmar en `cotizacion_resultados`. No toca el JSON viejo (`cotizaciones`), no cambia el estado del envío y solo frena los seguimientos de esa compañía (ya respondió). El evento es `cotizacion_sin_confirmar` ("La IA leyó la respuesta de X. Falta que el productor la confirme."), y ya no "cargó y confirmó".
+  - **Si ya había una respuesta confirmada** de esa compañía, la de la IA no la pisa: queda el evento `cotizacion_no_aplicada`, y el aviso le dice al productor dónde está lo que leyó.
+- **Confirmar:** `confirmarResultadoCotizacion()` es la fila "Tu revisión" del comparativo. Recién ahí el envío pasa a `cotizado` y la respuesta entra en la lista (evento `cotizacion_confirmada`).
+- **Funciones puras con tests** (`src/lib/cotizacion.ts`):
+  - `mejorResultadoConfirmado()`: "Mejor precio" del detalle y de la propuesta;
+  - `soloConfirmadas()`: la lista, sus tarjetas y su exportación dejan como pendiente el precio de una respuesta sin confirmar, también si es de antes de este arreglo;
+  - `agregarRespuesta()`: la comparativa, el estado y la nota al confirmar.
+- **La extracción** devuelve qué pasó (`sin_confirmar`, `ya_confirmada` o `sin_precio`), y el detalle muestra un aviso para cada caso.
+- **Queda igual:** el webhook de la v1 (`/api/agentes/cotizacion/resultado`) sigue registrando como confirmado lo que manda un portal. **Para la Fase 2:** cuando la respuesta venga de un conector, decidir si entra sin confirmar.
+
+**2. Redirect dentro del `try`.** `redirect()` lanza un error propio de Next, y el `catch` lo convertía en otro aviso.
+- **`aprobarEnvioCotizacion()`:** ahora busca el envío y comprueba el borrador antes del `try`. "Borrador no disponible" llega como tal, y no como "No pudimos aprobar".
+- **`importarAseguradorasCotizacion()`** tenía el mismo patrón: un archivo que no era `.xlsx` ni `.csv` redirigía dentro del `try`. Como el `catch` mandaba al mismo aviso, no se notaba. Ahora la extensión se revisa antes.
+- **Revisadas y bien:** el resto de las acciones de Cotización y de su configuración, y las que crean solicitudes desde un lead o un asegurado. Redirigen en el `catch` o después del `try`.
+
+**3. "Completada" cuenta como cerrada.** "Marcar completada" sigue llenando solo `completado_el`, sin tocar el estado guardado.
+- **Funciones puras** en `src/lib/cotizacion.ts`, con tests:
+  - `estadoVisible()` devuelve "completada" salvo que la solicitud esté ganada o perdida (esas se muestran como tales);
+  - `estaCerrada()` cubre ganada, perdida y completada.
+- **Dónde se usa:**
+  - las tarjetas Activas y "Requieren tu atención" (`resumenCotizacion()`);
+  - la lista: pastilla gris "Completada", filtro con la opción "Completada" y "Solicitud cerrada" en lugar de cargar precio;
+  - la exportación de la lista (estado `completada`);
+  - las detenidas (`solicitudesDetenidas()`);
+  - los contadores de "requiere atención" del menú (`src/lib/datos.ts`) y del inicio (`datos-dashboard.ts`).
+- **Queda igual:**
+  - el selector "Actualizar" de la lista conserva los 6 estados guardados;
+  - la tasa de cierre ganada sigue contando ganadas sobre ganadas más perdidas (una completada no dice si se ganó);
+  - el detalle permite cargar una respuesta tardía;
+  - no hay cómo reabrir una completada. Si hace falta, va en la Fase 4.
+
+**4. El correo usa los datos de la cuenta.** `armarBorradorSolicitud()` (`src/lib/cotizacion/correo.ts`, pura y con tests) arma el asunto y el cuerpo de cada borrador.
+- **`{productor}` y `{organizacion}`:** salen de los ajustes de la cuenta, con los mismos valores que muestra `obtenerCuenta()`, y ya no de "Productor" y "UNIQO" fijos. Si falta uno, se usa el otro.
+- **El cuerpo** es la plantilla, después `instrucciones_cuerpo` de la configuración y al final las instrucciones de la aseguradora, sin párrafos vacíos. Las variables se reemplazan en todo el texto.
+- **De paso:** sin clave de productor, el asunto ya no termina en " – ".
+
+**5. Feriados y próximo seguimiento** (`src/lib/cotizacion/seguimientos.ts`, con `seguimientos.test.ts` nuevo).
+- **La regla, verificada el 30/10/2026:**
+  - **Ley 27.399:** los trasladables son el 17/6, el 17/8, el 12/10 y el 20/11 (art. 1). El art. 6 los mueve así: martes o miércoles, al lunes anterior; jueves o viernes, al lunes siguiente.
+  - **Decreto 614/2025:** no cambia esa regla. Agrega que, si caen sábado o domingo, la Jefatura de Gabinete *puede* moverlos al lunes siguiente o al viernes anterior. No es automático: cada traslado sale por resolución.
+- **En el código:**
+  - `trasladarFeriado()` aplica el art. 6;
+  - `feriadosNacionalesArgentina()` junta los inamovibles, los trasladables ya movidos, Carnaval, Viernes Santo y `DIAS_NO_HABILES_POR_ANIO`.
+- **`DIAS_NO_HABILES_POR_ANIO`** es la lista en código de lo que fija el Gobierno cada año:
+  - **2024:** puente 1/4, 21/6 y 11/10 (Decreto 106/2023);
+  - **2025:** puente 2/5, 15/8 y 21/11 (Decreto 1027/2024), más el 12/10, domingo, que pasó al viernes 10 (Resolución 139/2025);
+  - **2026:** puente 23/3, 10/7 y 7/12 (Resolución 164/2025), más el lunes 9/11, feriado nacional por la visita del papa (Decreto 1103/2026).
+- **Lo que queda afuera de la lista:**
+  - el 10/11/2026 (solo Córdoba y CABA) y el 11/11/2026 (solo la provincia de Buenos Aires), del mismo Decreto 1103/2026, porque la lista es nacional;
+  - el Jueves Santo, que es no laborable y no feriado.
+
+  Ver "Para decidir antes de la fase 2".
+- **Para mantener:** los puente de 2027 no salieron todavía. Hay que sumarlos apenas se publiquen; la ley pide fijarlos 50 días antes de fin de año, o sea hacia el 11/11/2026. Mientras tanto, 2027 aplica la ley sola.
+- **Próximo seguimiento:** `calcularProximoSeguimiento()` cambia en tres cosas:
+  - cuenta desde el día en Argentina (`diaEnArgentina()`), no desde la fecha en UTC;
+  - usa los feriados del año y del siguiente (antes, con `getFullYear()`, un plazo que cruzaba el 1 de enero no salteaba el feriado);
+  - guarda el día a las 00:00 de Argentina, así el cron de las 10 de ese día lo toma. Antes lo guardaba a las 12 y salía un día hábil tarde.
+
+  La acción de aprobar ya no le pasa los feriados.
+- **Tests:**
+  - la regla de traslado;
+  - las listas de 2024 a 2027;
+  - el día argentino (jueves 23:30 → martes, y no miércoles);
+  - la hora que toma el cron;
+  - el 9/11, el 23/11 y el cruce de año.
+
+**6. Detalle.**
+- **El porcentaje** del panel sale de `porcentajeCerrados()` (pura, con test): envíos `cotizado`, `rechazado` y `error` sobre el total. Una respuesta sin confirmar no suma, porque el envío no pasa a `cotizado` hasta que se confirma.
+- **El paquete** aparece por su nombre: `obtenerDetalleCotizacion()` trae `cotizacion_paquetes` de los envíos.
+
+**7. Pestaña Agente:** se sacó "La extracción con IA se habilita cuando elijas el enfoque de IA". Queda "PDF, Word, Excel o imágenes · hasta 25 MB."
+
+### Prueba de la fase 1 (30/10/2026)
+Igual que la de la auditoría: Docker descartable (`postgres:18.6`), `db:preparar` desde cero, `next start` con `CONECTORES_SIMULADOS=1` y sin `ANTHROPIC_API_KEY`. Corrió después del E2E entero, sobre la misma base, con un recorrido de Playwright fuera del repo.
+
+**Arreglo 1.**
+- **Sin clave de IA:** la respuesta "leída por la IA" se registró con `registrarResultadoCotizacion()` (`confirmado: false`, `actor: "ia"`), el mismo llamado que hace `extraerCotizacionPdfIA()` después de leer el PDF. Fue la de Sancor en la 1041, $ 8.000.000.
+- **Antes de confirmar:**
+  - en la base, el envío sigue `enviado` y el JSON de la lista no cambia;
+  - la lista dice "2 de 3 respondieron", el mejor precio sigue en Mapfre ($ 8.640.000) y el panel de Sancor avisa "Llegó una respuesta que falta confirmar";
+  - en el detalle, "Mejor precio" queda en Mapfre, Sancor muestra "falta tu confirmación" y el porcentaje es 67 %;
+  - el evento dice "La IA leyó la respuesta de Sancor. Falta que el productor la confirme.", sin "cargó y confirmó".
+- **Respuesta sobre una ya confirmada:** otra respuesta de la IA para Mapfre, que estaba confirmada, devuelve `ya_confirmada` y deja los $ 8.640.000.
+- **"Confirmar":**
+  - en la base, el envío pasa a `cotizado`, el resultado a `confirmado` y la solicitud a `lista`;
+  - en el detalle, "Mejor precio" pasa a Sancor y el porcentaje a 100 %;
+  - en la lista, "3 de 3" y el mejor precio en Sancor, $ 8.000.000.
+
+**Arreglo 3.**
+- **"Marcar completada" en la 1040**, que estaba en "Requiere tu atención":
+  - Activas pasa de 4 a 3 y "Requieren tu atención" de 1 a 0;
+  - el contador del menú baja de 1 a 0;
+  - la pastilla dice "Completada";
+  - en la base sigue `atencion`, con `completado_el`.
+- **El filtro** "Completada" trae la 1040 y la 1042, que había completado el E2E. "Requiere tu atención" ya no trae la 1040.
+- **Las detenidas:** con la 1040 y la 1043 sin movimiento hace 5 días, solo aparece la 1043.
+
+**Arreglo 5.**
+- **Aprobar** dos borradores de la 1043 el viernes 30/10 deja el próximo seguimiento el miércoles 4/11 a las 00:00 de Argentina (3 días hábiles).
+- **El cron** corrió a las 04:27 de Argentina; desde las 00:00 se comporta igual que a las 10. Un envío con el seguimiento de hoy a las 00:00 (como guarda el código nuevo) y otro a las 12:00 (como guardaba el viejo): el cron preparó el borrador del primero y no tocó el segundo (`{"revisados":1,"borradores":1}`). Ese segundo es el que salía un día hábil tarde. Sin secreto, el cron responde 401.
+- **Lo que no se puede probar con la app compilada:** el reloj del servidor no se cambia. El día argentino a las 23:30 y el cruce de año están cubiertos por `seguimientos.test.ts`.
+
+**De paso:**
+- **Arreglo 4:** la 1043, creada por el E2E, tiene el asunto "SOLICITUD – Flota – Logística Atlántica SRL – La Segunda", sin guion final, y el cuerpo "Productor: HR Productores. Organización: HR Productores.". La cuenta de prueba no tiene nombre de productor.
+- **Arreglo 6:** con un paquete "Flota Plus" asignado, Contactos lo muestra por su nombre.
+- **El log de `next start`** no tiene errores de Cotización ni secretos. Sí tiene avisos de `new Date()` al prerenderizar en Asegurados, Validador, Cobranza, Siniestros y Conciliador. Son de antes y no son de esta fase.
+
+## Estado de la auditoría (29/10/2026)
+**Auditoría y plan hechos (29/10/2026).** Esa sesión no cambió código: solo este archivo.
 - `npm test`: pasan 474 de 479. Los 5 que fallan (`catalogo.test.ts`, `menu.test.ts` y `siniestros.test.ts`) son los de antes.
 - `npm run lint`: sin errores (las 3 advertencias viejas).
 - `npm run build`: OK.
@@ -33,8 +163,8 @@ La implementación es del 28/10/2026 (commit `1f0957c` "coti v2" y `d8d2e9d` "co
 - La migración `0014` siembra dos tandas de aseguradoras: quedan 8 filas para 7 compañías, con Rivadavia dos veces ("Seguros Rivadavia" y "Rivadavia"). Las de la primera tanda tienen 11 ramos y las que solo están en la segunda (Rivadavia y Mapfre), 7.
 - `cotizacion_envios.canal` es `correo | portal | ambos`: no existe `api` ni un orden de canales, ni los intentos por canal, el número de cotización de la compañía o el último error.
 - El simulador de respuestas no anda con la app compilada: exige `NODE_ENV !== "production"`, y `next start` corre en producción.
-- La extracción con IA de un PDF registra el resultado sin confirmar, pero igual marca el envío como `cotizado`, lo suma a la comparativa de la lista y escribe "El productor cargó y confirmó el precio".
-- En `aprobarEnvioCotizacion` el `redirect` de "borrador no disponible" está dentro del `try`, así que se convierte en "No pudimos aprobar el borrador".
+- La extracción con IA de un PDF registra el resultado sin confirmar, pero igual marca el envío como `cotizado`, lo suma a la comparativa de la lista y escribe "El productor cargó y confirmó el precio". **Arreglado en la Fase 1.**
+- En `aprobarEnvioCotizacion` el `redirect` de "borrador no disponible" está dentro del `try`, así que se convierte en "No pudimos aprobar el borrador". **Arreglado en la Fase 1.**
 
 ## Auditoría por fase (sección 3 de la spec)
 Evidencia por lectura del código; lo que se comprobó contra Postgres está en "Prueba contra Postgres 18.6".
@@ -146,15 +276,15 @@ Evidencia por lectura del código; lo que se comprobó contra Postgres está en 
 ## Criterios de aceptación (sección 4 de la spec)
 | # | Criterio | Estado | Cómo se comprobó |
 |---|---|---|---|
-| 1 | 3 aseguradoras en Automotor → 3 envíos `pendiente` y 3 borradores según la plantilla | Hecho, con dos detalles: "Productor" y "UNIQO" fijos en el cuerpo, y sin `instrucciones_cuerpo` | Contra Postgres con la app compilada (pasos 4 y 5 de la prueba) |
+| 1 | 3 aseguradoras en Automotor → 3 envíos `pendiente` y 3 borradores según la plantilla | Hecho. Los dos detalles ("Productor" y "UNIQO" fijos, sin `instrucciones_cuerpo`) se arreglaron en la Fase 1 | Contra Postgres con la app compilada (pasos 4 y 5 de la prueba) |
 | 2 | Borrador sin aprobar → no se registra el envío | Hecho | Contra Postgres (paso 6) |
-| 3 | "Cada 3 días hábiles" con feriado en medio | Hecho, con el calendario incompleto | `cotizacion.test.ts` (`sumarDiasHabiles()` con feriados que le pasa el test). Faltan los trasladables |
+| 3 | "Cada 3 días hábiles" con feriado en medio | Hecho | `seguimientos.test.ts` (Fase 1): trasladables, días puente, el 9/11/2026 y el cruce de año, más la hora que toma el cron |
 | 4 | Máximo de seguimientos → no hay más y queda `requiere_atencion` | Hecho, sin test de Vitest | Contra Postgres con el cron (paso 8) |
-| 5 | Dos cotizaciones → "Mejor precio" en la menor prima total | Hecho (cuenta también las no confirmadas) | Con la app compilada sobre la 1042 (paso 2) |
+| 5 | Dos cotizaciones → "Mejor precio" en la menor prima total | Hecho; desde la Fase 1, solo entre las confirmadas | Con la app compilada sobre la 1042 (paso 2) |
 | 6 | Propuesta en PDF con la marca y en borrador | Parcial: borrador sí; la marca es solo el nombre, sin logo ni acentos | Paso 11 del E2E |
 | 7 | Métricas contra un fixture calculado a mano | Hecho | `metricas.test.ts` |
-| 8 | Sin clave o con la IA apagada funciona, se ocultan los controles y no hay llamadas | Hecho con el interruptor propio, no con `ia_configuracion`. Queda un texto técnico a la vista | Con la app compilada sin clave (paso 3) |
-| 9 | Cada respuesta de IA queda con modelo, tokens y costo, y nada se envía sin aprobación | Parcial: queda en `cotizacion_eventos`, pero no en `ia_uso` ni en la cuota; la extracción da el envío por `cotizado` sin confirmar | Lectura de `src/lib/ia/cotizacion.ts` |
+| 8 | Sin clave o con la IA apagada funciona, se ocultan los controles y no hay llamadas | Hecho con el interruptor propio, no con `ia_configuracion`. El texto técnico se sacó en la Fase 1 | Con la app compilada sin clave (paso 3) |
+| 9 | Cada respuesta de IA queda con modelo, tokens y costo, y nada se envía sin aprobación | Parcial: queda en `cotizacion_eventos`, pero no en `ia_uso` ni en la cuota (Fase 2). Desde la Fase 1, la extracción espera la confirmación del productor | Lectura de `src/lib/ia/cotizacion.ts` |
 | 10 | Ninguna credencial en texto plano | Hecho para lo suyo, pero en `conexiones.datos` y no en `credenciales_portal` | Contra Postgres: la clave no está en el volcado de la base ni en el log (paso 10) |
 | 11 | API + portal + correo → las dos primeras cotizan solas y las tres terminan en el mismo comparativo | **Falta** | No hay orquestador. Además, el registro simulado le da API y portal a todas las compañías: no hay cómo decir "esta solo por portal" |
 | 12 | Si el portal falla → borrador de correo, error registrado y salud actualizada | **Falta** en Cotización (la base común ya lo hace en `ejecutarEnCompania()` y `conector_salud`) | — |
@@ -199,7 +329,7 @@ Docker descartable (`postgres:18.6`), `db:preparar` desde cero con los datos de 
 
 **Migraciones:** esta sesión no agrega ninguna. Las del plan se prueban sobre una base con los datos de `main` antes de mergear, como en el Validador (con `db:preparar` desde un worktree de `main` primero).
 
-## Plan propuesto (espera el OK de Julian)
+## Plan propuesto (fase 1 hecha el 30/10/2026)
 Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6, commit y este progreso al día. Las migraciones solo agregan y se prueban antes sobre una base con los datos de `main`. Nada se envía de verdad: conectores simulados, correos como borradores y, sin `ANTHROPIC_API_KEY`, el agente funciona igual.
 
 | Fase | Qué | Sesiones | Criterios |
@@ -210,7 +340,7 @@ Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6
 | 4 | Lo que falta de las pantallas | 1 | 6 |
 | 5 | Cierre: seed, E2E del flujo completo, README y PR | 1 | 15 |
 
-### Fase 1 — Arreglos (sin migraciones)
+### Fase 1 — Arreglos (sin migraciones) — hecha, ver arriba
 - La extracción con IA no da el envío por `cotizado` ni lo suma a la lista hasta que el productor confirme. Botón "Confirmar" en la respuesta. "Mejor precio", solo entre las confirmadas.
 - El `redirect` dentro del `try` de `aprobarEnvioCotizacion()`.
 - **"Marcar completada"** saca la solicitud de Activas (cuenta como cerrada) sin tocar su estado viejo.
@@ -306,6 +436,12 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - cuántas solicitudes no tienen envíos: `select count(*) from solicitudes_cotizacion s where not exists (select 1 from cotizacion_envios e where e.solicitud_id = s.id)`.
 
   Las solicitudes sin envíos se siguen leyendo desde `cotizaciones` (el JSON viejo), que no se toca.
+5. **Respuestas de los conectores** (y del webhook de la v1): ¿entran sin confirmar, como desde la Fase 1 las que lee la IA, o confirmadas? Lo recomendado es que entren sin confirmar, así nada cuenta en el comparativo sin que lo revises.
+6. **Feriados que no son nacionales:**
+   - el 10/11/2026 es feriado solo en CABA y Córdoba, y el 11/11/2026 solo en la provincia de Buenos Aires (Decreto 1103/2026). Contarlos pide saber la provincia de la cuenta: sería una columna nueva, o sea migración de la Fase 2;
+   - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-Esperar el OK de Julian al plan y sus respuestas a "Para decidir antes de la fase 2". Con el OK, arrancar la fase 1 en una rama nueva que salga de `main` (o de esta, si ya está mergeada).
+**Fase 1 cerrada** (30/10/2026, rama `feat/cotizacion-v2-arreglos`). La Fase 2 necesita antes las respuestas de Julian a "Para decidir antes de la fase 2" (puntos 1 a 6) y las dos consultas en Neon del punto 4.
+
+Con eso, arrancar la **2a** (IA por `ejecutarIA()`) en una rama nueva que salga de esta, o de `main` si ya se mergeó. Y apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.

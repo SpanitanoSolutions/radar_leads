@@ -29,7 +29,7 @@ export async function obtenerDatosDashboard() {
       .select({ id: schema.mensajes.id })
       .from(schema.mensajes)
       .where(and(eq(schema.mensajes.agente, "cobranza"), eq(schema.mensajes.estado, "borrador"), or(isNull(schema.mensajes.mostrarDesde), lte(schema.mensajes.mostrarDesde, hoy)))),
-    db.select({ id: schema.solicitudesCotizacion.id }).from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.estado, "atencion")),
+    db.select({ id: schema.solicitudesCotizacion.id }).from(schema.solicitudesCotizacion).where(and(eq(schema.solicitudesCotizacion.estado, "atencion"), isNull(schema.solicitudesCotizacion.completadoEl))),
     db
       .select({ id: schema.siniestros.id })
       .from(schema.siniestros)
