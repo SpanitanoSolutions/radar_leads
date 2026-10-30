@@ -10,6 +10,7 @@ import {
   desconectar,
   gmailProbar,
   guardarCuenta,
+  guardarEquipo,
   whatsappContinuar,
   whatsappDesconectar,
   type EstadoFormulario,
@@ -142,7 +143,7 @@ export function ContenidoConexion({ conexion, conectada, datos }: {
 }
 
 /** Mi cuenta: los datos que firman los mensajes y aparecen arriba. */
-export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "cuenta" | "equipo" }) {
+export function FormCuenta({ cuenta }: { cuenta: Cuenta }) {
   const [estado, guardar, guardando] = useActionState<EstadoFormulario, FormData>(guardarCuenta, {});
   const [nombrePrincipal, setNombrePrincipal] = useState(cuenta.productores[0]?.nombre ?? cuenta.nombre ?? "");
   const [matriculaPrincipal, setMatriculaPrincipal] = useState(cuenta.productores[0]?.matricula ?? cuenta.matricula ?? "");
@@ -150,7 +151,7 @@ export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "
     const guardados = cuenta.productores.slice(1);
     return [...guardados, ...Array.from({ length: Math.max(0, 1 - guardados.length) }, () => ({ nombre: "", matricula: "" }))];
   });
-  const campo = (nombre: Exclude<keyof Cuenta, "productores" | "logoEmpresa" | "provincia">, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
+  const campo = (nombre: Exclude<keyof Cuenta, "productores" | "organizacion" | "logoEmpresa" | "provincia">, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <div className="form-columna">
       <label htmlFor={`cuenta-${nombre}`} className="etiqueta">
         {etiqueta}
@@ -169,8 +170,7 @@ export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "
     </div>
   );
   return (
-    <form action={guardar} encType="multipart/form-data" className="tarjeta tarjeta-padding form-cuenta">
-      <input type="hidden" name="tab" value={tab} />
+    <form action={guardar} className="tarjeta tarjeta-padding form-cuenta">
       <p className="texto-suave">
         Agregá todas las personas físicas que trabajan con esta cuenta y sus matrículas. La primera persona aparece arriba
         y firma los mensajes que preparan los agentes.
@@ -178,7 +178,6 @@ export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "
       <div className="form-grilla">
         {campo("nombre", "Nombre y apellido", { required: true, autoComplete: "name" })}
         {campo("matricula", "Matrícula")}
-        {campo("organizacion", "Organización")}
         {campo("telefono", "Teléfono", { type: "tel", autoComplete: "tel" })}
         {campo("email", "Email", { type: "email", autoComplete: "email" })}
         <div className="form-columna">
@@ -189,46 +188,7 @@ export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "
           <p className="nota-pie">Para no mandar seguimientos en los feriados de tu provincia.</p>
         </div>
       </div>
-      <section className="cuenta-logo" aria-labelledby="cuenta-logo-titulo">
-        <div>
-          <h2 id="cuenta-logo-titulo">Logo de la empresa</h2>
-          <p className="texto-suave">Se muestra junto al nombre de tu organización en la barra superior.</p>
-        </div>
-        <div className="cuenta-logo-contenido">
-          <div className="cuenta-logo-vista">
-            {cuenta.logoEmpresa ? (
-              <Image
-                src="/api/logo-empresa"
-                alt={cuenta.organizacion ? `Logo de ${cuenta.organizacion}` : "Logo de la empresa"}
-                width={160}
-                height={96}
-                unoptimized
-                className="cuenta-logo-imagen"
-              />
-            ) : (
-              <span className="nota-pie">Todavía no cargaste un logo.</span>
-            )}
-          </div>
-          <div className="form-columna">
-            <label htmlFor="cuenta-logo-empresa" className="etiqueta">Subir o reemplazar logo</label>
-            <input
-              id="cuenta-logo-empresa"
-              name="logoEmpresa"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="campo"
-            />
-            <p className="nota-pie">PNG, JPG o WebP · máximo 512 KB.</p>
-            {cuenta.logoEmpresa && (
-              <label className="cuenta-logo-quitar">
-                <input type="checkbox" name="quitarLogo" />
-                Quitar el logo actual al guardar
-              </label>
-            )}
-          </div>
-        </div>
-      </section>
-      <section className="cuenta-productores" id="mi-equipo" aria-labelledby="cuenta-productores-titulo">
+      <section className="cuenta-productores" aria-labelledby="cuenta-productores-titulo">
         <div className="cuenta-productores-cabecera">
           <div>
             <h2 id="cuenta-productores-titulo">Otras personas físicas</h2>
@@ -280,6 +240,68 @@ export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "
         >
           Agregar otra persona
         </button>
+      </section>
+      <Error estado={estado} />
+      <button type="submit" className="boton boton-primario alinear-inicio" disabled={guardando}>
+        {guardando ? "Guardando…" : "Guardar"}
+      </button>
+    </form>
+  );
+}
+
+/** Mi equipo: el nombre y el logo de la asociación aseguradora, que aparecen arriba. */
+export function FormEquipo({ cuenta }: { cuenta: Cuenta }) {
+  const [estado, guardar, guardando] = useActionState<EstadoFormulario, FormData>(guardarEquipo, {});
+  return (
+    <form action={guardar} encType="multipart/form-data" className="tarjeta tarjeta-padding form-cuenta">
+      <div className="form-columna">
+        <label htmlFor="equipo-organizacion" className="etiqueta">Nombre de la asociación aseguradora</label>
+        <input
+          id="equipo-organizacion"
+          name="organizacion"
+          className="campo"
+          autoComplete="organization"
+          defaultValue={cuenta.organizacion ?? ""}
+        />
+      </div>
+      <section className="cuenta-logo" aria-labelledby="cuenta-logo-titulo">
+        <div>
+          <h2 id="cuenta-logo-titulo">Logo de la asociación</h2>
+          <p className="texto-suave">Se muestra junto al nombre de tu asociación en la barra superior.</p>
+        </div>
+        <div className="cuenta-logo-contenido">
+          <div className="cuenta-logo-vista">
+            {cuenta.logoEmpresa ? (
+              <Image
+                src="/api/logo-empresa"
+                alt={cuenta.organizacion ? `Logo de ${cuenta.organizacion}` : "Logo de la asociación"}
+                width={160}
+                height={96}
+                unoptimized
+                className="cuenta-logo-imagen"
+              />
+            ) : (
+              <span className="nota-pie">Todavía no cargaste un logo.</span>
+            )}
+          </div>
+          <div className="form-columna">
+            <label htmlFor="cuenta-logo-empresa" className="etiqueta">Subir o reemplazar logo</label>
+            <input
+              id="cuenta-logo-empresa"
+              name="logoEmpresa"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="campo"
+            />
+            <p className="nota-pie">PNG, JPG o WebP · máximo 512 KB.</p>
+            {cuenta.logoEmpresa && (
+              <label className="cuenta-logo-quitar">
+                <input type="checkbox" name="quitarLogo" />
+                Quitar el logo actual al guardar
+              </label>
+            )}
+          </div>
+        </div>
       </section>
       <Error estado={estado} />
       <button type="submit" className="boton boton-primario alinear-inicio" disabled={guardando}>

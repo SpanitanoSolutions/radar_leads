@@ -4,8 +4,8 @@ import "@fontsource-variable/inter";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "UNIQO · Administración de seguros",
-  description: "Administración de seguros para productores asesores: asegurados, pólizas, vencimientos y tareas operativas.",
+  title: "UNIQO · Tecnología aplicada a seguros",
+  description: "Tecnología aplicada a seguros para productores asesores: asegurados, pólizas, vencimientos y tareas operativas.",
   robots: { index: false, follow: false },
 };
 
