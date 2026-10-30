@@ -39,7 +39,7 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
       </header>
       {aviso && <p className="cotizacion-aviso" role="status">{nombresAviso[aviso] ?? "Se guardaron los cambios."}</p>}
 
-      <section className="tarjeta cotizacion-ajuste-seccion">
+      <section id="aseguradoras" className="tarjeta cotizacion-ajuste-seccion">
         <h2>Aseguradoras</h2><p>A quién le pide cotizaciones el agente y a qué correo. Cada correo espera tu aprobación. Cómo se conecta con cada compañía (conexión directa, portal o solo correo) está en <Link href="/configuracion/companias?agente=cotizacion">Conexiones con las compañías</Link>.</p>
         <div className="cotizacion-botones-borrador"><Link className="boton" href="/agentes/cotizacion/configuracion/exportar">Exportar CSV</Link><Link className="boton" href="/agentes/cotizacion/configuracion/exportar?formato=xlsx">Exportar Excel</Link></div>
         <form action={importarAseguradorasCotizacion} className="cotizacion-ajuste-form"><label>Importar aseguradoras (CSV o Excel)<input type="file" name="archivoAseguradoras" accept=".csv,.xlsx" required /></label><button className="boton">Importar catálogo</button></form>
@@ -61,12 +61,15 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
         </form>
       </section>
 
-      <section className="tarjeta cotizacion-ajuste-seccion">
+      <section id="voz" className="tarjeta cotizacion-ajuste-seccion">
         <h2>Voz, plantillas y seguimientos</h2>
         <form action={guardarConfiguracionCotizacion} className="cotizacion-ajuste-form">
+          <h3>Voz y tono</h3>
+          <p className="texto-suave">El nombre con el que el agente firma los correos y cómo escribe.</p>
           <label>Persona<select name="persona" defaultValue={config?.persona ?? "Verónica"}><option>Verónica</option><option>María</option><option>Carlos</option><option>Personalizada</option></select></label>
           <label>Nombre del agente<input name="nombreAgente" defaultValue={config?.nombreAgente ?? "Verónica"} maxLength={60} /></label>
           <label>Cómo querés que escriba<textarea name="personalidad" defaultValue={config?.personalidad ?? "Profesional, cortés y meticulosa."} rows={3} maxLength={1000} /></label>
+          <h3>Comportamiento</h3>
           <label>Intervalo general<select name="intervaloHoras" defaultValue={config?.intervaloHoras ?? 48}><option value="24">24 horas</option><option value="48">48 horas</option><option value="72">72 horas</option></select></label>
           <label>Máximo de seguimientos<select name="maxSeguimientos" defaultValue={config?.maxSeguimientos ?? 3}>{[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
           <label>Estrategia en días hábiles<textarea name="estrategiaSeguimiento" defaultValue={config?.estrategiaSeguimiento ?? "Cada 3 días hábiles; si la aseguradora ya dio un folio, esperar la cotización."} rows={3} maxLength={1000} required /></label>
@@ -92,9 +95,11 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
         </form>
       </section>
 
-      <section className="tarjeta cotizacion-ajuste-seccion">
+      <section id="paquetes" className="tarjeta cotizacion-ajuste-seccion">
         <h2>Paquetes de cobertura</h2>
+        <p>Lo que vendés: la cobertura que le pedís a cada compañía en cada ramo. Cada pedido lleva el paquete de su ramo; si una compañía no tiene, la nueva solicitud te avisa.</p>
         {paquetes.map(({ paquete, aseguradora }) => <p key={paquete.id}><strong>{aseguradora} · {paquete.ramo}:</strong> {paquete.nombre}{paquete.deducible ? ` · Franquicia ${paquete.deducible}` : ""}</p>)}
+        {!paquetes.length && <p className="texto-suave">Todavía no cargaste ningún paquete.</p>}
         <form action={guardarPaqueteCotizacion} className="cotizacion-ajuste-form">
           <label>Aseguradora<select name="aseguradoraId" required>{aseguradoras.map((aseguradora) => <option key={aseguradora.id} value={aseguradora.id}>{aseguradora.nombre}</option>)}</select></label>
           <label>Ramo<input name="ramo" required defaultValue="Automotor" /></label>

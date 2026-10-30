@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useFormStatus } from "react-dom";
+import { ramoCanonico } from "@/lib/ramos";
 import { nuevaSolicitud } from "../actions";
 
 type Contacto = { id: number; nombre: string };
-type Aseguradora = { id: number; nombre: string; ramos: string[] };
+/** `ramosConPaquete`: con su nombre canónico ("Auto", "Flota"). */
+type Aseguradora = { id: number; nombre: string; ramos: string[]; ramosConPaquete: string[] };
 type TipoContacto = "asegurado" | "lead";
 type OpcionContacto = Contacto & { tipo: TipoContacto };
 
@@ -32,6 +34,10 @@ function normalizar(texto: string): string {
 
 function coincideConRamo(aseguradora: Aseguradora, ramo: string): boolean {
   return aseguradora.ramos.length === 0 || aseguradora.ramos.includes(ramo);
+}
+
+function tienePaquete(aseguradora: Aseguradora, ramo: string): boolean {
+  return aseguradora.ramosConPaquete.includes(ramoCanonico(ramo));
 }
 
 function BotonCrear({ bloqueado }: { bloqueado: boolean }) {
@@ -145,6 +151,7 @@ export default function FormularioNuevaSolicitud({
     setCompaniasElegidas([]);
   }
 
+  const sinPaquete = aseguradorasDisponibles.filter((aseguradora) => companiasElegidas.includes(aseguradora.nombre) && !tienePaquete(aseguradora, ramo));
   const requiereRiesgoAuto = ramo === "Automotor";
   const requiereRiesgoFlota = ramo === "Flotas";
   const maxAnio = new Date().getFullYear() + 1;
@@ -332,11 +339,16 @@ export default function FormularioNuevaSolicitud({
                   <label key={aseguradora.id} className={`cotizacion-aseguradora-opcion${marcada ? " seleccionada" : ""}`}>
                     <input type="checkbox" name="companias" value={aseguradora.nombre} checked={marcada} onChange={() => alternarCompania(aseguradora.nombre)} />
                     <span className="cotizacion-aseguradora-check" aria-hidden="true">{marcada ? "✓" : ""}</span>
-                    <span className="cotizacion-aseguradora-detalle"><strong>{aseguradora.nombre}</strong></span>
+                    <span className="cotizacion-aseguradora-detalle"><strong>{aseguradora.nombre}</strong>{!tienePaquete(aseguradora, ramo) && <small className="cotizacion-sin-paquete">Sin paquete configurado</small>}</span>
                   </label>
                 );
               })}
             </div>
+            {sinPaquete.length > 0 && (
+              <p className="cotizacion-aviso-paquete" role="status">
+                {sinPaquete.length === 1 ? `${sinPaquete[0].nombre} no tiene` : `${sinPaquete.length} de las seleccionadas no tienen`} paquete de cobertura para {ramo}: el pedido sale igual, sin la cobertura de referencia. <Link href="/agentes/cotizacion/configuracion#paquetes">Configurá los paquetes</Link>.
+              </p>
+            )}
           </>
         ) : (
           <div className="cotizacion-sin-aseguradoras">

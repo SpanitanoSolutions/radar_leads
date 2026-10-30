@@ -1,5 +1,6 @@
 "use server";
 
+import { sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
@@ -58,6 +59,11 @@ export async function guardarConfiguracionCotizacion(formData: FormData) {
       actualizadoEl: new Date(),
     },
   });
+  // El checklist del inicio da por elegida la voz cuando se guarda alguna vez, aunque quede la que viene.
+  await db.insert(schema.configuracionAgentes).values({ agente: "cotizacion", config: { vozElegida: true } }).onConflictDoUpdate({
+    target: schema.configuracionAgentes.agente,
+    set: { config: sql`${schema.configuracionAgentes.config} || '{"vozElegida": true}'::jsonb`, actualizadoEl: new Date() },
+  });
   revalidatePath("/agentes/cotizacion");
   redirect("/agentes/cotizacion/configuracion?aviso=guardado");
 }
@@ -111,6 +117,7 @@ export async function guardarPaqueteCotizacion(formData: FormData) {
     deducible: texto(formData, "deducible", 200) || null,
     sumaAsegurada: texto(formData, "sumaAsegurada") ? asegurado : null,
   }).onConflictDoNothing();
+  revalidatePath("/agentes/cotizacion");
   revalidatePath("/agentes/cotizacion/configuracion");
   redirect("/agentes/cotizacion/configuracion?aviso=paquete-guardado");
 }

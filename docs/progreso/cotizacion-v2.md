@@ -1,10 +1,43 @@
 # Progreso — Agente de Cotización v2
 
 Spec: [cotizacion-v2.md](../specs/cotizacion-v2.md). Manda en todo lo de compañías: [conectores.md](../specs/conectores.md). Plan anterior: [PLAN-cotizacion-v2.md](../PLAN-cotizacion-v2.md).
-Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`), `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`; PR #34, mergeado) y `feat/cotizacion-v2-conexiones` (fase 3, sale de `main` en `0fecc26`).
+Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`), `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`; PR #34, mergeado), `feat/cotizacion-v2-conexiones` (fase 3, sale de `main` en `0fecc26`; PR #35, mergeado) y `feat/cotizacion-v2-pantallas` (fase 4, sale de `main` en `f05023b`).
+
+## Fase 4 — Lo que falta de las pantallas (30/10/2026, en curso)
+Rama `feat/cotizacion-v2-pantallas`, sale de `main` en `f05023b` (con el PR #35). Cada paso es un commit y este archivo se actualiza antes del siguiente.
+
+| Paso | Qué | Estado | Archivos |
+|---|---|---|---|
+| 1 | Checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud | Hecho, 7 tests, probado con `next dev` | `src/lib/cotizacion/configuracion.ts` (+ test, nuevos), `src/lib/datos-agentes.ts`, `src/agentes/cotizacion/solicitudes.ts`, `page.tsx`, `nueva/` y `configuracion/` (`page.tsx`, `actions.ts`) de Cotización, `agentes.css` |
+| 2 | Detalle: Contactos (próximo seguimiento, Copiar y Excel), panel (Requiere atención, seguimientos activos, archivos por compañía) y Agente (línea de tiempo y borrador al ejecutivo) | Por hacer | |
+| 3 | Comparativo: filas de la spec y vista compacta o detallada | Por hacer | |
+| 4 | ABM de Tipos de seguro y "Sugerir con IA" para la estrategia | Por hacer | |
+| 5 | Bitácora con `cotizacion_eventos` y filtros; métricas desde que salió el envío | Por hacer | |
+| 6 | Propuesta en PDF con el logo de la cuenta y con acentos (criterio 6) | Por hacer | |
+| Cierre | Tests, lint, build, E2E entero, recorrido con la app compilada, README y vault | Por hacer | |
+
+**Decisiones de Julian (30/10/2026):**
+- **Borrador al ejecutivo:** el ejecutivo es el productor de la cuenta. El borrador va al correo de Mi cuenta y, al aprobarlo, sale por la salida común; sin el correo conectado queda aprobado y sin enviar, como los de las compañías.
+- **"Agregá lo que vendés"** (checklist del inicio) lleva a Paquetes de cobertura y queda listo con al menos un paquete cargado para una aseguradora activa.
+
+**Paso 1. Checklist y "sin paquete configurado":**
+- **El checklist** ("Terminá de configurar tu agente de cotización", con "N de 4 listos") reemplaza al de antes (activar el agente, el correo y el nombre del productor). Cada paso lleva a su sección y dice para qué sirve; desaparece con los 4 listos. Lo calcula `pasosConfiguracionCotizacion()` (pura):
+  - **Agregá lo que vendés** → Configuración `#paquetes`: un paquete de una aseguradora activa;
+  - **Agregá una aseguradora con contacto** → `#aseguradoras`: una activa con un correo válido (el mismo control que usa el correo a la compañía);
+  - **Conectá los accesos de portal** → `/configuracion/companias?agente=cotizacion`: una clave activa de una compañía con la que cotizás, por su nombre canónico;
+  - **Elegí cómo suena tu agente** → `#voz`: la voz se guardó alguna vez o es distinta de la que viene.
+- **La configuración** tiene anclas por sección (`#aseguradoras`, `#voz`, `#paquetes`); la sección de voz se divide en "Voz y tono" y "Comportamiento", y Paquetes explica qué son.
+- **La nueva solicitud** marca "Sin paquete configurado" en cada aseguradora sin paquete para el ramo elegido (por nombre canónico: "Automotor" y "Auto" son el mismo) y resume el aviso con el enlace a Paquetes. No bloquea: el pedido sale igual.
+- **Cada envío nuevo lleva el paquete de su ramo** (`paqueteParaEnvio()`), así Contactos lo muestra por su nombre. Antes ningún envío tenía paquete.
+
+**Decisiones de la implementación (revisables):**
+- "Elegí cómo suena tu agente" queda listo al guardar la configuración del agente aunque se deje la voz que viene: se anota `vozElegida` en `configuracion_agentes.config` de `cotizacion` (sin migración). También cuenta como listo una voz distinta de la que viene, para las cuentas que la cambiaron antes de esta fase.
+- Con varios paquetes para el mismo ramo, el envío lleva el primero que se cargó.
+
+**Prueba del paso 1** (con `next dev` contra Postgres 18.6 recién sembrado, recorrido de Playwright fuera del repo): el inicio muestra los 4 pasos pendientes; "Agregá lo que vendés" lleva a Paquetes; con un paquete de Sancor en Automotor y un contacto de Sancor quedan listos esos dos; guardar la voz tal como viene la da por elegida; con una clave del portal de Sancor el checklist desaparece. En la nueva solicitud, 7 de 8 aseguradoras dicen "Sin paquete configurado" en Automotor (Sancor no) y en Hogar también Sancor. La solicitud 1043, solo con Sancor, muestra "Terceros completo premium" en Contactos. Sin desborde a 390 px en el inicio, la nueva solicitud y la configuración.
 
 ## Fase 3 — Configuración → Conexiones con las compañías (30/10/2026, cerrada)
-Rama `feat/cotizacion-v2-conexiones`, sin PR. Una pantalla nueva, `/configuracion/companias`, común a los 3 agentes (`?agente=cotizacion|validador|siniestros` muestra solo lo de ese agente).
+Rama `feat/cotizacion-v2-conexiones`, PR #35 (mergeado). Una pantalla nueva, `/configuracion/companias`, común a los 3 agentes (`?agente=cotizacion|validador|siniestros` muestra solo lo de ese agente).
 
 | Paso | Qué | Estado | Archivos |
 |---|---|---|---|
@@ -57,7 +90,7 @@ Rama `feat/cotizacion-v2-conexiones`, sin PR. Una pantalla nueva, `/configuracio
 **Para repetirla:** como en "Prueba contra Postgres 18.6" (más abajo), con `CONECTORES_SIMULADOS=1` en el build y en `next start`, y `CONECTORES_SIMULADOS_FORZAR=Sancor=ok;Mapfre=falla` para el recorrido.
 
 ## Fase 2 — Alinear con la base común (30/10/2026, cerrada)
-Rama `feat/cotizacion-v2-base-comun`, sin PR. Las tres partes (2a IA, 2b credenciales y 2c conectores) están hechas y probadas con la app compilada; ver "Cierre de la Fase 2" en la 2c.
+Rama `feat/cotizacion-v2-base-comun`, PR #34 (mergeado). Las tres partes (2a IA, 2b credenciales y 2c conectores) están hechas y probadas con la app compilada; ver "Cierre de la Fase 2" en la 2c.
 
 **Decisiones de Julian (30/10/2026)** sobre "Para decidir antes de la fase 2":
 1. **Enfoque de IA:** la opción A (pipeline con salida estructurada). El chat con herramientas (B) no se hace por ahora.
@@ -640,7 +673,7 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-**La Fase 3 está cerrada** (rama `feat/cotizacion-v2-conexiones`, sin PR; sale de `main` con el PR #34). Siguiente: la **Fase 4, lo que falta de las pantallas** (ver el plan, "Fase 4"), en orden:
+**La Fase 3 está cerrada** (rama `feat/cotizacion-v2-conexiones`, PR #35, mergeado). **La Fase 4 está en curso** en `feat/cotizacion-v2-pantallas` (ver "Fase 4 — Lo que falta de las pantallas", arriba de todo, con su tabla de pasos). El paso 1 está hecho (commit propio). Siguiente: el **paso 2**, el detalle: en Contactos el próximo seguimiento (con la consulta programada de las que tardan), la columna Preguntas, Copiar y Excel (`exportar/[id]?vista=contactos`); en el panel "Requiere atención" con detalle, la persona de la configuración, los seguimientos activos, los archivos por compañía y paquete y "Mostrar más"; en Agente la línea de tiempo y el borrador al ejecutivo (decisión de Julian: al correo de Mi cuenta, por la salida común). Los pasos, en orden:
 1. checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud;
 2. detalle: en Contactos, el próximo seguimiento, Copiar y Excel; en el panel, "Requiere atención" con detalle, los seguimientos activos y los archivos por compañía; en Agente, la línea de tiempo y el borrador al ejecutivo;
 3. comparativo con las filas de la spec y la vista compacta o detallada;
@@ -648,6 +681,6 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
 5. la bitácora con `cotizacion_eventos` y filtros, y las métricas medidas desde que salió el envío;
 6. la propuesta con el logo de la cuenta y con acentos.
 
-Antes, Julian decide si se abre el PR de la fase 3 (la rama no tiene migraciones).
+Sin push ni PR hasta que Julian lo diga.
 
 Pendientes que no son de esta fase: Julian desactiva Rivadavia duplicada desde la Configuración de Cotización (desde la fase 3 las dos comparten la fila de canales de "Rivadavia"), y apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { EncabezadoAgente, Bitacora } from "@/components/agentes/Agente";
-import { obtenerCuenta, obtenerConexiones } from "@/lib/datos";
-import { agenteConfigurado, obtenerActividad, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerRespuestasSinConfirmar, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
+import { agenteConfigurado, obtenerActividad, obtenerChecklistCotizacion, obtenerEnviosCotizacion, obtenerMetricasCotizacion, obtenerRespuestasSinConfirmar, obtenerSolicitudesCotizacion } from "@/lib/datos-agentes";
+import { pasosConfiguracionCotizacion } from "@/lib/cotizacion/configuracion";
 import { estadoVisible, estaCerrada, mejorCotizacion, filtrarSolicitudes, resumenCotizacion, soloConfirmadas, ESTADOS_COTIZACION, ESTADOS_VISIBLES_COTIZACION } from "@/lib/cotizacion";
 import { diaEnArgentina } from "@/lib/fechas";
 import { pesos } from "@/lib/formato";
@@ -87,12 +87,11 @@ export default async function Cotizacion({
   const ejecutivo = typeof sp.ejecutivo === "string" ? sp.ejecutivo : "";
   const desde = typeof sp.desde === "string" ? sp.desde : "";
   const hasta = typeof sp.hasta === "string" ? sp.hasta : "";
-  const [registros, actividad, activo, conexiones, cuenta, enviosCotizacion, datosMetricas, sinConfirmar] = await Promise.all([
+  const [registros, actividad, activo, datosChecklist, enviosCotizacion, datosMetricas, sinConfirmar] = await Promise.all([
     obtenerSolicitudesCotizacion(),
     tab === "bitacora" ? obtenerActividad("cotizacion") : Promise.resolve([]),
     agenteConfigurado("cotizacion"),
-    obtenerConexiones(),
-    obtenerCuenta(),
+    obtenerChecklistCotizacion(),
     obtenerEnviosCotizacion(),
     tab === "desempeno" ? obtenerMetricasCotizacion() : Promise.resolve({ envios: [], solicitudes: [] }),
     obtenerRespuestasSinConfirmar(),
@@ -132,17 +131,7 @@ export default async function Cotizacion({
       : null)
     : null;
   const estados = ESTADOS_COTIZACION;
-  const portales = conexiones.filter((conexion) => conexion.tipo === "portal");
-  const checklist = [
-    { listo: activo, texto: "Activá el agente", href: "/agentes/cotizacion" },
-    {
-      listo: portales.length > 0 && portales.every((conexion) => conexion.estado === "conectado" || conexion.estado === "por_email"),
-      texto: "Conectá los portales o agregá el email de tus compañías",
-      href: "/configuracion",
-    },
-    { listo: conexiones.some((conexion) => conexion.clave === "email" && conexion.estado === "conectado"), texto: "Conectá el correo", href: "/configuracion?panel=email" },
-    { listo: Boolean(cuenta.nombre), texto: "Completá el nombre del productor para la firma", href: "/configuracion?tab=cuenta" },
-  ];
+  const checklist = pasosConfiguracionCotizacion(datosChecklist);
   const faltaConfigurar = checklist.some((paso) => !paso.listo);
 
   return (
@@ -163,14 +152,18 @@ export default async function Cotizacion({
       {faltaConfigurar && (
         <section className="cotizacion-configuracion" aria-labelledby="cotizacion-checklist">
           <div>
-            <h2 id="cotizacion-checklist">Termina de configurar tu agente</h2>
-            <p>Los pedidos solo incluirán compañías configuradas en tu cuenta. El envío a portales todavía requiere integrar la conexión real de cada compañía.</p>
+            <h2 id="cotizacion-checklist">Terminá de configurar tu agente de cotización</h2>
+            <p>{checklist.filter((paso) => paso.listo).length} de {checklist.length} listos. Cada paso lleva a su sección de la configuración.</p>
           </div>
           <ol>
             {checklist.map((paso) => (
-              <li key={paso.texto} className={paso.listo ? "listo" : "pendiente"}>
+              <li key={paso.id} className={paso.listo ? "listo" : "pendiente"}>
                 <span aria-hidden="true">{paso.listo ? "✓" : "○"}</span>
-                {paso.listo ? <span>{paso.texto}</span> : <Link href={paso.href}>{paso.texto}</Link>}
+                <span className="cotizacion-checklist-paso">
+                  {paso.listo ? <span>{paso.texto}</span> : <Link href={paso.href}>{paso.texto}</Link>}
+                  <small>{paso.listo ? "Listo" : paso.detalle}</small>
+                </span>
+                <span className="visualmente-oculto">{paso.listo ? " (listo)" : " (pendiente)"}</span>
               </li>
             ))}
           </ol>

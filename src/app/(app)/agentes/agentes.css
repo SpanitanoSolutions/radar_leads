@@ -1743,6 +1743,8 @@
 .cotizacion-aseguradora-detalle { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .cotizacion-aseguradora-detalle strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .cotizacion-aseguradora-detalle small { color: var(--etiqueta); font-size: 10px; }
+.cotizacion-aseguradora-detalle small.cotizacion-sin-paquete { color: var(--ambar-texto); font-size: 11px; }
+.cotizacion-aviso-paquete { margin: 10px 0 0 44px; padding: 10px 12px; border: 1px solid var(--ambar-borde); border-radius: 8px; background: var(--ambar-claro); font-size: 12px; line-height: 1.45; }
 .cotizacion-sin-aseguradoras { display: flex; align-items: center; gap: 13px; margin-left: 44px; padding: 16px; border: 1px solid var(--ambar-borde); border-radius: 9px; background: var(--ambar-claro); }
 .cotizacion-sin-aseguradoras > span { color: var(--ambar-texto); font-size: 21px; }
 .cotizacion-sin-aseguradoras div { flex: 1; }
@@ -1835,6 +1837,21 @@
 }
 .cotizacion-configuracion li.pendiente > span:first-child {
   color: var(--ambar-texto);
+}
+.cotizacion-configuracion li:has(.cotizacion-checklist-paso) {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+.cotizacion-checklist-paso {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cotizacion-checklist-paso small {
+  color: var(--etiqueta);
+  font-size: 12px;
 }
 .cotizacion-kpis {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
@@ -2039,6 +2056,10 @@
   display: grid;
   gap: 16px;
 }
+/* El checklist del inicio lleva a cada sección por su ancla. */
+.cotizacion-ajustes > section[id] {
+  scroll-margin-top: 16px;
+}
 .cotizacion-ajuste-seccion {
   display: grid;
   gap: 14px;
@@ -2233,6 +2254,7 @@
   .cotizacion-aseguradoras-acciones,
   .cotizacion-aseguradoras-grid,
   .cotizacion-sin-aseguradoras,
+  .cotizacion-aviso-paquete,
   .cotizacion-archivo-campo { margin-left: 0; }
   .cotizacion-tipos-opciones,
   .cotizacion-nueva-grid,

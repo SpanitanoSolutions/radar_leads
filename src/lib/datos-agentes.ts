@@ -3,6 +3,9 @@ import { and, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-o
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import type { Comprobante, CuentaCompania } from "@/db/schema";
+import { ALCANCE_CONEXIONES } from "./conectores/companias";
+import { listarCredenciales } from "./conectores/credenciales";
+import type { DatosChecklist } from "./cotizacion/configuracion";
 import { sumarDias } from "./fechas";
 import type { CuotaConPoliza } from "./validador";
 
@@ -387,6 +390,33 @@ export async function obtenerDetalleCotizacion(id: number) {
 export async function obtenerAseguradorasCotizacion() {
   await connection();
   return db.select().from(schema.cotizacionAseguradoras).orderBy(schema.cotizacionAseguradoras.nombre);
+}
+
+/** Los paquetes de cobertura: para el aviso "sin paquete configurado" y el paquete de cada envío. */
+export async function obtenerPaquetesCotizacion() {
+  await connection();
+  return db.select({ id: schema.cotizacionPaquetes.id, aseguradoraId: schema.cotizacionPaquetes.aseguradoraId, ramo: schema.cotizacionPaquetes.ramo })
+    .from(schema.cotizacionPaquetes);
+}
+
+/** Lo que mira el checklist del inicio de Cotización (src/lib/cotizacion/configuracion.ts). */
+export async function obtenerChecklistCotizacion(): Promise<DatosChecklist> {
+  await connection();
+  const [aseguradoras, paquetes, credenciales, [config], [agente]] = await Promise.all([
+    db.select({ id: schema.cotizacionAseguradoras.id, nombre: schema.cotizacionAseguradoras.nombre, activa: schema.cotizacionAseguradoras.activa, contactos: schema.cotizacionAseguradoras.contactos })
+      .from(schema.cotizacionAseguradoras),
+    db.select({ aseguradoraId: schema.cotizacionPaquetes.aseguradoraId }).from(schema.cotizacionPaquetes),
+    listarCredenciales(ALCANCE_CONEXIONES),
+    db.select({ persona: schema.cotizacionConfig.persona, nombreAgente: schema.cotizacionConfig.nombreAgente, personalidad: schema.cotizacionConfig.personalidad })
+      .from(schema.cotizacionConfig).limit(1),
+    db.select({ config: schema.configuracionAgentes.config }).from(schema.configuracionAgentes).where(eq(schema.configuracionAgentes.agente, "cotizacion")),
+  ]);
+  return {
+    aseguradoras,
+    paquetes,
+    credenciales,
+    voz: config ? { ...config, elegida: agente?.config.vozElegida === true } : null,
+  };
 }
 
 export async function obtenerEnviosCotizacion() {
