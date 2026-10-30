@@ -106,7 +106,7 @@ describe("ejecutarConCanales", () => {
     const portal = new SimuladaPortal({ compania: "Sancor", hoy, demoraMs: 0, probabilidadFalla: 0, forzar: { datoExtra: true } });
     const otro = conector("archivo", { cotizar: async () => ({ estado: "cotizada" }) });
     const resultado = await ejecutarConCanales([portal, otro], "cotizar", [{ referencia: "S", ramo: "Auto", tipo: "nueva", riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS", vigenciaDesde: null }, []]);
-    expect(resultado).toMatchObject({ ok: false, motivo: "requiere_dato", canal: "portal", pregunta: expect.stringContaining("uso del vehículo") });
+    expect(resultado).toMatchObject({ ok: false, motivo: "requiere_dato", canal: "portal", campo: "uso", pregunta: expect.stringContaining("uso del vehículo") });
     expect(resultado.intentos).toHaveLength(1);
   });
 

@@ -4,7 +4,9 @@ import { obtenerDetalleCotizacion } from "@/lib/datos-agentes";
 import { pesos } from "@/lib/formato";
 import { mejorResultadoConfirmado, porcentajeCerrados, validarCotizacionContraSolicitud } from "@/lib/cotizacion";
 import { estadoIACotizacion, lecturasDePdfs, obtenerBorradoresIA } from "@/agentes/cotizacion/ia";
-import { aprobarEnvioCotizacion, aprobarPropuestaCotizacion, cargarArchivoCotizacion, cargarResultadoCotizacion, confirmarResultadoCotizacionAccion, generarPropuestaCotizacion, marcarSolicitudCompletada, omitirBorradorCotizacion, simularRespuestaCotizacion, chatearCotizacionIA, redactarCorreoConIA, extraerPdfConIA } from "../actions";
+import { enviosCotizando } from "@/agentes/cotizacion/cotizar";
+import { datoPedido, elegibleParaCotizar, estadoEnvioVisible, etiquetaCanal, EVENTO_AUTORIZACION } from "@/lib/cotizacion/orquestador";
+import { aprobarEnvioCotizacion, aprobarPropuestaCotizacion, aprobarYCotizarSolicitud, cargarArchivoCotizacion, cargarResultadoCotizacion, confirmarResultadoCotizacionAccion, generarPropuestaCotizacion, marcarSolicitudCompletada, omitirBorradorCotizacion, responderDatoCotizacion, simularRespuestaCotizacion, chatearCotizacionIA, redactarCorreoConIA, extraerPdfConIA } from "../actions";
 import { ActualizarMientrasLee } from "./ActualizarMientrasLee";
 import "../../agentes.css";
 
@@ -24,6 +26,14 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   "archivo-invalido": { texto: "Ese archivo no es el PDF de una compañía de esta solicitud.", error: true },
   "resultado-confirmado": { texto: "Confirmaste la respuesta. Ya cuenta en el comparativo y en la lista." },
   "error-confirmar-resultado": { texto: "No pudimos confirmar esa respuesta. Revisá si la solicitud sigue abierta.", error: true },
+  "cotizando": { texto: "Aprobaste la solicitud. El agente está pidiendo la cotización a las compañías conectadas; lo que respondan aparece en Cotizaciones para que lo confirmes. Los correos siguen esperando tu aprobación." },
+  "nada-para-cotizar": { texto: "Aprobaste la solicitud. No quedaban compañías por cotizar: todas tienen su pedido en curso o ya respondieron." },
+  "solicitud-cerrada": { texto: "La solicitud ya está cerrada: no se cotizó nada.", error: true },
+  "error-cotizar": { texto: "No pudimos aprobar la solicitud. Probá de nuevo en un rato.", error: true },
+  "dato-respondido": { texto: "Guardamos tu respuesta en los datos del riesgo. El agente vuelve a cotizar con esa compañía." },
+  "dato-vacio": { texto: "Escribí la respuesta para la compañía.", error: true },
+  "dato-no-disponible": { texto: "Esa compañía ya no está esperando un dato.", error: true },
+  "error-dato": { texto: "No pudimos guardar tu respuesta. Probá de nuevo.", error: true },
 };
 
 export default async function DetalleCotizacion({ params, searchParams }: {
@@ -37,8 +47,13 @@ export default async function DetalleCotizacion({ params, searchParams }: {
   if (!detalle) notFound();
   const { solicitud, asegurado, lead, envios, archivos, propuestas, eventos, resultados, paquetes } = detalle;
   const pdfsDeCompanias = archivos.filter((archivo) => archivo.mime === "application/pdf" && archivo.envioId);
-  const [estadoIA, borradoresIA, lecturas] = await Promise.all([estadoIACotizacion(), obtenerBorradoresIA(id), lecturasDePdfs(pdfsDeCompanias.map((archivo) => archivo.id))]);
+  const [estadoIA, borradoresIA, lecturas, cotizando] = await Promise.all([
+    estadoIACotizacion(), obtenerBorradoresIA(id), lecturasDePdfs(pdfsDeCompanias.map((archivo) => archivo.id)), enviosCotizando(envios.map((envio) => envio.id)),
+  ]);
   const leyendo = [...lecturas.values()].some((lectura) => lectura.estado === "pendiente" || lectura.estado === "procesando");
+  const cerrada = Boolean(solicitud.completadoEl) || ["ganada", "perdida"].includes(solicitud.estado);
+  const autorizada = eventos.some((evento) => evento.tipo === EVENTO_AUTORIZACION);
+  const porCotizar = envios.filter((envio) => elegibleParaCotizar(envio) && !cotizando.has(envio.id)).length;
   const cliente = asegurado?.nombre ?? lead?.empresa ?? solicitud.cliente;
   const tab = TABS.some(([valor]) => valor === sp.tab) ? sp.tab! : "contactos";
   const nombrePaquete = new Map(paquetes.map((paquete) => [paquete.id, paquete.nombre]));
@@ -53,6 +68,7 @@ export default async function DetalleCotizacion({ params, searchParams }: {
       </header>
       {aviso && <p role={aviso.error ? "alert" : "status"} className={`cotizacion-aviso${aviso.error ? " error" : ""}`}>{aviso.texto}</p>}
       {sp.ia && <p role="status" className="cotizacion-aviso">La IA dejó una propuesta para revisar en esta página.</p>}
+      {(leyendo || cotizando.size > 0) && <ActualizarMientrasLee />}
       <nav aria-label="Secciones de la solicitud" className="pestanas">
         {TABS.map(([valor, etiqueta]) => <Link key={valor} href={`/agentes/cotizacion/${id}?tab=${valor}`} className="pestana" aria-current={tab === valor ? "page" : undefined}>{etiqueta}</Link>)}
       </nav>
@@ -60,18 +76,34 @@ export default async function DetalleCotizacion({ params, searchParams }: {
       <div className="cotizacion-detalle-cuerpo">
         <section className="cotizacion-detalle-principal">
           {tab === "contactos" && <section className="tarjeta cotizacion-ajuste-seccion">
-            <h2>Contactos de las aseguradoras</h2>
-            <div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Paquete</th><th>Folio</th><th>Estado</th><th>Seguimientos</th><th>Última actividad</th><th>Borrador</th></tr></thead><tbody>
-              {envios.map((envio) => <tr key={envio.id}>
-                <td>{envio.compania}</td><td>{envio.paqueteId == null ? "Sin paquete" : nombrePaquete.get(envio.paqueteId) ?? "Sin paquete"}</td><td>{envio.folio ?? "—"}</td><td>{envio.estado.replaceAll("_", " ")}{envio.preguntasPendientes && <small><br />{envio.preguntasPendientes}</small>}</td><td>{envio.cantidadSeguimientos}</td><td>{envio.ultimaActividad.toLocaleString("es-AR")}</td>
-                <td>{envio.estadoBorrador === "pendiente" ? <div className="cotizacion-botones-borrador"><form action={aprobarEnvioCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton boton-primario">Aprobar</button></form><form action={omitirBorradorCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Omitir</button></form>{estadoIA.habilitada && <form action={redactarCorreoConIA}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Mejorar con IA</button></form>}</div> : envio.estadoBorrador === "aprobado" ? "Aprobado · simulado" : "Omitido"}</td>
-              </tr>)}
+            <div className="cotizacion-comparativa-cabecera">
+              <div><h2>Contactos de las aseguradoras</h2>
+                {autorizada
+                  ? <p>Aprobaste la solicitud: el agente cotiza solo con las compañías conectadas. Los correos siguen esperando tu aprobación, uno por uno.</p>
+                  : <p>Al aprobar la solicitud, el agente pide la cotización por conexión directa o portal a las compañías conectadas. Con las demás queda el correo para aprobar.</p>}
+              </div>
+              {!autorizada && !cerrada && porCotizar > 0 && <form action={aprobarYCotizarSolicitud}><input type="hidden" name="solicitudId" value={id} /><button className="boton boton-primario">Aprobar y cotizar</button></form>}
+            </div>
+            <div className="tabla-scroll"><table className="tabla"><thead><tr><th>Aseguradora</th><th>Paquete</th><th>Folio</th><th>Estado</th><th>Canal</th><th>Seguimientos</th><th>Última actividad</th><th>Borrador</th></tr></thead><tbody>
+              {envios.map((envio) => {
+                const enCurso = cotizando.has(envio.id);
+                const visible = estadoEnvioVisible(envio, { cotizando: enCurso, resultado: resultadoPorEnvio.get(envio.id) });
+                const dato = cerrada ? null : datoPedido(envio);
+                return <tr key={envio.id}>
+                  <td>{envio.compania}</td><td>{envio.paqueteId == null ? "Sin paquete" : nombrePaquete.get(envio.paqueteId) ?? "Sin paquete"}</td><td>{envio.folio ?? envio.numeroCompania ?? "—"}</td>
+                  <td>{visible.texto}{visible.detalle && <small><br />{visible.detalle}</small>}
+                    {dato && <form action={responderDatoCotizacion} className="cotizacion-dato"><input type="hidden" name="envioId" value={envio.id} /><input type="hidden" name="solicitudId" value={id} /><label>Tu respuesta para {envio.compania}<input name="respuesta" required maxLength={200} /></label><button className="boton boton-primario">Responder y volver a cotizar</button></form>}
+                  </td>
+                  <td>{etiquetaCanal(envio.canalUsado)}</td><td>{envio.cantidadSeguimientos}</td><td>{envio.ultimaActividad.toLocaleString("es-AR")}</td>
+                  <td>{enCurso ? <span className="texto-suave">Esperá la cotización automática</span> : envio.estadoBorrador === "pendiente" ? <div className="cotizacion-botones-borrador"><form action={aprobarEnvioCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton boton-primario">Aprobar</button></form><form action={omitirBorradorCotizacion}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Omitir</button></form>{estadoIA.habilitada && <form action={redactarCorreoConIA}><input type="hidden" name="envioId" value={envio.id} /><button className="boton">Mejorar con IA</button></form>}</div> : envio.estadoBorrador === "aprobado" ? "Aprobado · simulado" : envio.canalUsado && envio.canalUsado !== "correo" ? "No hace falta" : "Omitido"}</td>
+                </tr>;
+              })}
             </tbody></table></div>
             {process.env.NODE_ENV !== "production" && solicitud.esEjemplo && <div className="cotizacion-ajuste-seccion"><h3>Simulador de respuestas (solo ejemplos)</h3>{envios.map((envio) => <form key={`simular-${envio.id}`} action={simularRespuestaCotizacion} className="cotizacion-botones-borrador"><input type="hidden" name="envioId" value={envio.id} /><label>Respuesta para {envio.compania}<select name="escenario"><option value="cotizado">Cotizado</option><option value="pregunta">Pregunta</option><option value="rechazado">Rechazo</option><option value="error">Error de portal</option></select></label><button className="boton">Simular</button></form>)}</div>}
           </section>}
 
           {tab === "cotizaciones" && <section className="tarjeta cotizacion-ajuste-seccion">
-            <div className="cotizacion-comparativa-cabecera"><div><h2>Comparativa</h2><p>Las respuestas que cargás a mano quedan confirmadas. Las que lee la IA cuentan recién cuando las confirmás.</p></div><div className="cotizacion-botones-borrador"><Link className="boton" href={`/agentes/cotizacion/exportar/${id}`}>Descargar CSV</Link><Link className="boton" href={`/agentes/cotizacion/exportar/${id}?formato=xlsx`}>Descargar Excel</Link><Link className="boton" href={`/agentes/cotizacion/exportar/${id}?formato=pdf`}>Descargar PDF</Link></div></div>
+            <div className="cotizacion-comparativa-cabecera"><div><h2>Comparativa</h2><p>Las respuestas que cargás a mano quedan confirmadas. Las que lee la IA o manda la compañía por conexión directa o portal cuentan recién cuando las confirmás.</p></div><div className="cotizacion-botones-borrador"><Link className="boton" href={`/agentes/cotizacion/exportar/${id}`}>Descargar CSV</Link><Link className="boton" href={`/agentes/cotizacion/exportar/${id}?formato=xlsx`}>Descargar Excel</Link><Link className="boton" href={`/agentes/cotizacion/exportar/${id}?formato=pdf`}>Descargar PDF</Link></div></div>
             <div className="tabla-scroll"><table className="tabla"><thead><tr><th>Concepto</th>{envios.map((envio) => <th key={envio.id}>{envio.compania}{mejor?.envioId === envio.id && <span className="cotizacion-mejor-precio">Mejor precio</span>}</th>)}</tr></thead><tbody>
               <tr><th>Prima neta</th>{envios.map((envio) => <td key={envio.id}>{resultadoPorEnvio.get(envio.id)?.primaNeta != null ? pesos(resultadoPorEnvio.get(envio.id)!.primaNeta!) : "—"}</td>)}</tr>
               <tr><th>Prima total</th>{envios.map((envio) => <td key={envio.id}>{resultadoPorEnvio.has(envio.id) ? <>{pesos(resultadoPorEnvio.get(envio.id)!.primaTotal)}{!resultadoPorEnvio.get(envio.id)!.confirmado && <small> · falta tu confirmación</small>}</> : "Pendiente"}</td>)}</tr>
@@ -115,7 +147,6 @@ export default async function DetalleCotizacion({ params, searchParams }: {
             <form action={generarPropuestaCotizacion}><input type="hidden" name="solicitudId" value={id} /><button className="boton boton-primario">Generar propuesta PDF</button></form>
             <p className="texto-suave">La propuesta incluye respuestas confirmadas y queda guardada como borrador. La aprobación habilita su descarga; compartirla queda a tu cargo.</p>
             {propuestas.map((propuesta) => <article key={propuesta.id} className="cotizacion-propuesta"><strong>{propuesta.nombre}</strong><span>{propuesta.estado === "aprobada" ? "Aprobada" : "Borrador · requiere aprobación"}</span><div className="cotizacion-botones-borrador"><Link className="boton" href={`/agentes/cotizacion/propuestas/${propuesta.id}`} aria-disabled={propuesta.estado !== "aprobada"}>Descargar PDF</Link>{propuesta.estado === "borrador" && <form action={aprobarPropuestaCotizacion}><input type="hidden" name="propuestaId" value={propuesta.id} /><button className="boton boton-primario">Aprobar propuesta</button></form>}</div></article>)}
-            {leyendo && <ActualizarMientrasLee />}
             {pdfsDeCompanias.filter((archivo) => estadoIA.habilitada || lecturas.has(archivo.id)).map((archivo) => {
               const lectura = lecturas.get(archivo.id);
               const enCurso = lectura?.estado === "pendiente" || lectura?.estado === "procesando";

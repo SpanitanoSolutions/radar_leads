@@ -30,7 +30,7 @@ export type IntentoCanal = {
 export type ResultadoCanales<T> =
   | { ok: true; valor: T; canal: TipoConector; intentos: IntentoCanal[] }
   /** La compañía pidió un dato que no está: se frena y se le pregunta al productor. */
-  | { ok: false; motivo: "requiere_dato"; pregunta: string; canal: TipoConector; intentos: IntentoCanal[] }
+  | { ok: false; motivo: "requiere_dato"; pregunta: string; campo?: string; canal: TipoConector; intentos: IntentoCanal[] }
   /** Un envío que no se sabe si salió: no se reintenta por otro canal para no duplicarlo. */
   | { ok: false; motivo: "incierto"; canal: TipoConector; intentos: IntentoCanal[] }
   | { ok: false; motivo: "no_encontrado" | "sin_permiso"; canal: TipoConector; intentos: IntentoCanal[] }
@@ -131,7 +131,8 @@ export async function ejecutarConCanales<C extends Capacidad>(
       if (seguir === "incierto") return { ok: false, motivo: "incierto", canal: conector.tipo, intentos };
       if (codigo === "requiere_dato") {
         const pregunta = error instanceof ErrorConector && error.pregunta ? error.pregunta : "La compañía pidió un dato que falta.";
-        return { ok: false, motivo: "requiere_dato", pregunta, canal: conector.tipo, intentos };
+        const campo = error instanceof ErrorConector ? error.campo : undefined;
+        return { ok: false, motivo: "requiere_dato", pregunta, ...(campo ? { campo } : {}), canal: conector.tipo, intentos };
       }
       return { ok: false, motivo: codigo === "sin_permiso" ? "sin_permiso" : "no_encontrado", canal: conector.tipo, intentos };
     }

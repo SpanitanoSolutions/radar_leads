@@ -38,10 +38,11 @@ export type ResultadoPrueba = { ok: true; latenciaMs: number } | { ok: false; co
 /**
  * Falla de un conector. El mensaje es para el productor y no lleva datos
  * personales; la auditoría guarda solo el código. `pregunta` acompaña a
- * `requiere_dato`: lo que pidió la compañía y no está en la solicitud.
+ * `requiere_dato`: lo que pidió la compañía y no está en la solicitud. `campo`
+ * es el nombre de ese dato en el riesgo de UNIQO, para guardar la respuesta.
  */
 export class ErrorConector extends Error {
-  constructor(readonly codigo: CodigoErrorConector, mensaje: string, readonly pregunta?: string) {
+  constructor(readonly codigo: CodigoErrorConector, mensaje: string, readonly pregunta?: string, readonly campo?: string) {
     super(mensaje);
     this.name = "ErrorConector";
   }

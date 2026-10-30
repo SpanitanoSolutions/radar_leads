@@ -73,7 +73,7 @@ Rama `feat/cotizacion-v2-base-comun`.
 |---|---|---|---|
 | 1 | Migración `0030_cotizacion_conectores` | Hecho y probado | `drizzle/0030_cotizacion_conectores.sql` (+ snapshot), `src/db/schema.ts` |
 | 2 | Opción `canales` de `ejecutarEnCompania()` | Hecho, con tests | `src/lib/conectores/canales.ts` (+ test), `ejecutar.ts` (+ test nuevo), `companias.ts` (nuevo), `auditoria.ts` |
-| 3 | Orquestador (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`) | Pendiente | — |
+| 3 | Orquestador (`cotizacion:cotizar_envio` y `cotizacion:consultar_cotizacion`) | Hecho, con tests (se prueba con la app en el cierre) | `src/lib/cotizacion/orquestador.ts` (+ test, nuevos), `src/agentes/cotizacion/orquestador.ts` y `cotizar.ts` (nuevos), `trabajos.ts`, `solicitudes.ts`, `actions.ts`, `[id]/page.tsx`, `[id]/ActualizarMientrasLee.tsx`, `configuracion/page.tsx` y `agentes.css`; en la base común, `tipos.ts`, `canales.ts` y `simulada-portal.ts` (el campo del dato pedido) |
 | 4 | `CONECTORES_SIMULADOS_FORZAR` | Pendiente | — |
 | 5 | El correo aprobado por la salida común; se borra `src/conexiones/cotizacion.ts` | Pendiente | — |
 | 6 | Se saca el webhook de la v1 | Pendiente | — |
@@ -87,6 +87,19 @@ Rama `feat/cotizacion-v2-base-comun`.
 - `ejecutarEnCompania()` suma la opción `canales`. Si no se pasa, lee la fila de la compañía en `conector_companias` (`canalesDeCompania()`, con el mismo alcance que la salud); sin fila, API → portal → archivo, como hasta ahora. La tabla es compartida: también la respeta el Validador.
 - Una compañía sin conectores registrados vuelve enseguida como manual, sin consultar la base (en producción no hay ninguno).
 - Tests: 11 nuevos en `canales.test.ts` y `ejecutar.test.ts` (este con la auditoría y la tabla simuladas).
+
+**Paso 3. El orquestador:**
+- **Autorizar:** "Aprobar y cotizar" (en Contactos) o "Cotizar automáticamente" al crear la solicitud llaman a `autorizarCotizacion()`. Deja el evento `cotizacion_autorizada` y encola un `cotizacion:cotizar_envio` por cada envío que no salió por ningún canal y cuyo correo no se omitió. Los correos siguen esperando su aprobación, uno por uno. El trabajo arma la autorización con la solicitud del envío, así no puede cotizar otra.
+- **`cotizar_envio`** llama a `ejecutarEnCompania("cotizar")` con el orden de la compañía y aplica lo que vuelve (`decidirCotizacion()`, pura):
+  - **cotizada:** el resultado entra **sin confirmar** con el formato de la carga manual (prima total = premio, prima neta, impuestos, moneda, franquicia, vigencia, coberturas y la validez en condiciones). El correo pendiente pasa a omitido ("No hace falta");
+  - **pendiente:** el envío queda `enviado` con `numero_compania`, y `cotizacion:consultar_cotizacion` lo consulta por el mismo canal el día que da la estrategia de seguimiento (días hábiles de la provincia). Si sigue pendiente o la consulta falla, vuelve a consultar; al llegar al máximo de seguimientos pasa a `requiere_atencion`. El cron de seguimientos no lo toca (sin `proximo_seguimiento`);
+  - **rechazada:** el envío queda `rechazado`, con el motivo en `intentos` y en el evento;
+  - **`requiere_dato`:** `requiere_atencion` con la pregunta. En Contactos aparece "Tu respuesta" y "Responder y volver a cotizar": se guarda en `datos_riesgo` con el campo que pidió la compañía y se encola otro `cotizar_envio`. La respuesta no va a los eventos;
+  - **sin conector, o fallan todos:** queda el borrador de correo (ya existía), `ultimo_error` dice qué pasó y el evento lo cuenta ("El portal de Federación Patronal no está disponible; se preparó el correo para aprobar."). La salud la actualiza `ejecutarEnCompania()`.
+- **Base común:** `ErrorConector` y `requiere_dato` suman `campo` (el nombre del dato en el riesgo de UNIQO). `SimuladaPortal` pide `uso`.
+- **Pantalla:** Contactos muestra el estado de cada compañía en palabras ("Cotizando por conexión directa o portal…", "Cotizó por portal · Falta tu confirmación", "Pedida por conexión directa", "Rechazada" con el motivo), la columna Canal y el número de la compañía como folio. Se actualiza sola mientras cotiza. En la Configuración, la casilla se llama "Cotizar automáticamente" y dice qué hace.
+- **Sin IA:** lo que devuelve un conector ya viene normalizado por la interfaz común, así que se pasa a `cotizacion_resultados` con código, sin IA.
+- Tests: 26 nuevos en `orquestador.test.ts`.
 
 **Prueba del paso 1:** `db:preparar` desde un worktree de `main` contra Postgres 18.6 en Docker (29 migraciones, la cartera de ejemplo y 16 envíos). Después, `db:preparar` desde esta rama: 31 migraciones, los 16 envíos con el mismo hash de sus columnas de antes, `intentos = []` y lo demás en null, y `conector_companias` vacía.
 

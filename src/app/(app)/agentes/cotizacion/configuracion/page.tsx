@@ -82,8 +82,8 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
           <label>Plantilla del correo<textarea name="plantillaCuerpo" defaultValue={config?.plantillaCuerpo ?? "Buenos días. Solicitamos una propuesta para {cliente}, CUIT {cuit}, ramo {ramo}. Productor: {productor}. Organización: {organizacion}. Moneda: {moneda}. Forma de pago: {forma_de_pago}."} rows={5} maxLength={5000} /></label>
           <label>Instrucciones fijas<textarea name="instruccionesCuerpo" defaultValue={config?.instruccionesCuerpo ?? ""} rows={2} maxLength={2000} /></label>
           <label>Cuenta saliente<input name="cuentaSaliente" type="email" defaultValue={config?.cuentaSaliente ?? ""} maxLength={254} /></label>
-          <label className="cotizacion-check"><input name="cotizarAutomaticamente" type="checkbox" defaultChecked={config?.cotizarAutomaticamente ?? false} /> Seleccionar todas las aseguradoras activas del ramo al crear una solicitud</label>
-          <p className="texto-suave">Aunque esta opción esté activa, nunca se manda un correo sin que lo apruebes.</p>
+          <label className="cotizacion-check"><input name="cotizarAutomaticamente" type="checkbox" defaultChecked={config?.cotizarAutomaticamente ?? false} /> Cotizar automáticamente: al crear una solicitud, el agente pide la cotización por conexión directa o portal a las compañías conectadas</label>
+          <p className="texto-suave">Aunque esta opción esté activa, nunca se manda un correo sin que lo apruebes. Sin ella, el agente cotiza cuando tocás “Aprobar y cotizar” en la solicitud.</p>
           <label className="cotizacion-check"><input name="agenteActivo" type="checkbox" defaultChecked={config?.agenteActivo ?? false} /> Activar la preparación de seguimientos</label>
           <button className="boton boton-primario">Guardar configuración</button>
         </form>

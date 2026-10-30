@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/** Vueltas de 3 segundos: si la lectura tarda más de 3 minutos, la retoma el cron y se ve al volver a entrar. */
+/** Vueltas de 3 segundos: si el trabajo tarda más de 3 minutos, lo retoma el cron y se ve al volver a entrar. */
 const MAXIMO_VUELTAS = 60;
 
-/** Mientras la IA lee un PDF en segundo plano, vuelve a pedir la página para mostrar lo que leyó. */
+/** Mientras hay trabajo en segundo plano (la IA leyendo un PDF o el agente cotizando), vuelve a pedir la página para mostrar lo nuevo. */
 export function ActualizarMientrasLee() {
   const router = useRouter();
   useEffect(() => {

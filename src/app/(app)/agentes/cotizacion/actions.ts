@@ -12,6 +12,8 @@ import { adaptadorSalidaCotizacion } from "@/conexiones/cotizacion";
 import { calcularProximoSeguimiento } from "@/lib/cotizacion/seguimientos";
 import { provinciaValida } from "@/lib/provincias";
 import { encolarLecturaPdf, redactarCorreoCotizacion, responderChatCotizacion, type ResultadoIACotizacion } from "@/agentes/cotizacion/ia";
+import { autorizarCotizacion } from "@/agentes/cotizacion/cotizar";
+import { responderDatoPedido } from "@/agentes/cotizacion/orquestador";
 import { despachadorTrabajos } from "@/lib/ia/manejadores";
 import type { MotivoSinIA } from "@/lib/ia/motor";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
@@ -166,6 +168,37 @@ export async function aprobarEnvioCotizacion(formData: FormData) {
   }
   revalidatePath("/agentes/cotizacion");
   volver("envio-aprobado", "?tab=solicitudes");
+}
+
+/** "Aprobar y cotizar": autoriza al agente a cotizar por conexión directa o portal. Los correos siguen esperando su aprobación. */
+export async function aprobarYCotizarSolicitud(formData: FormData) {
+  await requerirSesion();
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  if (!Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
+  let encolados: number | null | "fallo";
+  try { encolados = await autorizarCotizacion(solicitudId, "aprobada"); }
+  catch { encolados = "fallo"; }
+  // El agente cotiza en segundo plano; si no termina acá, lo retoma el cron de la cola.
+  if (typeof encolados === "number" && encolados > 0) await despachadorTrabajos.despachar(solicitudId);
+  revalidatePath("/agentes/cotizacion");
+  revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+  const aviso = encolados === "fallo" ? "error-cotizar" : encolados === null ? "solicitud-cerrada" : encolados > 0 ? "cotizando" : "nada-para-cotizar";
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);
+}
+
+/** El productor responde el dato que pidió la compañía: se guarda en el riesgo y el agente vuelve a cotizar. */
+export async function responderDatoCotizacion(formData: FormData) {
+  await requerirSesion();
+  const envioId = Number(mensajeDe(formData, "envioId"));
+  const solicitudId = Number(mensajeDe(formData, "solicitudId"));
+  if (!Number.isInteger(envioId) || envioId <= 0 || !Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=envio-invalido");
+  let resultado: Awaited<ReturnType<typeof responderDatoPedido>> | "fallo";
+  try { resultado = await responderDatoPedido(envioId, mensajeDe(formData, "respuesta")); }
+  catch { resultado = "fallo"; }
+  if (resultado && typeof resultado === "object") await despachadorTrabajos.despachar(envioId);
+  revalidatePath(`/agentes/cotizacion/${solicitudId}`);
+  const aviso = resultado === "invalida" ? "dato-vacio" : resultado === "fallo" ? "error-dato" : resultado === null ? "dato-no-disponible" : "dato-respondido";
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=contactos&aviso=${aviso}`);
 }
 
 export async function omitirBorradorCotizacion(formData: FormData) {

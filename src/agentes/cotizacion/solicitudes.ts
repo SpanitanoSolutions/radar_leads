@@ -2,8 +2,10 @@ import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { agregarRespuesta, type RespuestaConfirmada } from "@/lib/cotizacion";
+import type { Moneda } from "@/lib/conectores/tipos";
 import { armarBorradorSolicitud } from "@/lib/cotizacion/correo";
 import { ramoCanonico } from "@/lib/ramos";
+import { autorizarCotizacion, despacharCotizaciones } from "./cotizar";
 
 export type NuevaSolicitud = {
   aseguradoId?: number | null;
@@ -28,7 +30,8 @@ export class SinCompaniasCotizablesError extends Error {
 /**
  * Crea una solicitud de cotización para las compañías configuradas en la cuenta.
  * La lista se vuelve a comprobar en el servidor; el formulario no puede ampliar
- * el conjunto de compañías habilitadas. Devuelve el número visible.
+ * el conjunto de compañías habilitadas. Con "Cotizar automáticamente", el
+ * agente ya pide la cotización a las compañías conectadas. Devuelve el número visible.
  */
 export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
   const aseguradoras = await db.select().from(schema.cotizacionAseguradoras).where(eq(schema.cotizacionAseguradoras.activa, true));
@@ -102,6 +105,7 @@ export async function crearSolicitud(s: NuevaSolicitud): Promise<number> {
   });
 
   await db.update(schema.solicitudesCotizacion).set({ nota: `${companias.length} borradores listos para revisar. Todavía no se envió nada.`, actualizadoEl: new Date() }).where(eq(schema.solicitudesCotizacion.id, creada.id));
+  if (config?.cotizarAutomaticamente && await autorizarCotizacion(creada.id, "automatica")) await despacharCotizaciones();
   return creada.numero;
 }
 
@@ -132,7 +136,7 @@ function textoFaltan(pendientes: string[]): string {
 
 /**
  * Registra una respuesta de una compañía. Lo que carga el productor queda confirmado y entra
- * en la comparativa. Lo que lee la IA o llega de la compañía (webhook o conector) queda sin confirmar: no cuenta
+ * en la comparativa. Lo que lee la IA o llega de la compañía por un conector queda sin confirmar: no cuenta
  * como cotizado ni entra en la lista hasta que el productor lo confirme, y nunca pisa una
  * respuesta que el productor ya confirmó.
  */
@@ -149,9 +153,12 @@ export async function registrarResultadoCotizacion(datos: {
   sumaAsegurada?: number | null;
   condiciones?: string | null;
   vigencia?: string | null;
+  moneda?: Moneda;
   confirmado?: boolean;
   /** Quién trajo la respuesta sin confirmar, para el registro de eventos. */
   actor?: "productor" | "ia" | "simulador" | "compania";
+  /** Por dónde llegó la respuesta de la compañía ("conexión directa", "portal"), para el texto del evento. */
+  via?: string;
   coberturas?: { nombre: string; valor?: string; incluida?: boolean }[];
   riesgoCotizado?: Record<string, string>;
 }): Promise<"confirmada" | "sin_confirmar" | "ya_confirmada"> {
@@ -183,6 +190,7 @@ export async function registrarResultadoCotizacion(datos: {
         sumaAsegurada: datos.sumaAsegurada ?? null,
         condiciones: datos.condiciones ?? null,
         vigencia: datos.vigencia ?? null,
+        ...(datos.moneda ? { moneda: datos.moneda } : {}),
         coberturas: datos.coberturas ?? [],
         riesgoCotizado: datos.riesgoCotizado ?? {},
         confirmado,
@@ -200,12 +208,13 @@ export async function registrarResultadoCotizacion(datos: {
       await guardarResultado(envio.id);
       // Ya hay respuesta: no hace falta seguir insistiendo, pero el envío no cuenta como cotizado hasta que el productor confirme.
       await tx.update(schema.cotizacionEnvios).set({ proximoSeguimiento: null, ultimaActividad: new Date() }).where(eq(schema.cotizacionEnvios.id, envio.id));
-      await tx.insert(schema.cotizacionEventos).values({ solicitudId: solicitud.id, envioId: envio.id, actor, tipo: "cotizacion_sin_confirmar", detalle: `${actor === "ia" ? "La IA leyó" : "Llegó"} la respuesta de ${datos.compania}. Falta que el productor la confirme.` });
+      const via = datos.via ? ` por ${datos.via}` : "";
+      await tx.insert(schema.cotizacionEventos).values({ solicitudId: solicitud.id, envioId: envio.id, actor, tipo: "cotizacion_sin_confirmar", detalle: `${actor === "ia" ? "La IA leyó" : "Llegó"} la respuesta de ${datos.compania}${via}. Falta que el productor la confirme.` });
       await tx.update(schema.solicitudesCotizacion).set({ actualizadoEl: new Date() }).where(eq(schema.solicitudesCotizacion.id, solicitud.id));
       await tx.insert(schema.actividadAgentes).values({
         agente: "cotizacion",
         referencia: `solicitud:${solicitud.numero}`,
-        texto: `${actor === "ia" ? "Leyó" : "Recibió"} la respuesta de ${datos.compania} para la solicitud ${solicitud.numero}. Espera tu confirmación antes de sumarla a la comparativa.`,
+        texto: `${actor === "ia" ? "Leyó" : "Recibió"} la respuesta de ${datos.compania}${via} para la solicitud ${solicitud.numero}. Espera tu confirmación antes de sumarla a la comparativa.`,
       });
       return "sin_confirmar";
     }
