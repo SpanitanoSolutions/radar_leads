@@ -3,10 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ALCANCE_CARTERA, configValidador } from "@/agentes/validador/cartera";
-import { desconfirmarPlantilla, guardarConfig, guardarGracia } from "@/agentes/validador/configuracion";
+import { guardarConfig, guardarGracia } from "@/agentes/validador/configuracion";
 import { notificar } from "@/agentes/validador/notificaciones";
 import { requerirSesion } from "@/lib/auth";
-import { borrarCredencial, guardarCredencial, type EstadoCredencial } from "@/lib/conectores/credenciales";
 import { companiaCanonica, leerMonto } from "@/lib/importacion";
 import { leerProgramacion } from "@/lib/validador/configuracion";
 import { leerGrillaGracia, TODOS_LOS_RAMOS } from "@/lib/validador/gracia";
@@ -19,61 +18,12 @@ import type { EstadoForm } from "../actions";
 const BASE = "/agentes/validador/configuracion";
 const texto = (formData: FormData, campo: string, max = 200) => String(formData.get(campo) ?? "").trim().slice(0, max);
 
-function entero(valor: FormDataEntryValue | null): number {
-  const n = Number(valor);
-  if (!Number.isInteger(n) || n <= 0) throw new Error("Dato inválido");
-  return n;
-}
-
 function refrescar() {
   revalidatePath("/agentes/validador", "layout");
 }
 
 function ir(tab: string, aviso: string, extra: Record<string, string> = {}): never {
   redirect(`${BASE}?${new URLSearchParams({ tab, ...extra, aviso })}`);
-}
-
-// ---------- Credenciales ----------
-
-const ESTADOS: EstadoCredencial[] = ["activa", "vencida", "desactivada"];
-
-/** Agrega o edita una credencial del portal. La contraseña se cifra; al editar, vacía conserva la anterior. */
-export async function guardarCredencialPortal(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
-  await requerirSesion();
-  const id = formData.get("id") ? entero(formData.get("id")) : undefined;
-  const compania = companiaCanonica(texto(formData, "compania", 80));
-  const etiqueta = texto(formData, "etiqueta", 80);
-  const usuario = texto(formData, "usuario", 120);
-  const secreto = String(formData.get("secreto") ?? "").slice(0, 200);
-  const estado = ESTADOS.find((e) => e === formData.get("estado"));
-  if (!compania || !etiqueta || !usuario) return { error: "Completá la etiqueta y el usuario." };
-  if (!id && !secreto) return { error: "Completá la contraseña del portal." };
-  try {
-    await guardarCredencial({ id, compania, etiqueta, usuario, secreto: secreto || undefined, estado }, ALCANCE_CARTERA);
-  } catch (error) {
-    const mensaje = error instanceof Error ? error.message : "";
-    return {
-      error: /Falta|bytes/.test(mensaje)
-        ? "Falta la clave para cifrar las credenciales (CREDENCIALES_PORTAL_KEY) en el servidor: no se guardó nada."
-        : "No se pudo guardar la credencial. Probá de nuevo.",
-    };
-  }
-  refrescar();
-  ir("credenciales", id ? "credencial-editada" : "credencial-guardada", { cia: compania });
-}
-
-export async function borrarCredencialPortal(formData: FormData) {
-  await requerirSesion();
-  await borrarCredencial(entero(formData.get("id")), ALCANCE_CARTERA);
-  refrescar();
-  ir("credenciales", "credencial-borrada", { cia: texto(formData, "compania", 80) });
-}
-
-export async function dejarDeUsarPlantilla(formData: FormData) {
-  await requerirSesion();
-  await desconfirmarPlantilla(entero(formData.get("id")), ALCANCE_CARTERA);
-  refrescar();
-  ir("credenciales", "plantilla-desactivada", { cia: texto(formData, "compania", 80) });
 }
 
 // ---------- General ----------

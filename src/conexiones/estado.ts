@@ -25,7 +25,7 @@ export async function guardarConexion(clave: string, estado: EstadoConexion, dat
   const fila = {
     clave,
     tipo: catalogo.tipo,
-    compania: catalogo.compania ?? null,
+    compania: null,
     estado,
     requerida: catalogo.requerida,
     datos,

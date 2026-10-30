@@ -1,0 +1,186 @@
+/* ---------- Configuración → Conexiones con las compañías ---------- */
+
+.cias-agentes {
+  margin-bottom: 14px;
+}
+.cias {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+.cias-lista {
+  flex: 1 1 220px;
+  max-width: 300px;
+}
+.cias-lista ul {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 640px;
+  overflow-y: auto;
+}
+.cias-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radio-chico);
+  color: var(--texto);
+  font-size: 13px;
+  text-decoration: none;
+}
+.cias-item:hover {
+  background: var(--fondo-suave);
+}
+.cias-item[aria-current="page"] {
+  background: var(--acento-suave);
+  font-weight: 600;
+}
+
+/* Punto de color con el estado de la compañía */
+.cias-punto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.cias-punto::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--etiqueta);
+}
+.cias-punto-verde::before {
+  background: var(--verde-texto);
+}
+.cias-punto-ambar::before {
+  background: var(--ambar-texto);
+}
+.cias-punto-rojo::before {
+  background: var(--rojo-texto);
+}
+
+.cias-detalle {
+  flex: 3 1 520px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cias-encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.cias-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde-suave);
+}
+.cias-sin-conexion {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cias-tabla-canales {
+  min-width: 680px;
+}
+/* Tablas de texto (capacidades y plantilla): sin el ancho mínimo de las listas
+   y con la última columna alineada como las demás. */
+.cias-tabla-texto {
+  min-width: 0;
+}
+.cias-tabla-texto th:last-child,
+.cias-tabla-texto td:last-child {
+  text-align: left;
+}
+.cias-probar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.cias-probar .mensaje-error {
+  max-width: 260px;
+  text-align: right;
+}
+
+/* Orden de los canales */
+.cias-orden {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+.cias-opciones {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cias-opcion {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.cias-lugares {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 180px));
+  gap: 8px 12px;
+  margin-left: 24px;
+}
+
+/* Credenciales */
+.cias-tabla-credenciales {
+  min-width: 620px;
+}
+.cias-fila-panel > td {
+  background: var(--fondo-suave);
+  text-align: left !important;
+}
+.cias-acciones {
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+}
+.cias-agregar {
+  align-self: flex-start;
+}
+.cias-agregar > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.cias-agregar > summary::-webkit-details-marker {
+  display: none;
+}
+.cias-form {
+  margin-top: 10px;
+  text-align: left;
+}
+.cias-boton-grilla {
+  justify-self: start;
+  align-self: end;
+}
+
+@media (max-width: 640px) {
+  .cias-lista {
+    max-width: none;
+  }
+  .cias-lugares {
+    grid-template-columns: 1fr;
+    margin-left: 0;
+  }
+}

@@ -29,6 +29,7 @@ const AVISOS: Record<string, { texto: string; tono: "ok" | "info" | "error" }> =
   "credencial-guardada": { texto: "Credencial guardada. La contraseña quedó cifrada y no se vuelve a mostrar.", tono: "ok" },
   "credencial-editada": { texto: "Credencial actualizada.", tono: "ok" },
   "credencial-borrada": { texto: "Credencial borrada.", tono: "info" },
+  "canales-guardados": { texto: "Orden de los canales guardado. Vale para los tres agentes desde la próxima vez que hablen con la compañía.", tono: "ok" },
   "plantilla-desactivada": { texto: "Listo: el próximo listado de esa compañía te va a pedir que confirmes las columnas de nuevo.", tono: "info" },
   "gracia-guardada": { texto: "Períodos de gracia guardados. Los estados se recalculan con la próxima validación.", tono: "ok" },
   "tolerancia-guardada": { texto: "Tolerancia guardada: se usa desde el próximo listado o comprobante.", tono: "ok" },

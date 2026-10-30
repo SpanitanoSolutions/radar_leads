@@ -73,10 +73,9 @@ export function ContenidoWhatsApp({ paso, numero, plantillas }: {
 }
 
 /** OAuth connections and providers that still require an integration agreement. */
-export function ContenidoConexion({ conexion, conectada, porEmail, datos }: {
+export function ContenidoConexion({ conexion, conectada, datos }: {
   conexion: ConexionCatalogo;
   conectada: boolean;
-  porEmail: boolean;
   datos: Record<string, string>;
 }) {
   const href = conexion.tipo === "email"
@@ -115,7 +114,6 @@ export function ContenidoConexion({ conexion, conectada, porEmail, datos }: {
         {conectada && (
           <form action={desconectar}>
             <input type="hidden" name="clave" value={conexion.clave} />
-            {porEmail && <input type="hidden" name="porEmail" value="1" />}
             <button type="submit" className="boton-terciario">Desconectar</button>
           </form>
         )}

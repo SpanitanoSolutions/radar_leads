@@ -33,7 +33,7 @@ export default async function NuevaSolicitudCotizacion({
       <FormularioNuevaSolicitud
         asegurados={opciones.asegurados}
         leads={opciones.leads}
-        aseguradoras={aseguradoras.filter((aseguradora) => aseguradora.activa).map(({ id, nombre, ramos, canal }) => ({ id, nombre, ramos, canal }))}
+        aseguradoras={aseguradoras.filter((aseguradora) => aseguradora.activa).map(({ id, nombre, ramos }) => ({ id, nombre, ramos }))}
         aviso={aviso}
       />
     </div>

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IntentoCanal } from "./canales";
 import { autorizacion } from "./permisos";
 import { RegistroConectores } from "./registro";
-import type { Capacidad, ConectorCompania, TipoConector } from "./tipos";
+import { ErrorConector, type Capacidad, type ConectorCompania, type TipoConector } from "./tipos";
 
 // Sin base: la auditoría, la salud y el orden de conector_companias se simulan.
 const registrados: IntentoCanal[] = [];
@@ -10,18 +10,19 @@ const base = vi.hoisted(() => ({
   ordenGuardado: undefined as TipoConector[] | undefined,
   consultasOrden: 0,
   consultasSalud: 0,
+  companiasConsultadas: [] as string[],
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("./auditoria", () => ({
   auditar: () => async (intento: IntentoCanal) => { registrados.push(intento); },
-  saludDe: async () => { base.consultasSalud++; return () => undefined; },
+  saludDe: async (compania: string) => { base.consultasSalud++; base.companiasConsultadas.push(compania); return () => undefined; },
 }));
 vi.mock("./companias", () => ({
-  canalesDeCompania: async () => { base.consultasOrden++; return base.ordenGuardado; },
+  canalesDeCompania: async (compania: string) => { base.consultasOrden++; base.companiasConsultadas.push(compania); return base.ordenGuardado; },
 }));
 
-const { ejecutarEnCompania } = await import("./ejecutar");
+const { ejecutarEnCompania, probarConexion } = await import("./ejecutar");
 
 const SOLICITUD = { referencia: "1050", ramo: "Auto", tipo: "nueva" as const, riesgo: {}, codigoPostal: null, sumaAsegurada: null, moneda: "ARS" as const, vigenciaDesde: null };
 const contexto = { agente: "cotizacion", entidad: "cotizacion_envios", entidadId: 7 };
@@ -49,6 +50,7 @@ beforeEach(() => {
   base.ordenGuardado = undefined;
   base.consultasOrden = 0;
   base.consultasSalud = 0;
+  base.companiasConsultadas.length = 0;
 });
 
 describe("ejecutarEnCompania y el orden de canales", () => {
@@ -83,6 +85,13 @@ describe("ejecutarEnCompania y el orden de canales", () => {
     expect(llamados).toEqual(["api"]);
   });
 
+  it("usa el nombre canónico de la compañía para los conectores, el orden y la salud", async () => {
+    const llamados: TipoConector[] = [];
+    expect(await ejecutarEnCompania("SANCOR SEGUROS", "cotizar", [SOLICITUD, []], { contexto, autorizacion: permitido(), registro: registroCon(llamados) }))
+      .toMatchObject({ ok: true, canal: "api" });
+    expect(base.companiasConsultadas).toEqual(["Sancor", "Sancor"]);
+  });
+
   it("una compañía sin conectores es manual y no consulta la base", async () => {
     expect(await ejecutarEnCompania("La Segunda", "cotizar", [SOLICITUD, []], { contexto, autorizacion: permitido(), registro: registroCon([]) }))
       .toEqual({ ok: false, motivo: "manual", intentos: [] });
@@ -95,5 +104,23 @@ describe("ejecutarEnCompania y el orden de canales", () => {
     expect(resultado).toMatchObject({ ok: false, motivo: "sin_permiso", canal: "portal" });
     expect(llamados).toEqual([]);
     expect(registrados).toMatchObject([{ canal: "portal", resultado: "error", codigoError: "sin_permiso" }]);
+  });
+});
+
+describe("probarConexion", () => {
+  const conectorQue = (probar: ConectorCompania["probarConexion"]): ConectorCompania => ({ compania: "Sancor", tipo: "portal", capacidades: [], probarConexion: probar });
+
+  it("devuelve lo que dice el conector y lo registra", async () => {
+    expect(await probarConexion(conectorQue(async () => ({ ok: false, codigo: "credencial_vencida" })), undefined, contexto))
+      .toEqual({ ok: false, codigo: "credencial_vencida" });
+    expect(registrados).toMatchObject([{ canal: "portal", operacion: "probarConexion", resultado: "error", codigoError: "credencial_vencida" }]);
+  });
+
+  it("si el conector lanza, toma su código o lo cuenta como no disponible, y lo registra igual", async () => {
+    expect(await probarConexion(conectorQue(async () => { throw new ErrorConector("portal_cambiado", "cambió"); }), undefined, contexto))
+      .toEqual({ ok: false, codigo: "portal_cambiado" });
+    expect(await probarConexion(conectorQue(async () => { throw new Error("se cayó el navegador"); }), undefined, contexto))
+      .toEqual({ ok: false, codigo: "no_disponible" });
+    expect(registrados.map((intento) => intento.codigoError)).toEqual(["portal_cambiado", "no_disponible"]);
   });
 });

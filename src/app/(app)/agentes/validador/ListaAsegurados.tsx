@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { Fragment, useState } from "react";
+import { BotonEnviar } from "@/components/Formularios";
 import { IconoSiguiente } from "@/components/iconos";
 import { MEDIOS_MANUALES } from "@/lib/validador/pantalla";
 import { enviarACobranza, marcarPagada } from "./actions";
-import { BotonEnviar } from "./Formularios";
 import { FormComprobante } from "./TablaCobros";
 
 type Pastilla = { texto: string; tono: string };

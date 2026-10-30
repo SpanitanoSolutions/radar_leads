@@ -31,16 +31,10 @@ describe("vistaConexion", () => {
       detalle: "yo@ejemplo.com · Gmail",
       boton: "Administrar",
     });
-    expect(vistaConexion(de("portal:Mapfre"), { estado: "conectado", datos: { usuario: "4471" } }).detalle).toBe(
-      "Portal de productores · usuario 4471",
-    );
   });
 
-  it("Fianzas y Crédito usa portal de productor", () => {
-    expect(vistaConexion(de("portal:Fianzas y Crédito"), null)).toMatchObject({ estado: "sin_conectar", boton: "Conectar" });
-    expect(
-      vistaConexion(de("portal:Fianzas y Crédito"), { estado: "conectado", datos: { usuario: "FC-123" } }),
-    ).toMatchObject({ estado: "conectado", detalle: "Portal de productores · usuario FC-123" });
+  it("las compañías de seguros no están en el catálogo: tienen su propia pantalla", () => {
+    expect(CONEXIONES.filter((c) => c.grupo === "companias")).toEqual([]);
   });
 
   it("la cuenta bancaria se configura y las opcionales no apuran", () => {

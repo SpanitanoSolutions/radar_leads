@@ -28,12 +28,13 @@ datos de personas solo se muestran detrás del login.
 - **Leads del día** (`/leads`), **Ficha del lead** (`/leads/[id]`) y **Mis sectores**
   (`/sectores`): captación, seguimiento y preferencias de fuentes.
 - **Configuracion** (`/configuracion`): conexiones OAuth/API con autorizacion real y datos del productor.
+- **Conexiones con las compañías** (`/configuracion/companias`): común a Cotización, Validador y Siniestros (ver "Base común de agentes").
 
 Todo esta protegido con una contrasena unica (APP_PASSWORD). El agente de Cotizacion usa reglas y plantillas como base; la IA es opcional y requiere activacion para la organizacion.
 
 Las conexiones ya no aceptan datos escritos como prueba de una conexion. Gmail, Google Calendar y Mercado Pago usan OAuth; WhatsApp valida y envia con Meta Cloud API. Sus credenciales de aplicacion deben estar configuradas en el entorno del servidor. Los tokens OAuth se cifran con SESSION_SECRET.
 
-Bancos y portales de aseguradoras siguen pendientes: cada uno necesita un proveedor/API autorizado y sus credenciales. La app los muestra como pendientes y no los usa para enviar cotizaciones ni consultar movimientos.
+Los bancos siguen pendientes: necesitan un proveedor/API autorizado y sus credenciales. Las compañías de seguros tienen su propia pantalla, Conexiones con las compañías; sin un conector real, los agentes trabajan por correo o con carga manual.
 
 ## Fuentes de leads
 
@@ -404,7 +405,7 @@ La creación de una solicitud prepara un borrador de correo por aseguradora. Con
 
 Cada correo necesita aprobación y sale por la salida común (`src/agentes/envio.ts`) con el correo de la cuenta conectado; si no está conectado, queda aprobado y sin enviar, y el detalle lo dice con un botón "Enviar ahora". Las cotizaciones cargadas por el productor quedan confirmadas; las que manda una compañía por un conector o lee la IA esperan su confirmación. La aprobación de la propuesta PDF solo habilita su descarga para compartirla manualmente.
 
-La configuración está en `/agentes/cotizacion/configuracion`. Las claves de los portales van a `credenciales_portal` (ver más abajo). La IA pasa por `ejecutarIA()`: su interruptor está en la configuración de Cotización, y el uso y el costo quedan en `ia_uso` dentro del tope del mes. Sin `ANTHROPIC_API_KEY`, todo sigue a mano.
+La configuración está en `/agentes/cotizacion/configuracion`. El orden de canales, las claves de los portales y la salud de cada compañía están en Conexiones con las compañías (ver "Base común de agentes"); el campo `canal` de las aseguradoras ya no se muestra ni decide nada. La IA pasa por `ejecutarIA()`: su interruptor está en la configuración de Cotización, y el uso y el costo quedan en `ia_uso` dentro del tope del mes. Sin `ANTHROPIC_API_KEY`, todo sigue a mano.
 
 El cron `/api/cron/cotizacion` protegido por `CRON_SECRET` solo crea borradores de seguimiento. La programación de Vercel lo ejecuta de lunes a viernes. Con `CONECTORES_SIMULADOS=1`, cada compañía tiene una conexión directa y un portal simulados, y `CONECTORES_SIMULADOS_FORZAR` fija lo que hace cada una para probar sin azar (ver `.env.example`). Para respuestas de prueba por correo, usá el simulador de una solicitud de ejemplo fuera de producción. Los adjuntos se guardan en PostgreSQL, con un límite de 25 MB por archivo.
 
@@ -427,6 +428,7 @@ Cuando estén disponibles diez casos anonimizados con resultados esperados, `npm
 - **Compañías (`src/lib/conectores/`):** `ejecutarEnCompania()` prueba API → portal → archivo, aplica los permisos y audita en `conector_llamadas`. Con `CONECTORES_SIMULADOS=1` (nunca en producción) cada compañía responde con `SimuladaApi` y `SimuladaPortal`.
 - **Credenciales de portales (`credenciales_portal`):** el secreto se cifra con AES-256-GCM y `CREDENCIALES_PORTAL_KEY` (si falta, se usa `COTIZACION_CREDENTIALS_KEY`). Nunca se muestra ni va a logs; solo se descifra para pasárselo a un conector.
 - **Mapeos (`conector_mapeos`):** lo aprendido por compañía × ramo × operación, con versión. El listado de cobranza del Validador es la operación `importar_listado`.
+- **Conexiones con las compañías (`/configuracion/companias`):** la pantalla común a los tres agentes. Por compañía muestra los canales que tiene (conexión directa, portal, archivo) con su salud (`conector_salud`) y "Probar conexión", qué puede hacer cada agente y cuándo lo hace solo, el orden de los canales (`conector_companias`: automático, uno propio o solo correo o carga manual), el usuario y la clave del portal, el correo de Cotización y la plantilla de los listados del Validador. Con `?agente=cotizacion|validador|siniestros` muestra solo lo de ese agente. Las compañías van por su nombre canónico ("Seguros Rivadavia" → "Rivadavia"), también en `ejecutarEnCompania()`, así los agentes comparten el orden, la salud y las claves.
 - Spec: `docs/specs/conectores.md`. Progreso: `docs/progreso/base-comun.md`.
 
 ## Validador de pagos v2
@@ -437,7 +439,7 @@ Cuando estén disponibles diez casos anonimizados con resultados esperados, `npm
 - **Comprobantes:** la IA los lee, el matching propone el cobro con su puntaje y el productor confirma. Nunca se marcan pagados solos.
 - **Cobranza** usa la gracia del Validador (`validador_gracia`) y no persigue las cuotas pagadas o canceladas por la compañía.
 - **Configuración (`/agentes/validador/configuracion`):**
-  - las credenciales de los portales (cifradas) y la plantilla de listado de cada compañía;
+  - las credenciales de los portales y la plantilla de listado de cada compañía están en Conexiones con las compañías (`/configuracion/companias?agente=validador`);
   - la gracia por compañía × ramo, que marca las compañías sin gracia cargada, y la tolerancia de monto;
   - la programación, con la próxima ejecución real según el cron, que pasa una vez por día a las 08:00;
   - los avisos al productor por WhatsApp o email: un resumen diario o un aviso por evento, solo después de las corridas automáticas. A los asegurados no les escribe: eso sigue siendo un borrador de Cobranza.

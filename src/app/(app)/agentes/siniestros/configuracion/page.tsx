@@ -75,6 +75,10 @@ export default async function ConfiguracionSiniestros({ searchParams }: { search
       <p className="siniestro-config-nota">
         Los valores base de 3 y 14 días son recordatorios operativos de la aplicación; no representan plazos legales. Definí valores revisados para cada compañía. Los proveedores y modelos de IA se elegirán más adelante.
       </p>
+      <p className="siniestro-config-nota">
+        Cómo se conecta UNIQO con cada compañía para verificar pólizas, denunciar y seguir los siniestros, y el usuario y la clave de sus portales, está en{" "}
+        <Link href="/configuracion/companias?agente=siniestros">Conexiones con las compañías</Link>.
+      </p>
       <section className="tarjeta siniestro-config-seccion">
         <h2>Nueva regla</h2>
         <FormularioRegla />

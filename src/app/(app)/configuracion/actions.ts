@@ -9,7 +9,6 @@ import { email } from "@/conexiones/email";
 import { guardarConexion } from "@/conexiones/estado";
 import { calendario } from "@/conexiones/google-calendar";
 import { mercadoPago } from "@/conexiones/mercadopago";
-import { portal } from "@/conexiones/portal";
 import { whatsapp } from "@/conexiones/whatsapp";
 import { requerirSesion } from "@/lib/auth";
 import { AJUSTES_POR_DEFECTO } from "@/lib/datos";
@@ -63,7 +62,6 @@ export async function conectar(_previo: EstadoFormulario, formData: FormData): P
   await requerirSesion();
   const c = CONEXIONES.find((x) => x.clave === formData.get("clave"));
   if (!c || c.tipo === "whatsapp") return { error: "Conexion desconocida." };
-  if (c.tipo === "portal") return { error: "No se conecto la aseguradora: falta su API oficial y autorizacion de productor." };
   if (c.tipo === "banco") return { error: "Falta configurar un proveedor bancario real; escribir el banco y su alias no conecta la cuenta." };
   return { error: "Usa el boton de autorizacion del proveedor; guardar un email, usuario o alias no conecta la cuenta." };
 }
@@ -77,7 +75,6 @@ export async function desconectar(formData: FormData) {
   else if (c.tipo === "google_calendar") await calendario.desconectar();
   else if (c.tipo === "whatsapp") await whatsapp.desconectar();
   else if (c.tipo === "banco") await banco.desconectar();
-  else if (c.tipo === "portal") await portal.desconectar(c.compania ?? "");
   else await guardarConexion(c.clave, "sin_conectar");
   refrescar();
   redirect("/configuracion?aviso=desconectada");

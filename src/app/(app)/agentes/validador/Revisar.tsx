@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BotonEnviar, FormConError } from "@/components/Formularios";
 import type { Comprobante, ProblemaFuente } from "@/db/schema";
 import type { EstadoCompaniaCuota } from "@/lib/conectores/tipos";
 import type { CuotaDeCaso, obtenerCasosARevisar, obtenerListadosSubidos } from "@/lib/datos-validador";
@@ -16,7 +17,7 @@ import {
   subirComprobanteSuelto,
   subirListado,
 } from "./actions";
-import { BotonEnviar, ConfirmarColumnas, FormConError } from "./Formularios";
+import { ConfirmarColumnas } from "./Formularios";
 import { TablaCobros, type FilaCobro } from "./TablaCobros";
 
 // "Por revisar": todo lo que espera una decisión del productor. Los

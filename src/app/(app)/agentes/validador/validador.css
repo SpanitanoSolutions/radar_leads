@@ -352,87 +352,12 @@
 }
 
 /* ---------- Configuración ---------- */
-.config-credenciales {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 16px;
-}
-.config-companias {
-  flex: 1 1 220px;
-  max-width: 300px;
-}
-.config-companias ul {
-  margin: 0;
-  padding: 6px;
-  list-style: none;
-  max-height: 560px;
-  overflow-y: auto;
-}
-.config-compania {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: var(--radio-chico);
-  color: var(--texto);
-  font-size: 13px;
-  text-decoration: none;
-}
-.config-compania:hover {
-  background: var(--fondo-suave);
-}
-.config-compania[aria-current="page"] {
-  background: var(--acento-suave);
-  font-weight: 600;
-}
-.config-detalle {
-  flex: 3 1 520px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.config-datos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px 16px;
-  margin: 0;
-  font-size: 13px;
-}
-.config-datos dt {
-  font-size: 11.5px;
-  color: var(--etiqueta);
-}
-.config-datos dd {
-  margin: 0;
-  font-weight: 500;
-}
-.config-bloque {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--borde-suave);
-}
-.tabla-plantilla,
 .tabla-gracia {
   min-width: 0;
-}
-.config-agregar > summary {
-  list-style: none;
-  cursor: pointer;
-}
-.config-agregar > summary::-webkit-details-marker {
-  display: none;
 }
 .config-form {
   margin-top: 10px;
   text-align: left;
-}
-.config-agregar {
-  align-self: flex-start;
 }
 .config-ramos {
   margin: 4px 0 8px;
@@ -456,14 +381,6 @@
 .tabla-gracia td:last-child,
 .tabla-gracia th:last-child {
   text-align: left;
-}
-.tabla-credenciales {
-  min-width: 620px;
-}
-.config-acciones {
-  flex-wrap: nowrap;
-  align-items: center;
-  min-width: 0;
 }
 .config-nota {
   margin: 0;
@@ -538,9 +455,6 @@
   }
 }
 @media (max-width: 640px) {
-  .config-companias {
-    max-width: none;
-  }
   .config-etapa {
     grid-template-columns: 1fr;
   }
