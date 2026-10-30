@@ -38,26 +38,22 @@ Rama `feat/conexion-gmail`, sale de `main` en `7f13fa3` (con el PR #36). Sin mig
 
   En el log de `next start`, ningún error.
 
-### Configuración en Google Cloud (Julian)
-1. En [console.cloud.google.com](https://console.cloud.google.com), crear el proyecto **UNIQO**.
-2. **APIs y servicios → Biblioteca:** habilitar **Gmail API**. Ya que estás, también **Google Calendar API**, que se usa en el paso 2.
-3. **Google Auth Platform → Branding:** nombre de la app "UNIQO", correo de asistencia y, si lo pide, el dominio autorizado `radar-leads-pink.vercel.app`.
-4. **Público:** tipo **Externo**. Después, **Publicar la app** (pasa a "En producción").
-   - Hay que publicarla: en modo "Prueba", Google vence la autorización a los 7 días.
-   - Sin verificar, Google muestra "Google no verificó esta app" al autorizar. Se sigue con "Configuración avanzada → Ir a …". Así se aceptan hasta 100 usuarios, que para UNIQO hoy alcanzan.
-   - La verificación se pide recién cuando entren otros productores (Arquitectura, Fase 1).
-5. **Acceso a los datos:** agregar `https://www.googleapis.com/auth/gmail.send` (y `…/auth/calendar.events` para el paso 2).
-6. **Clientes → Crear cliente → Aplicación web**, con estos URI de redireccionamiento autorizados:
-   - `https://radar-leads-pink.vercel.app/api/conexiones/oauth/gmail`
-   - `https://radar-leads-pink.vercel.app/api/conexiones/oauth/google-calendar`
-   - `http://localhost:3000/api/conexiones/oauth/gmail`
-   - `http://localhost:3000/api/conexiones/oauth/google-calendar`
+### Configuración en Google Cloud (hecha, 30/10/2026)
+- Proyecto **UNIQO**, cliente OAuth web **"UNIQO Web"**.
+- **En producción, sin verificar:** autoriza cualquier Gmail, sin lista de usuarios de prueba. Sale "Google no verificó esta app" y se sigue por "Configuración avanzada → Ir a …", con un tope de 100 usuarios. La verificación se pide cuando entren otros productores (Arquitectura, Fase 1).
+- **APIs:** Gmail API y Google Calendar API.
+- **Acceso a los datos:** solo `gmail.send` y `calendar.events`. Calendar tiene que pedir **solo** `https://www.googleapis.com/auth/calendar.events`, nunca `calendar` completo: si no, no coincide con lo que se declara en la verificación.
+- **URI de redireccionamiento:**
+  - `http://localhost:3000/api/conexiones/oauth/gmail` y `…/google-calendar`;
+  - `https://www.un1qo.com/api/conexiones/oauth/gmail` y `…/google-calendar`;
+  - `https://radar-leads-pink.vercel.app/api/conexiones/oauth/gmail` y `…/google-calendar`, **temporales**: se borran antes de pedir la verificación.
+- Los cambios en el cliente tardan de 5 minutos a unas horas en aplicarse. Si sale `redirect_uri_mismatch`, esperar y reintentar antes de tocar el código.
 
-   Guardar el ID y el secreto del cliente: el secreto se ve una sola vez.
-7. **Variables:**
-   - **Vercel, solo Production:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `APP_URL=https://radar-leads-pink.vercel.app`. `APP_URL` fija la URL de retorno aunque después se agregue un dominio propio.
-   - **`.env` local:** las mismas dos claves, con `APP_URL=http://localhost:3000`.
-   - Llegan recién al próximo deploy.
+**Dominio:** `un1qo.com` se compró en Vercel el 30/10/2026 y está en el proyecto `radar-leads`. `www.un1qo.com` sirve la app y `un1qo.com` redirige ahí (308).
+
+**Variables:**
+- **Vercel, solo Production:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `APP_URL=https://www.un1qo.com`, con www y sin barra final. Cargadas el 31/10/2026, antes del merge, por pedido de Julian (el secreto, como sensible). Hace falta `APP_URL`: sin ella, Vercel toma el dominio más corto (`un1qo.com`, sin www), que no está entre las URI de Google. Llegan recién al próximo deploy.
+- **`.env` local:** cargado el 31/10/2026, con las dos claves y `APP_URL=http://localhost:3000`. Apunta al contenedor de Docker `uniqo-local` (Postgres 18.6, puerto 55433), preparado con `db:preparar`.
 
 ### Prueba de punta a punta
 **En local**, con el Postgres de Docker (nunca la `DATABASE_URL` de Neon) y `npm run dev`:
@@ -70,21 +66,23 @@ Rama `feat/conexion-gmail`, sale de `main` en `7f13fa3` (con el PR #36). Sin mig
 
 **En producción** (después del merge y del deploy con las variables):
 - Antes de conectar, revisar que en Cobranza ningún paso esté marcado como automático, salvo que se quiera que salga solo. Los avisos del Validador por correo salen solos a los destinatarios cargados en su Configuración.
-- Autorizar con **la casilla @gmail.com del productor**, desde `https://radar-leads-pink.vercel.app` y no desde otro alias, para que la sesión y el retorno sean del mismo dominio.
+- Autorizar con **la casilla @gmail.com del productor**, desde `https://www.un1qo.com` y no desde `un1qo.com` ni `radar-leads-pink.vercel.app`, para que la sesión y el retorno sean del mismo dominio.
 - Mandar un correo de prueba y aprobar un correo real (por ejemplo, el borrador al ejecutivo de una solicitud, que va al correo de Mi cuenta).
 
 | Paso | Estado |
 |---|---|
 | Código, tests, lint y build | Hecho |
-| Proyecto y cliente en Google Cloud | Falta (Julian) |
+| Proyecto y cliente en Google Cloud | Hecho (30/10/2026) |
+| `.env` local con las claves | Hecho (31/10/2026) |
 | Prueba local de punta a punta | Falta |
-| PR, merge y variables en Vercel | Falta |
+| Variables en Vercel Production | Hecho (31/10/2026) |
+| PR y merge | Falta |
 | Conectar la casilla del productor y prueba en producción | Falta |
 
 ## 2. Google Calendar (decidido, sin empezar)
 - Hoy `calendario.crearEvento()` no lo llama nadie: conectar Calendar no hace nada.
 - **Qué hay que hacer:** un paso del cron diario que, con Calendar conectado, sincronice los próximos 30 días. Va un evento de día completo por fecha con las pólizas que vencen (asegurado, compañía, ramo y enlace a la ficha). Se guarda el id de cada evento para actualizarlo o borrarlo si cambian los vencimientos (una renovación saca la póliza; un día sin vencimientos borra el evento). Hace falta guardar ese id: una tabla o `datos` de la conexión, a definir.
-- El permiso es `calendar.events`, en el mismo proyecto de Google.
+- El permiso es solo `calendar.events` (ya es lo que pide el OAuth), en el mismo proyecto de Google.
 
 ## 3. WhatsApp (sin empezar): lo que falta
 - **Plantillas:** hoy, con `WHATSAPP_TEMPLATE_NAME`, todo sale con una plantilla y el texto entero en una variable. Meta rechaza plantillas que son solo una variable y no acepta saltos de línea en los parámetros (el aviso del Validador lleva `\n\n`). Hace falta una plantilla de categoría "utilidad" por tipo de mensaje, con sus variables.
@@ -96,4 +94,4 @@ Rama `feat/conexion-gmail`, sale de `main` en `7f13fa3` (con el PR #36). Sin mig
 La base de conectores ya está (`src/lib/conectores/`, pantalla `/configuracion/companias`). Cada compañía real necesita su API o su portal, de a una.
 
 ## Próximo paso exacto
-Julian crea el proyecto y el cliente de Google Cloud (sección "Configuración en Google Cloud") y pone `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `APP_URL=http://localhost:3000` en el `.env` local. Después se hace la prueba local de punta a punta, pasos 1 a 6.
+La prueba local de punta a punta, pasos 1 a 6, en `http://localhost:3000` (contraseña local `uniqo-local`). Después, PR y merge: las variables de Vercel ya están y llegan con ese deploy. Hasta el merge, no conectar Gmail en producción (`main` todavía pide `gmail.readonly`).
