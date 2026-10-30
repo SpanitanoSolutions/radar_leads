@@ -3,8 +3,18 @@
 Spec: [cotizacion-v2.md](../specs/cotizacion-v2.md). Manda en todo lo de compañías: [conectores.md](../specs/conectores.md). Plan anterior: [PLAN-cotizacion-v2.md](../PLAN-cotizacion-v2.md).
 Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`), `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`; PR #34, mergeado), `feat/cotizacion-v2-conexiones` (fase 3, sale de `main` en `0fecc26`; PR #35, mergeado) y `feat/cotizacion-v2-pantallas` (fase 4, sale de `main` en `f05023b`).
 
-## Fase 4 — Lo que falta de las pantallas (30/10/2026, en curso)
-Rama `feat/cotizacion-v2-pantallas`, sale de `main` en `f05023b` (con el PR #35). Cada paso es un commit y este archivo se actualiza antes del siguiente.
+## Fase 4 — Lo que falta de las pantallas (30/10/2026, cerrada)
+Rama `feat/cotizacion-v2-pantallas`, sale de `main` en `f05023b` (con el PR #35), sin PR (Julian decide cuándo). Un commit por paso (`aa5fae3`, `4d74ca3`, `4c901e9`, `b8c0a65`, `50d449f`, `84620d9`) más el del cierre. **Sin migraciones.** Con esta fase, el criterio 6 queda hecho.
+
+### Prueba de la fase 4 (30/10/2026)
+- `npm test`: pasan 630 de 633. Los 3 que fallan son los de antes (`catalogo.test.ts` la cuenta bancaria, `menu.test.ts` y `siniestros.test.ts`). La fase suma 52 tests.
+- `npm run lint`: sin errores (las 3 advertencias viejas). `npm run build`: OK, con la `DATABASE_URL` del Docker.
+- `npm run test:e2e`: **pasa entero** (24 pasos) contra Postgres 18.6 en Docker recién sembrado, con la app compilada, `CONECTORES_SIMULADOS=1` y sin `ANTHROPIC_API_KEY`. El control de 390 px suma la Bitácora, Desempeño, la configuración y la nueva solicitud de Cotización.
+- **Recorrido de cada paso con la app compilada** (los mismos scripts de Playwright de las pruebas de cada paso, fuera del repo, con capturas y el control de 390 px; cada uno sobre una base recién sembrada o la que deja el paso 2), con `CONECTORES_SIMULADOS_FORZAR=Sancor=ok;Mapfre=falla;Rivadavia=dato;San Cristóbal=dos_pasos`: los pasos 1, 2, 3, 4 (sin IA), 5 y 6 pasaron enteros con los mismos resultados que con `next dev`. "Sugerir con IA" se probó con la app compilada y una API de Anthropic falsa local (3 pedidos a Haiku con salida estructurada, 3 filas en `ia_uso`). Los PDF de la propuesta (sin logo, PNG, JPG y WebP) y del comparativo se abrieron con PyMuPDF sin reparar nada.
+- En los logs de `next start` no hay errores de Cotización ni claves o contraseñas; están los avisos de `new Date()` al prerenderizar de otras pantallas, que son de antes.
+- **Sin migraciones:** la fase no toca `drizzle/` ni `src/db/schema.ts` (el flag de la voz va en `configuracion_agentes.config`, que ya existía).
+
+**Para repetirla:** como en "Prueba contra Postgres 18.6" (más abajo): `DATABASE_URL` del Docker exportada (nunca la de Neon) para `db:preparar` y `npm run build`, y `next start` con `CONECTORES_SIMULADOS=1`. Para el recorrido, `CONECTORES_SIMULADOS_FORZAR` como arriba y, para "Sugerir con IA", `ANTHROPIC_API_KEY` de mentira con `ANTHROPIC_BASE_URL` apuntando a una API falsa local.
 
 | Paso | Qué | Estado | Archivos |
 |---|---|---|---|
@@ -14,7 +24,7 @@ Rama `feat/cotizacion-v2-pantallas`, sale de `main` en `f05023b` (con el PR #35)
 | 4 | ABM de Tipos de seguro y "Sugerir con IA" para la estrategia | Hecho, 10 tests, probado con `next dev` (sin IA y con una API de Anthropic falsa local) | `src/lib/cotizacion/tipos-seguro.ts` (+ test, nuevos), `src/lib/cotizacion.ts` y `ia.ts` (+ tests), `src/agentes/cotizacion/ia.ts`, `configuracion/` (`page.tsx`, `actions.ts`, `EstrategiaSeguimiento.tsx` nuevo), `nueva/` y `actions.ts` de Cotización, `src/lib/datos-agentes.ts`, `agentes.css` |
 | 5 | Bitácora con `cotizacion_eventos` y filtros; métricas desde que salió el envío | Hecho, 10 tests, probado con `next dev` | `src/lib/cotizacion/bitacora.ts` (+ test, nuevos), `metricas.ts` (+ test), `src/lib/datos-agentes.ts`, `page.tsx` y `actions.ts` de Cotización, `src/agentes/cotizacion/solicitudes.ts`, `agentes.css` |
 | 6 | Propuesta en PDF con el logo de la cuenta y con acentos (criterio 6) | Hecho, 11 tests, probado con `next dev` | `src/lib/cotizacion/logo-pdf.ts` y `propuesta.ts` (+ tests, nuevos), `propuesta-pdf.ts` (+ test, reescrito), `actions.ts`, `[id]/page.tsx` y `exportar/[id]/route.ts` de Cotización |
-| Cierre | Tests, lint, build, E2E entero, recorrido con la app compilada, README y vault | Por hacer | |
+| Cierre | Tests, lint, build, E2E entero, recorrido con la app compilada, README y vault | Hecho (ver "Prueba de la fase 4") | `e2e/flujos.mjs` (control de 390 px), `README.md`, este archivo |
 
 **Decisiones de Julian (30/10/2026):**
 - **Borrador al ejecutivo:** el ejecutivo es el productor de la cuenta. El borrador va al correo de Mi cuenta y, al aprobarlo, sale por la salida común; sin el correo conectado queda aprobado y sin enviar, como los de las compañías.
@@ -594,7 +604,7 @@ Evidencia por lectura del código; lo que se comprobó contra Postgres está en 
 | 3 | "Cada 3 días hábiles" con feriado en medio | Hecho | `seguimientos.test.ts`: trasladables, días puente, el 9/11/2026 y el cruce de año, más la hora que toma el cron (Fase 1); Jueves Santo y feriados de la provincia (2a) |
 | 4 | Máximo de seguimientos → no hay más y queda `requiere_atencion` | Hecho, sin test de Vitest | Contra Postgres con el cron (paso 8) |
 | 5 | Dos cotizaciones → "Mejor precio" en la menor prima total | Hecho; desde la Fase 1, solo entre las confirmadas | Con la app compilada sobre la 1042 (paso 2) |
-| 6 | Propuesta en PDF con la marca y en borrador | Parcial: borrador sí; la marca es solo el nombre, sin logo ni acentos | Paso 11 del E2E |
+| 6 | Propuesta en PDF con la marca y en borrador | **Hecho (fase 4):** con el logo y los datos de Mi cuenta, con acentos, y en borrador hasta aprobarla | Paso 11 del E2E; `propuesta-pdf.test.ts`, `logo-pdf.test.ts` y `propuesta.test.ts`; los PDF con PyMuPDF ("Prueba de la fase 4") |
 | 7 | Métricas contra un fixture calculado a mano | Hecho | `metricas.test.ts` |
 | 8 | Sin clave o con la IA apagada funciona, se ocultan los controles y no hay llamadas | Hecho, con `ia_configuracion` desde la 2a. También sin cuota | Con la app compilada sin clave (paso 3 y E2E); apagada y sin cuota, en "Prueba de la 2a" |
 | 9 | Cada respuesta de IA queda con modelo, tokens y costo, y nada se envía sin aprobación | Hecho (2a): cada intento queda en `ia_uso` y cuenta para el tope; lo leído espera la confirmación y el correo mejorado sigue pendiente de aprobación | "Prueba de la 2a", con una API de Anthropic falsa |
@@ -642,7 +652,7 @@ Docker descartable (`postgres:18.6`), `db:preparar` desde cero con los datos de 
 
 **Migraciones:** esta sesión no agrega ninguna. Las del plan se prueban sobre una base con los datos de `main` antes de mergear, como en el Validador (con `db:preparar` desde un worktree de `main` primero).
 
-## Plan propuesto (fases 1 a 3 hechas el 30/10/2026)
+## Plan propuesto (fases 1 a 4 hechas el 30/10/2026)
 Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6, commit y este progreso al día. Las migraciones solo agregan y se prueban antes sobre una base con los datos de `main`. Nada se envía de verdad: conectores simulados, correos como borradores y, sin `ANTHROPIC_API_KEY`, el agente funciona igual.
 
 | Fase | Qué | Sesiones | Criterios |
@@ -698,7 +708,7 @@ Cada fase cierra con `npm test`, lint, build, el E2E entero contra Postgres 18.6
 - Cada agente ve solo lo suyo: Cotización, cotizar y coberturas; el Validador, cobranza y cancelaciones; Siniestros, lo de siniestros.
 - La pestaña Credenciales del Validador y la sección Portales de Cotización pasan a ser un enlace a esta pantalla.
 
-### Fase 4 — Lo que falta de las pantallas (en orden de prioridad)
+### Fase 4 — Lo que falta de las pantallas (en orden de prioridad) — hecha, ver arriba
 1. Checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud.
 2. Detalle:
    - en Contactos, el próximo seguimiento, Copiar y Excel;
@@ -755,13 +765,11 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-**La Fase 3 está cerrada** (rama `feat/cotizacion-v2-conexiones`, PR #35, mergeado). **La Fase 4 está en curso** en `feat/cotizacion-v2-pantallas` (ver "Fase 4 — Lo que falta de las pantallas", arriba de todo, con su tabla de pasos). Los 6 pasos están hechos (un commit cada uno). Siguiente: el **cierre de la fase**: `npm test`, `npm run lint`, `npm run build` (con la `DATABASE_URL` del Docker, nunca la de Neon), el E2E entero contra Postgres 18.6 recién sembrado con la app compilada y `CONECTORES_SIMULADOS=1`, el recorrido de cada paso con la app compilada (scripts en el scratchpad de la sesión) y el progreso, el README y el vault al día. Los pasos, en orden:
-1. checklist del inicio con los 4 pasos de la spec y aviso "sin paquete configurado" en la nueva solicitud;
-2. detalle: en Contactos, el próximo seguimiento, Copiar y Excel; en el panel, "Requiere atención" con detalle, los seguimientos activos y los archivos por compañía; en Agente, la línea de tiempo y el borrador al ejecutivo;
-3. comparativo con las filas de la spec y la vista compacta o detallada;
-4. ABM de Tipos de seguro y "Sugerir con IA" para la estrategia;
-5. la bitácora con `cotizacion_eventos` y filtros, y las métricas medidas desde que salió el envío;
-6. la propuesta con el logo de la cuenta y con acentos.
+**La Fase 4 está cerrada** (rama `feat/cotizacion-v2-pantallas`, sin PR; sale de `main` con el PR #35; sin migraciones). Ver "Fase 4 — Lo que falta de las pantallas", arriba de todo. Siguiente: la **Fase 5, el cierre de Cotización v2** (ver el plan, "Fase 5"):
+1. **seed de demo:** 6 aseguradoras (una por API, una por portal, una solo por correo y el resto mezclado), con paquetes, contactos y tipos de seguro, y 5 solicitudes en distintos estados con los ramos de Cotización y sus eventos (hoy las de ejemplo no tienen `cotizacion_eventos`, así que la Bitácora arranca vacía);
+2. **el simulador de respuestas por correo** con `CONECTORES_SIMULADOS=1` y no con `NODE_ENV`, así anda con la app compilada;
+3. **E2E** con el flujo completo (criterio 15): crear → aprobar y cotizar → la API cotiza, el portal falla y pasa a correo, La Segunda deja el borrador → aprobar el correo → simular su respuesta → comparar → propuesta (con logo) → completar; otro paso para el dato que pide el portal; los pasos 8 y 11 siguen pasando;
+4. README y PR.
 
 Sin push ni PR hasta que Julian lo diga.
 
