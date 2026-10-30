@@ -317,6 +317,9 @@ export function Marco({
               Powered by <strong>Spanitano Solutions</strong>
             </p>
             <p>© {new Date().getFullYear()} Spanitano Solutions. Todos los derechos reservados.</p>
+            <p>
+              <Link href="/privacidad">Política de privacidad</Link>
+            </p>
           </footer>
         </main>
       </div>
