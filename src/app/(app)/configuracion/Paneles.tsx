@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { ConexionCatalogo } from "@/conexiones/catalogo";
 import type { Cuenta } from "@/lib/datos";
+import { PROVINCIAS } from "@/lib/provincias";
 import {
   desconectar,
   guardarCuenta,
@@ -133,7 +134,7 @@ export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "
     const guardados = cuenta.productores.slice(1);
     return [...guardados, ...Array.from({ length: Math.max(0, 1 - guardados.length) }, () => ({ nombre: "", matricula: "" }))];
   });
-  const campo = (nombre: Exclude<keyof Cuenta, "productores" | "logoEmpresa">, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
+  const campo = (nombre: Exclude<keyof Cuenta, "productores" | "logoEmpresa" | "provincia">, etiqueta: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <div className="form-columna">
       <label htmlFor={`cuenta-${nombre}`} className="etiqueta">
         {etiqueta}
@@ -164,6 +165,13 @@ export function FormCuenta({ cuenta, tab = "cuenta" }: { cuenta: Cuenta; tab?: "
         {campo("organizacion", "Organización")}
         {campo("telefono", "Teléfono", { type: "tel", autoComplete: "tel" })}
         {campo("email", "Email", { type: "email", autoComplete: "email" })}
+        <div className="form-columna">
+          <label htmlFor="cuenta-provincia" className="etiqueta">Provincia</label>
+          <select id="cuenta-provincia" name="provincia" className="campo" defaultValue={cuenta.provincia}>
+            {PROVINCIAS.map((provincia) => <option key={provincia}>{provincia}</option>)}
+          </select>
+          <p className="nota-pie">Para no mandar seguimientos en los feriados de tu provincia.</p>
+        </div>
       </div>
       <section className="cuenta-logo" aria-labelledby="cuenta-logo-titulo">
         <div>

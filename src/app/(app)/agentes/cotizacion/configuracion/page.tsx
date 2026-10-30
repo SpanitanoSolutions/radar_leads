@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
-import { estadoIAcotizacion } from "@/lib/ia/cotizacion";
+import { estadoIACotizacion } from "@/agentes/cotizacion/ia";
 import { guardarAseguradoraCotizacion, guardarConfiguracionCotizacion, guardarPaqueteCotizacion, guardarCredencialPortal, importarAseguradorasCotizacion, guardarFeatureCotizacionIA } from "./actions";
 import "../../agentes.css";
 
@@ -15,7 +15,7 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
       .from(schema.cotizacionPaquetes).innerJoin(schema.cotizacionAseguradoras, eq(schema.cotizacionAseguradoras.id, schema.cotizacionPaquetes.aseguradoraId)),
     db.select().from(schema.cotizacionConfig).limit(1),
     db.select({ clave: schema.conexiones.clave, estado: schema.conexiones.estado, datos: schema.conexiones.datos }).from(schema.conexiones).where(eq(schema.conexiones.tipo, "portal")),
-    estadoIAcotizacion(),
+    estadoIACotizacion(),
   ]);
   const config = configuraciones[0];
   const nombresAviso: Record<string, string> = {
@@ -89,10 +89,10 @@ export default async function ConfiguracionCotizacion({ searchParams }: { search
 
       <section className="tarjeta cotizacion-ajuste-seccion">
         <h2>Asistencia con IA</h2>
-        <p>{estadoIA.motivo === "sin_clave" ? "Para habilitarla, configurá ANTHROPIC_API_KEY en el servidor." : estadoIA.habilitada ? "Activa para redactar borradores, responder consultas y extraer datos de cotizaciones." : "Desactivada para esta organización."}</p>
+        <p>{estadoIA.motivo === "sin_clave" ? "Para habilitarla, configurá ANTHROPIC_API_KEY en el servidor." : estadoIA.motivo === "sin_cuota" ? "Activa, pero se llegó al tope de gasto de IA de este mes: vuelve el mes que viene." : estadoIA.habilitada ? "Activa para mejorar los correos, responder consultas y leer las cotizaciones en PDF." : "Desactivada."}</p>
         <form action={guardarFeatureCotizacionIA} className="cotizacion-ajuste-form">
-          <label className="cotizacion-check"><input name="iaActiva" type="checkbox" defaultChecked={estadoIA.habilitada} disabled={estadoIA.motivo === "sin_clave"} /> Activar IA para Cotización</label>
-          <p className="texto-suave">Los datos de la solicitud solo pasan por el proveedor de IA detrás de la capa propia. El agente propone; vos confirmás. Cada resultado registra modelo, tokens y costo estimado.</p>
+          <label className="cotizacion-check"><input name="iaActiva" type="checkbox" defaultChecked={estadoIA.motivo === "activa" || estadoIA.motivo === "sin_cuota"} disabled={estadoIA.motivo === "sin_clave"} /> Activar IA para Cotización</label>
+          <p className="texto-suave">El agente propone y vos confirmás: lo que lee de un PDF no cuenta hasta que lo revisás, y los correos siguen esperando tu aprobación. Lo que gasta entra en el tope mensual de IA de la cuenta.</p>
           <button className="boton">Guardar preferencia de IA</button>
         </form>
       </section>

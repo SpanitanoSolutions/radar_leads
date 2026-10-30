@@ -1,9 +1,10 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
+import { guardarInterruptorIACotizacion } from "@/agentes/cotizacion/ia";
 import { requerirSesion } from "@/lib/auth";
 import { interpretarEstrategiaSeguimiento } from "@/lib/cotizacion";
 import { cifrarCredencial } from "@/lib/cotizacion/credenciales";
@@ -187,11 +188,7 @@ export async function importarAseguradorasCotizacion(formData: FormData) {
 export async function guardarFeatureCotizacionIA(formData: FormData) {
   await requerirSesion();
   if (!process.env.ANTHROPIC_API_KEY) redirect("/agentes/cotizacion/configuracion?aviso=ia-sin-clave");
-  const activa = formData.get("iaActiva") === "on";
-  const [actual] = await db.select({ id: schema.orgFeatures.id }).from(schema.orgFeatures)
-    .where(and(isNull(schema.orgFeatures.orgId), eq(schema.orgFeatures.feature, "cotizacion_ia"))).limit(1);
-  if (actual) await db.update(schema.orgFeatures).set({ activa, actualizadoEl: new Date() }).where(eq(schema.orgFeatures.id, actual.id));
-  else await db.insert(schema.orgFeatures).values({ orgId: null, feature: "cotizacion_ia", activa });
+  await guardarInterruptorIACotizacion(formData.get("iaActiva") === "on");
   revalidatePath("/agentes/cotizacion");
   redirect("/agentes/cotizacion/configuracion?aviso=ia-guardada");
 }

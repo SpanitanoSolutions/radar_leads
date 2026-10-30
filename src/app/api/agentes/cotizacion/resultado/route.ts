@@ -35,11 +35,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    await registrarResultadoCotizacion({ solicitudId, compania, precio, observacion, origen: "portal" });
-    return Response.json({ ok: true });
+    // Entra sin confirmar: no cuenta en el comparativo hasta que el productor la revise.
+    const resultado = await registrarResultadoCotizacion({ solicitudId, compania, precio, condiciones: observacion ?? null, origen: "portal", confirmado: false, actor: "compania" });
+    return Response.json({ ok: true, resultado });
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : "No se pudo guardar la cotización.";
-    const esperado = ["Solicitud inválida.", "El precio debe ser mayor que cero.", "Solicitud inexistente.", "La solicitud ya está cerrada.", "La compañía no forma parte de esta solicitud."].includes(mensaje);
+    const esperado = ["Solicitud inválida.", "El precio debe ser mayor que cero.", "Solicitud inexistente.", "La solicitud ya está cerrada.", "La compañía no forma parte de esta solicitud.", "La solicitud no tiene un envío para esa compañía: cargá la respuesta a mano."].includes(mensaje);
     return Response.json({ error: esperado ? mensaje : "No se pudo guardar la cotización." }, { status: esperado ? 422 : 500 });
   }
 }

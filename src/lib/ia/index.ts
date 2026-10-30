@@ -7,7 +7,7 @@ export type SolicitudIA = {
   mensaje: string;
   adjuntos?: AdjuntoIA[];
   maxTokens?: number;
-  /** Sin modelo, el proveedor usa el suyo por defecto (lo que hace hoy Cotización). */
+  /** Sin modelo, el proveedor usa el suyo por defecto. */
   modelo?: string;
   esfuerzo?: EsfuerzoIA;
 };
@@ -16,8 +16,7 @@ export type RespuestaIA = { texto: string; modelo: string; tokensEntrada: number
 export type RespuestaEstructuradaIA = RespuestaIA & { datos: unknown; rechazada: boolean };
 
 export interface ProveedorIA {
-  generar(solicitud: SolicitudIA): Promise<RespuestaIA>;
-  generarEstructurado?(solicitud: SolicitudIA, esquema: ZodType): Promise<RespuestaEstructuradaIA>;
+  generarEstructurado(solicitud: SolicitudIA, esquema: ZodType): Promise<RespuestaEstructuradaIA>;
 }
 
 type Precio = { entrada: number; salida: number; largo?: { desdeTokens: number; entrada: number; salida: number } };

@@ -10,7 +10,10 @@ import { requerirSesion } from "@/lib/auth";
 import { mejorResultadoConfirmado, validarDatosRiesgo } from "@/lib/cotizacion";
 import { adaptadorSalidaCotizacion } from "@/conexiones/cotizacion";
 import { calcularProximoSeguimiento } from "@/lib/cotizacion/seguimientos";
-import { extraerCotizacionPdfIA, generarChatCotizacionIA, redactarCorreoCotizacionIA } from "@/lib/ia/cotizacion";
+import { provinciaValida } from "@/lib/provincias";
+import { encolarLecturaPdf, redactarCorreoCotizacion, responderChatCotizacion, type ResultadoIACotizacion } from "@/agentes/cotizacion/ia";
+import { despachadorTrabajos } from "@/lib/ia/manejadores";
+import type { MotivoSinIA } from "@/lib/ia/motor";
 import { generarPdfPropuesta } from "@/lib/cotizacion/propuesta-pdf";
 
 const ESTADOS: EstadoCotizacion[] = ["atencion", "esperando", "lista", "enviada", "ganada", "perdida"];
@@ -132,16 +135,17 @@ export async function aprobarEnvioCotizacion(formData: FormData) {
   if (!envio || envio.estadoBorrador !== "pendiente" || !envio.asuntoBorrador || !envio.cuerpoBorrador) volver("borrador-no-disponible", "?tab=solicitudes");
   const { asuntoBorrador, cuerpoBorrador } = envio;
   try {
-    const [[solicitud], [config]] = await Promise.all([
+    const [[solicitud], [config], [ajustes]] = await Promise.all([
       db.select({ ramo: schema.solicitudesCotizacion.ramo }).from(schema.solicitudesCotizacion).where(eq(schema.solicitudesCotizacion.id, envio.solicitudId)),
       db.select().from(schema.cotizacionConfig).limit(1),
+      db.select({ provincia: schema.ajustes.provincia }).from(schema.ajustes).where(eq(schema.ajustes.id, 1)),
     ]);
     const ahora = new Date();
     const esSeguimiento = envio.estado === "en_seguimiento";
     const cantidadSeguimientos = envio.cantidadSeguimientos + (esSeguimiento ? 1 : 0);
     const maxSeguimientos = config?.maxSeguimientos ?? 3;
     const proximoSeguimiento = solicitud
-      ? calcularProximoSeguimiento(ahora, solicitud.ramo, config?.estrategiaSeguimiento ?? "Cada 3 días hábiles")
+      ? calcularProximoSeguimiento(ahora, solicitud.ramo, config?.estrategiaSeguimiento ?? "Cada 3 días hábiles", { provincia: provinciaValida(ajustes?.provincia) })
       : null;
     const respuesta = await adaptadorSalidaCotizacion.enviarBorrador({ compania: envio.compania, asunto: asuntoBorrador, cuerpo: cuerpoBorrador });
     await db.transaction(async (tx) => {
@@ -239,18 +243,25 @@ export async function simularRespuestaCotizacion(formData: FormData) {
   redirect(`/agentes/cotizacion/${solicitud.id}?tab=contactos&aviso=respuesta-simulada`);
 }
 
+/** Por qué no hubo resultado de la IA, como aviso para el detalle. */
+function avisoSinIA(motivo: MotivoSinIA | "fallo"): string {
+  if (motivo === "sin_clave" || motivo === "desactivada") return "ia-no-disponible";
+  if (motivo === "sin_cuota") return "ia-sin-cuota";
+  return "ia-sin-resultado";
+}
+
 export async function chatearCotizacionIA(formData: FormData) {
   await requerirSesion();
   const solicitudId = Number(mensajeDe(formData, "solicitudId"));
   const mensaje = mensajeDe(formData, "mensaje");
   if (!Number.isInteger(solicitudId) || solicitudId <= 0 || !mensaje) redirect("/agentes/cotizacion?aviso=ia-no-disponible");
-  let id: number;
-  try { id = await generarChatCotizacionIA(solicitudId, mensaje); }
-  catch {
-    redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&aviso=ia-no-disponible`);
-  }
+  let resultado: ResultadoIACotizacion | null | "fallo";
+  try { resultado = await responderChatCotizacion(solicitudId, mensaje); }
+  catch { resultado = "fallo"; }
+  if (resultado === null) redirect("/agentes/cotizacion?aviso=solicitud-inexistente");
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
-  redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&ia=${id}`);
+  if (resultado === "fallo" || !resultado.ok) redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&aviso=${avisoSinIA(resultado === "fallo" ? resultado : resultado.motivo)}`);
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=agente&ia=${resultado.borradorId}`);
 }
 
 export async function redactarCorreoConIA(formData: FormData) {
@@ -259,12 +270,12 @@ export async function redactarCorreoConIA(formData: FormData) {
   if (!Number.isInteger(envioId) || envioId <= 0) redirect("/agentes/cotizacion?aviso=ia-no-disponible");
   const [envio] = await db.select({ solicitudId: schema.cotizacionEnvios.solicitudId }).from(schema.cotizacionEnvios).where(eq(schema.cotizacionEnvios.id, envioId));
   if (!envio) redirect("/agentes/cotizacion?aviso=envio-invalido");
-  try { await redactarCorreoCotizacionIA(envioId); }
-  catch {
-    redirect(`/agentes/cotizacion/${envio.solicitudId}?tab=contactos&aviso=ia-no-disponible`);
-  }
+  let resultado: ResultadoIACotizacion | null | "fallo";
+  try { resultado = await redactarCorreoCotizacion(envioId); }
+  catch { resultado = "fallo"; }
   revalidatePath(`/agentes/cotizacion/${envio.solicitudId}`);
-  redirect(`/agentes/cotizacion/${envio.solicitudId}?tab=contactos&aviso=ia-generada`);
+  const aviso = resultado === null ? "borrador-no-disponible" : resultado === "fallo" || !resultado.ok ? avisoSinIA(resultado === "fallo" ? resultado : resultado.motivo) : "ia-generada";
+  redirect(`/agentes/cotizacion/${envio.solicitudId}?tab=contactos&aviso=${aviso}`);
 }
 
 export async function extraerPdfConIA(formData: FormData) {
@@ -272,13 +283,14 @@ export async function extraerPdfConIA(formData: FormData) {
   const archivoId = Number(mensajeDe(formData, "archivoId"));
   const solicitudId = Number(mensajeDe(formData, "solicitudId"));
   if (!Number.isInteger(archivoId) || archivoId <= 0 || !Number.isInteger(solicitudId) || solicitudId <= 0) redirect("/agentes/cotizacion?aviso=ia-no-disponible");
-  let extraccion: Awaited<ReturnType<typeof extraerCotizacionPdfIA>>;
-  try { extraccion = await extraerCotizacionPdfIA(archivoId); }
-  catch {
-    redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=ia-no-disponible`);
-  }
+  let lectura: Awaited<ReturnType<typeof encolarLecturaPdf>> | "fallo";
+  try { lectura = await encolarLecturaPdf(archivoId, solicitudId); }
+  catch { lectura = "fallo"; }
+  // La IA lee en segundo plano; si no termina acá, la retoma el cron de la cola.
+  if (lectura === "encolada") await despachadorTrabajos.despachar(archivoId);
   revalidatePath(`/agentes/cotizacion/${solicitudId}`);
-  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=ia-extraccion-${extraccion.resultado.replaceAll("_", "-")}`);
+  const aviso = lectura === "encolada" || lectura === "en_curso" ? "ia-leyendo" : lectura === null ? "archivo-invalido" : "ia-sin-resultado";
+  redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=${aviso}`);
 }
 
 export async function confirmarResultadoCotizacionAccion(formData: FormData) {

@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { obtenerDetalleCotizacion } from "@/lib/datos-agentes";
 import { pesos } from "@/lib/formato";
 import { mejorResultadoConfirmado, porcentajeCerrados, validarCotizacionContraSolicitud } from "@/lib/cotizacion";
-import { estadoIAcotizacion, obtenerBorradoresIA } from "@/lib/ia/cotizacion";
+import { estadoIACotizacion, lecturasDePdfs, obtenerBorradoresIA } from "@/agentes/cotizacion/ia";
 import { aprobarEnvioCotizacion, aprobarPropuestaCotizacion, cargarArchivoCotizacion, cargarResultadoCotizacion, confirmarResultadoCotizacionAccion, generarPropuestaCotizacion, marcarSolicitudCompletada, omitirBorradorCotizacion, simularRespuestaCotizacion, chatearCotizacionIA, redactarCorreoConIA, extraerPdfConIA } from "../actions";
+import { ActualizarMientrasLee } from "./ActualizarMientrasLee";
 import "../../agentes.css";
 
 const TABS = [
@@ -15,10 +16,12 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   "completada": { texto: "Marcaste la solicitud como completada." },
   "archivo-guardado": { texto: "Guardamos el archivo adjunto." },
   "ia-generada": { texto: "La IA preparó el texto del borrador. Sigue pendiente de tu aprobación." },
-  "ia-no-disponible": { texto: "La IA no está disponible para esta organización. El flujo de reglas y plantillas sigue funcionando.", error: true },
-  "ia-extraccion-sin-confirmar": { texto: "La IA leyó la cotización y la dejó en el comparativo. Revisala y confirmala para que cuente." },
-  "ia-extraccion-ya-confirmada": { texto: "La IA leyó la cotización, pero ya habías confirmado una respuesta de esa compañía y la dejamos como estaba. Lo que leyó está en la pestaña Agente.", error: true },
-  "ia-extraccion-sin-precio": { texto: "No pudimos sumar lo que leyó la IA al comparativo. Lo que leyó está en la pestaña Agente; cargá la respuesta a mano.", error: true },
+  "ia-no-disponible": { texto: "La IA no está activa para Cotización. Podés seguir a mano: las plantillas y la carga de respuestas funcionan igual.", error: true },
+  "ia-sin-cuota": { texto: "Se llegó al tope de gasto de IA de este mes. Podés seguir a mano; la IA vuelve el mes que viene.", error: true },
+  "ia-sin-resultado": { texto: "La IA no pudo responder esta vez. Probá de nuevo en un rato o seguí a mano.", error: true },
+  "ia-leyendo": { texto: "La IA está leyendo el PDF. Cuando termine, la respuesta aparece en el comparativo para que la revises y la confirmes." },
+  "borrador-no-disponible": { texto: "Ese borrador ya no está pendiente de aprobación.", error: true },
+  "archivo-invalido": { texto: "Ese archivo no es el PDF de una compañía de esta solicitud.", error: true },
   "resultado-confirmado": { texto: "Confirmaste la respuesta. Ya cuenta en el comparativo y en la lista." },
   "error-confirmar-resultado": { texto: "No pudimos confirmar esa respuesta. Revisá si la solicitud sigue abierta.", error: true },
 };
@@ -32,8 +35,10 @@ export default async function DetalleCotizacion({ params, searchParams }: {
   if (!Number.isInteger(id) || id <= 0) notFound();
   const detalle = await obtenerDetalleCotizacion(id);
   if (!detalle) notFound();
-  const [estadoIA, borradoresIA] = await Promise.all([estadoIAcotizacion(), obtenerBorradoresIA(id)]);
   const { solicitud, asegurado, lead, envios, archivos, propuestas, eventos, resultados, paquetes } = detalle;
+  const pdfsDeCompanias = archivos.filter((archivo) => archivo.mime === "application/pdf" && archivo.envioId);
+  const [estadoIA, borradoresIA, lecturas] = await Promise.all([estadoIACotizacion(), obtenerBorradoresIA(id), lecturasDePdfs(pdfsDeCompanias.map((archivo) => archivo.id))]);
+  const leyendo = [...lecturas.values()].some((lectura) => lectura.estado === "pendiente" || lectura.estado === "procesando");
   const cliente = asegurado?.nombre ?? lead?.empresa ?? solicitud.cliente;
   const tab = TABS.some(([valor]) => valor === sp.tab) ? sp.tab! : "contactos";
   const nombrePaquete = new Map(paquetes.map((paquete) => [paquete.id, paquete.nombre]));
@@ -110,7 +115,19 @@ export default async function DetalleCotizacion({ params, searchParams }: {
             <form action={generarPropuestaCotizacion}><input type="hidden" name="solicitudId" value={id} /><button className="boton boton-primario">Generar propuesta PDF</button></form>
             <p className="texto-suave">La propuesta incluye respuestas confirmadas y queda guardada como borrador. La aprobación habilita su descarga; compartirla queda a tu cargo.</p>
             {propuestas.map((propuesta) => <article key={propuesta.id} className="cotizacion-propuesta"><strong>{propuesta.nombre}</strong><span>{propuesta.estado === "aprobada" ? "Aprobada" : "Borrador · requiere aprobación"}</span><div className="cotizacion-botones-borrador"><Link className="boton" href={`/agentes/cotizacion/propuestas/${propuesta.id}`} aria-disabled={propuesta.estado !== "aprobada"}>Descargar PDF</Link>{propuesta.estado === "borrador" && <form action={aprobarPropuestaCotizacion}><input type="hidden" name="propuestaId" value={propuesta.id} /><button className="boton boton-primario">Aprobar propuesta</button></form>}</div></article>)}
-            {estadoIA.habilitada && archivos.filter((archivo) => archivo.mime === "application/pdf" && archivo.envioId).map((archivo) => <form key={`extraer-${archivo.id}`} action={extraerPdfConIA} className="cotizacion-botones-borrador"><input type="hidden" name="archivoId" value={archivo.id} /><input type="hidden" name="solicitudId" value={id} /><span>Extraer {archivo.nombre}</span><button className="boton">Extraer con IA</button></form>)}
+            {leyendo && <ActualizarMientrasLee />}
+            {pdfsDeCompanias.filter((archivo) => estadoIA.habilitada || lecturas.has(archivo.id)).map((archivo) => {
+              const lectura = lecturas.get(archivo.id);
+              const enCurso = lectura?.estado === "pendiente" || lectura?.estado === "procesando";
+              const compania = envios.find((envio) => envio.id === archivo.envioId)?.compania;
+              return <div key={`leer-${archivo.id}`} className="cotizacion-botones-borrador">
+                <span>{archivo.nombre}{compania ? ` · ${compania}` : ""}</span>
+                {enCurso ? <span role="status">La IA está leyendo el PDF…</span> : <>
+                  {lectura?.estado === "error" && <span className="texto-suave">{lectura.error}</span>}
+                  {estadoIA.habilitada && <form action={extraerPdfConIA}><input type="hidden" name="archivoId" value={archivo.id} /><input type="hidden" name="solicitudId" value={id} /><button className="boton">{lectura ? "Volver a leer con IA" : "Leer con IA"}</button></form>}
+                </>}
+              </div>;
+            })}
           </section>}
 
           {tab === "validacion" && <section className="tarjeta cotizacion-ajuste-seccion">
@@ -129,8 +146,8 @@ export default async function DetalleCotizacion({ params, searchParams }: {
 
           {tab === "agente" && <section className="tarjeta cotizacion-ajuste-seccion">
             <h2>Actividad del agente</h2><ol className="cotizacion-eventos">{eventos.map((evento) => <li key={evento.id}><strong>{evento.tipo.replaceAll("_", " ")}</strong><span>{evento.detalle}</span><time>{evento.fecha.toLocaleString("es-AR")}</time></li>)}</ol>
-            {estadoIA.habilitada ? <><h3>Escribile al agente</h3><form action={chatearCotizacionIA} className="cotizacion-ajuste-form"><input type="hidden" name="solicitudId" value={id} /><label>¿Qué necesitás revisar?<textarea name="mensaje" rows={3} maxLength={3000} required placeholder="Resumime qué falta para comparar estas coberturas…" /></label><button className="boton boton-primario">Preguntar al agente</button></form></> : <p className="texto-suave">El chat aparece cuando la IA está activada para la organización y tiene una clave disponible.</p>}
-            {borradoresIA.map((borrador) => <article key={borrador.id} className="cotizacion-borrador-ia"><h3>{borrador.tipo === "chat" ? "Respuesta del agente" : borrador.tipo === "correo" ? "Correo propuesto por IA" : "Datos extraídos por IA"} · Borrador</h3><pre>{borrador.contenido}</pre><small>{borrador.modelo} · {borrador.tokensEntrada + borrador.tokensSalida} tokens · US$ {borrador.costoUsd.toFixed(4)}</small></article>)}
+            {estadoIA.habilitada ? <><h3>Escribile al agente</h3><form action={chatearCotizacionIA} className="cotizacion-ajuste-form"><input type="hidden" name="solicitudId" value={id} /><label>¿Qué necesitás revisar?<textarea name="mensaje" rows={3} maxLength={3000} required placeholder="Resumime qué falta para comparar estas coberturas…" /></label><button className="boton boton-primario">Preguntar al agente</button></form></> : <p className="texto-suave">{estadoIA.motivo === "sin_cuota" ? "El chat vuelve el mes que viene: se llegó al tope de gasto de IA de este mes." : "El chat aparece cuando activás la IA en la Configuración de Cotización."}</p>}
+            {borradoresIA.map((borrador) => <article key={borrador.id} className="cotizacion-borrador-ia"><h3>{borrador.tipo === "chat" ? "Respuesta del agente" : borrador.tipo === "correo" ? "Correo propuesto por IA" : "Lo que leyó la IA de un PDF"} · Borrador</h3><pre>{borrador.contenido}</pre><small>Costo estimado: US$ {borrador.costoUsd.toFixed(4)}</small></article>)}
             <h3>Adjuntar ficha, correo o cotización</h3>
             <form action={cargarArchivoCotizacion} className="cotizacion-ajuste-form"><input type="hidden" name="solicitudId" value={id} /><label>Archivo<input type="file" name="archivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" required /></label><button className="boton">Guardar archivo</button></form>
             <p className="texto-suave">PDF, Word, Excel o imágenes · hasta 25 MB.</p>

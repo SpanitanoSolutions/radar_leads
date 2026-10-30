@@ -7,6 +7,10 @@ describe("planDeTarea", () => {
     expect(planDeTarea("extraer")).toMatchObject({ modelo: MODELO_HAIKU, modeloReintento: MODELO_SONNET });
   });
 
+  it("redacta con Haiku, con poco esfuerzo, y reintenta con Sonnet", () => {
+    expect(planDeTarea("redactar")).toMatchObject({ modelo: MODELO_HAIKU, esfuerzo: "low", modeloReintento: MODELO_SONNET });
+  });
+
   it("explica con Sonnet y no reintenta", () => {
     expect(planDeTarea("explicar")).toMatchObject({ modelo: MODELO_SONNET, modeloReintento: null });
   });

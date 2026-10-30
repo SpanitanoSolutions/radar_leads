@@ -132,7 +132,7 @@ function textoFaltan(pendientes: string[]): string {
 
 /**
  * Registra una respuesta de una compañía. Lo que carga el productor queda confirmado y entra
- * en la comparativa. Lo que lee la IA o llega por un portal queda sin confirmar: no cuenta
+ * en la comparativa. Lo que lee la IA o llega de la compañía (webhook o conector) queda sin confirmar: no cuenta
  * como cotizado ni entra en la lista hasta que el productor lo confirme, y nunca pisa una
  * respuesta que el productor ya confirmó.
  */
@@ -151,7 +151,7 @@ export async function registrarResultadoCotizacion(datos: {
   vigencia?: string | null;
   confirmado?: boolean;
   /** Quién trajo la respuesta sin confirmar, para el registro de eventos. */
-  actor?: "productor" | "ia" | "simulador";
+  actor?: "productor" | "ia" | "simulador" | "compania";
   coberturas?: { nombre: string; valor?: string; incluida?: boolean }[];
   riesgoCotizado?: Record<string, string>;
 }): Promise<"confirmada" | "sin_confirmar" | "ya_confirmada"> {
@@ -192,7 +192,7 @@ export async function registrarResultadoCotizacion(datos: {
     };
 
     if (!confirmado) {
-      if (!envio) throw new Error("La compañía no tiene un envío donde guardar la respuesta sin confirmar.");
+      if (!envio) throw new Error("La solicitud no tiene un envío para esa compañía: cargá la respuesta a mano.");
       if (existente?.confirmado) {
         await tx.insert(schema.cotizacionEventos).values({ solicitudId: solicitud.id, envioId: envio.id, actor, tipo: "cotizacion_no_aplicada", detalle: `${actor === "ia" ? "La IA leyó" : "Llegó"} otra respuesta de ${datos.compania}, pero se mantiene la que confirmó el productor.` });
         return "ya_confirmada";

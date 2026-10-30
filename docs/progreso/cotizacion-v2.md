@@ -1,7 +1,64 @@
 # Progreso — Agente de Cotización v2
 
 Spec: [cotizacion-v2.md](../specs/cotizacion-v2.md). Manda en todo lo de compañías: [conectores.md](../specs/conectores.md). Plan anterior: [PLAN-cotizacion-v2.md](../PLAN-cotizacion-v2.md).
-Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`) y `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`).
+Ramas: `feat/cotizacion-v2-auditoria` (auditoría, sale de `main` en `33d9a3d`), `feat/cotizacion-v2-arreglos` (fase 1, sale de la auditoría en `a7a9a93`) y `feat/cotizacion-v2-base-comun` (fase 2, sale de los arreglos en `7c3cf03`).
+
+## Fase 2 — Alinear con la base común (en curso, desde el 30/10/2026)
+Rama `feat/cotizacion-v2-base-comun`.
+
+**Decisiones de Julian (30/10/2026)** sobre "Para decidir antes de la fase 2":
+1. **Enfoque de IA:** la opción A (pipeline con salida estructurada). El chat con herramientas (B) no se hace por ahora.
+2. **La IA de Cotización en producción** queda como esté hoy su interruptor: la migración copia el valor de `org_features.cotizacion_ia` a una fila `cotizacion` / `*` de `ia_configuracion`.
+3. **Rivadavia duplicada:** la desactiva Julian desde la Configuración. La migración no la toca.
+4. **Las dos consultas en Neon** (30/10/2026):
+   - credenciales en `conexiones.datos`: **0**. La 2b no necesita copiar nada: alcanza con que la Configuración guarde en `credenciales_portal`;
+   - solicitudes sin envíos: **4**. Se siguen leyendo del JSON viejo. Con el punto 5, el webhook de la v1 no les puede sumar respuestas (no hay envío donde dejarlas sin confirmar): contesta 422 con un mensaje claro y se cargan a mano.
+5. **Respuestas de los conectores y del webhook de la v1:** entran sin confirmar, como las que lee la IA.
+6. **Feriados:**
+   - se cuentan los de la provincia de la cuenta (una columna nueva en `ajustes`, con Buenos Aires por defecto);
+   - el Jueves Santo no cuenta como día hábil, igual que los días puente.
+
+| Paso | Qué | Estado | Archivos |
+|---|---|---|---|
+| 2a | IA por `ejecutarIA()`, interruptor en `ia_configuracion` | Hecho y probado (ver "Prueba de la 2a") | `src/lib/cotizacion/ia.ts` (+ test), `src/agentes/cotizacion/ia.ts` y `trabajos.ts` (nuevos), `src/lib/ia/` (`modelos.ts` + test, `claude.ts`, `index.ts`, `motor.ts` + test, `manejadores.ts`; se borró `cotizacion.ts`), `actions.ts`, `[id]/page.tsx`, `[id]/ActualizarMientrasLee.tsx`, `configuracion/actions.ts` y `configuracion/page.tsx` de Cotización, migración `0029` |
+| 2a+ | Feriados por provincia y Jueves Santo; el webhook de la v1 sin confirmar | Hecho | `src/lib/cotizacion/seguimientos.ts` (+ test), `src/lib/provincias.ts` (nuevo), `src/db/schema.ts`, `src/lib/datos.ts`, `configuracion/actions.ts` y `Paneles.tsx` (general), `actions.ts` de Cotización, `src/agentes/cotizacion/solicitudes.ts`, `src/app/api/agentes/cotizacion/resultado/route.ts`, migración `0029` |
+
+**2a. La IA por `ejecutarIA()`:**
+- **Las 3 operaciones** (`src/agentes/cotizacion/ia.ts`) pasan por `ejecutarIA()` con salida estructurada y su esquema zod (`src/lib/cotizacion/ia.ts`). El código verifica lo que vuelve:
+  - `extraer_respuesta` (tarea `extraer`: Haiku, y Sonnet si la salida no valida). El PDF va como documento, no como texto. Sin una prima total positiva no se suma nada y queda el aviso para cargarla a mano. Lo que lee queda sin confirmar, como desde la fase 1;
+  - `redactar_correo` (tarea nueva `redactar`: Haiku, esfuerzo bajo). Solo pisa el borrador si sigue pendiente;
+  - `chat` (tarea `explicar`: Sonnet). Ahora le pasa los envíos con sus respuestas y si están confirmadas, y devuelve la respuesta y lo que falta.
+- **La lectura de PDFs va por la cola** (`cotizacion:extraer_respuesta` en `MANEJADORES`): el botón "Leer con IA" encola, `despachadorTrabajos` la procesa al terminar la request y, si no, la toma el cron `/api/cron/ia-trabajos`. El detalle muestra "La IA está leyendo el PDF…", se actualiza solo (cada 3 segundos, hasta 3 minutos) y, si falla, dice por qué con un texto sin datos del asegurado. Un PDF que ya se está leyendo no se encola de nuevo.
+- **El costo** queda en `ia_uso` y entra en el tope de USD 20. `cotizacion_borradores_ia` sigue guardando el texto para revisar, con el costo y los tokens en 0 (los reales están en `ia_uso`). La tarjeta ya no muestra modelo ni tokens: solo el costo estimado.
+- **Sin IA** (sin clave, apagada o sin cuota), los botones no aparecen y el chat explica por qué. Si la IA falla, el aviso dice "no pudo responder" o "tope del mes", y todo sigue a mano.
+- **El interruptor** de la Configuración de Cotización escribe la fila `cotizacion` / `*` de `ia_configuracion` (`guardarInterruptorIACotizacion()`). La migración `0029` la crea con el valor de `org_features.cotizacion_ia`, que ya no se lee ni se borra.
+- Se borró `generar()` del proveedor (solo lo usaba Cotización) y con eso `ANTHROPIC_MODEL_COTIZACION`.
+
+**2a+. Lo decidido en los puntos 5 y 6:**
+- **Feriados:** el Jueves Santo cuenta como no hábil. `DIAS_NO_HABILES_POR_PROVINCIA` tiene los que el Gobierno fijó para algunas provincias (Decreto 1103/2026: el 10/11 en CABA y Córdoba, el 11/11 en Buenos Aires). La provincia de la cuenta se elige en Configuración → Mi cuenta (`ajustes.provincia`, Buenos Aires por defecto) y la usa la aprobación de cada envío. Los feriados propios de cada provincia no están cargados.
+- **El webhook de la v1** (`/api/agentes/cotizacion/resultado`) deja la respuesta sin confirmar (`actor: "compania"`). En una solicitud sin envíos contesta 422: "La solicitud no tiene un envío para esa compañía: cargá la respuesta a mano."
+
+**Migración `0029_cotizacion_base_comun`** (solo agrega): la columna `ajustes.provincia` y la fila `cotizacion` / `*` de `ia_configuracion`, si no existe.
+
+**Hallazgo (de antes, sin tocar):** el webhook de la v1 nunca fue alcanzable desde afuera. `src/proxy.ts` pide sesión en todo salvo `/api/cron/`, así que una llamada sin sesión termina en `/login` aunque traiga el secreto. No lo abrí: sería una dirección pública nueva. Queda para decidir en la 2c (sacarlo, ya que lo reemplazan los conectores, o dejarlo pasar en el proxy con su secreto).
+
+### Prueba de la 2a (30/10/2026)
+- `npm test`: pasan 513 de 518 (los 5 que fallan son los de antes); 16 tests nuevos. Lint sin errores (las 3 advertencias viejas). Build OK.
+- **Migración sobre una base con los datos de `main`:** `db:preparar` desde un worktree de `main` contra Postgres 18.6, con la fila `*` / `*` activa y tope de USD 20 (como producción) y `org_features.cotizacion_ia` prendido. Después, `db:preparar` desde esta rama: quedó la fila `cotizacion` / `*` en `true` (copiada), la `*` / `*` igual, `org_features` sin tocar y la cuenta con provincia "Buenos Aires".
+- `npm run test:e2e`: **pasa entero** (23 pasos) con la app compilada, `CONECTORES_SIMULADOS=1` y sin `ANTHROPIC_API_KEY`.
+- **Con la app compilada y una API de Anthropic falsa** (un servidor local en `ANTHROPIC_BASE_URL`, fuera del repo; no sale nada a internet):
+  - **Interruptor:** apagarlo escribe `activa = false` en la fila `cotizacion` / `*` sin crear filas, y el detalle esconde la IA. Prenderlo la vuelve a `true`.
+  - **Leer un PDF** (Sancor en la 1041): encola, el detalle avisa "está leyendo" y se actualiza solo hasta mostrar la respuesta con "falta tu confirmación". El trabajo terminó en 1 intento. El PDF viajó como documento, con Haiku y salida estructurada, y quedó una fila en `ia_uso`. La lista siguió en "2 de 3". En Agente están el evento y el resumen de lo leído, con el costo y sin tokens. Al confirmar, Sancor pasó a "Mejor precio".
+  - **Un PDF que la IA rechaza:** no se reintenta, el detalle dice "La IA no pudo leer este PDF. Cargá la respuesta a mano." y ofrece volver a leerlo. No se suma nada.
+  - **Un PDF sin prima total:** el trabajo termina, no se suma nada y el aviso pide cargarla a mano.
+  - **Mejorar un correo:** Haiku con esfuerzo bajo. El borrador cambia y sigue pendiente.
+  - **Chat:** Sonnet. Recibe los envíos con sus respuestas y si están confirmadas, y la pregunta del productor. Muestra lo que falta.
+  - **Tope alcanzado** (una fila de USD 20 en `ia_uso`): la configuración lo dice, el interruptor sigue prendido y el detalle esconde la IA.
+  - **Mi cuenta:** la provincia viene en Buenos Aires, se cambia a Córdoba, se guarda y se vuelve a cambiar.
+  - **Webhook de la v1** (con sesión, por el hallazgo de arriba): con envío deja la respuesta sin confirmar (`{"resultado":"sin_confirmar"}`, el envío sigue `pendiente` y el JSON de la lista no cambia). En una solicitud sin envíos contesta 422 con el mensaje, y con otro secreto, 401.
+  - En los logs del servidor no hay errores de Cotización, claves ni datos de asegurados.
+| 2b | Credenciales en `credenciales_portal` (sin copia: en producción no hay ninguna) | Pendiente | — |
+| 2c | Conectores con el orden de canales | Pendiente | — |
 
 ## Fase 1 — Arreglos (30/10/2026, cerrada)
 Sin migraciones. Rama `feat/cotizacion-v2-arreglos`.
@@ -442,6 +499,6 @@ Cuentas con los precios de lista (Haiku 5.5: USD 0,10 / 0,50 por millón de toke
    - ¿el Jueves Santo (no laborable) cuenta como día hábil para los seguimientos? Hoy sí.
 
 ## Próximo paso exacto
-**Fase 1 cerrada** (30/10/2026, rama `feat/cotizacion-v2-arreglos`). La Fase 2 necesita antes las respuestas de Julian a "Para decidir antes de la fase 2" (puntos 1 a 6) y las dos consultas en Neon del punto 4.
+**Fase 2 en curso** (rama `feat/cotizacion-v2-base-comun`). Las decisiones están al principio de este archivo. La 2a y lo de los puntos 5 y 6 están hechos y probados. Siguiente: la **2b**, que la sección Portales de la Configuración de Cotización guarde con `guardarCredencial()` en `credenciales_portal` y lea de ahí (sin copiar nada: en producción no hay credenciales en `conexiones`).
 
-Con eso, arrancar la **2a** (IA por `ejecutarIA()`) en una rama nueva que salga de esta, o de `main` si ya se mergeó. Y apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.
+Apenas se publiquen los días puente de 2027, sumarlos a `DIAS_NO_HABILES_POR_ANIO` en `src/lib/cotizacion/seguimientos.ts`.

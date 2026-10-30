@@ -1,7 +1,7 @@
 import { interpretarEstrategiaSeguimiento, sumarDiasHabiles } from "@/lib/cotizacion";
 import { diaEnArgentina, sumarDias } from "@/lib/fechas";
 
-/** Feriados inamovibles de fecha fija (Ley 27.399, art. 1). Carnaval y Viernes Santo se calculan aparte. */
+/** Feriados inamovibles de fecha fija (Ley 27.399, art. 1). Carnaval, Jueves Santo y Viernes Santo se calculan aparte. */
 const INAMOVIBLES = ["01-01", "03-24", "04-02", "05-01", "05-25", "06-20", "07-09", "12-08", "12-25"];
 
 /** Feriados trasladables (Ley 27.399, art. 1): Güemes, San Martín, Diversidad Cultural y Soberanía Nacional. */
@@ -25,6 +25,17 @@ export const DIAS_NO_HABILES_POR_ANIO: Record<number, string[]> = {
 };
 
 /**
+ * Los días no hábiles que el Gobierno nacional fija solo para algunas provincias. Los feriados
+ * propios de cada provincia no están cargados. Las claves son las de PROVINCIAS (src/lib/provincias.ts).
+ */
+export const DIAS_NO_HABILES_POR_PROVINCIA: Record<string, Record<number, string[]>> = {
+  // Decreto 1103/2026: visita del papa León XIV.
+  "Ciudad Autónoma de Buenos Aires": { 2026: ["2026-11-10"] },
+  "Córdoba": { 2026: ["2026-11-10"] },
+  "Buenos Aires": { 2026: ["2026-11-11"] },
+};
+
+/**
  * Ley 27.399, art. 6: un trasladable que cae martes o miércoles pasa al lunes anterior, y uno que
  * cae jueves o viernes, al lunes siguiente. Si cae sábado, domingo o lunes queda donde está.
  */
@@ -34,7 +45,10 @@ export function trasladarFeriado(fecha: string): string {
   return sumarDias(fecha, corrimiento);
 }
 
-/** Lunes y martes de Carnaval y Viernes Santo, a partir de la fecha de Pascua. */
+/**
+ * Lunes y martes de Carnaval, Jueves Santo y Viernes Santo, a partir de la fecha de Pascua. El
+ * Jueves Santo es día no laborable, no feriado: no cuenta como hábil, igual que los días puente.
+ */
 function feriadosDePascua(anio: number): string[] {
   const a = anio % 19;
   const b = Math.floor(anio / 100);
@@ -51,10 +65,10 @@ function feriadosDePascua(anio: number): string[] {
   const mes = Math.floor((h + l - 7 * m + 114) / 31);
   const dia = ((h + l - 7 * m + 114) % 31) + 1;
   const pascua = `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
-  return [-48, -47, -2].map((diferencia) => sumarDias(pascua, diferencia));
+  return [-48, -47, -3, -2].map((diferencia) => sumarDias(pascua, diferencia));
 }
 
-/** Días no hábiles nacionales del año: feriados inamovibles y trasladables ya movidos, Carnaval, Viernes Santo y lo que fijó el Gobierno. */
+/** Días no hábiles nacionales del año: feriados inamovibles y trasladables ya movidos, Carnaval, Semana Santa y lo que fijó el Gobierno. */
 export function feriadosNacionalesArgentina(anio: number): string[] {
   return [...new Set([
     ...INAMOVIBLES.map((dia) => `${anio}-${dia}`),
@@ -64,13 +78,24 @@ export function feriadosNacionalesArgentina(anio: number): string[] {
   ])].sort();
 }
 
+/** Los nacionales más los que el Gobierno fijó para la provincia de la cuenta. */
+export function diasNoHabiles(anio: number, provincia?: string | null): string[] {
+  const provinciales = provincia ? DIAS_NO_HABILES_POR_PROVINCIA[provincia]?.[anio] ?? [] : [];
+  return [...new Set([...feriadosNacionalesArgentina(anio), ...provinciales])].sort();
+}
+
 /**
  * Próximo seguimiento según la estrategia. Se cuenta desde el día en Argentina (no desde la fecha
  * en UTC, que entre las 21 y las 24 ya es el día siguiente) y se guarda al comienzo de ese día, para
- * que lo tome el cron de esa mañana (corre a las 10 de Argentina). Sin `feriados`, usa los nacionales
- * del año y del siguiente, por si el plazo cruza el 1 de enero.
+ * que lo tome el cron de esa mañana (corre a las 10 de Argentina). Sin `feriados`, usa los días no
+ * hábiles de la provincia del año y del siguiente, por si el plazo cruza el 1 de enero.
  */
-export function calcularProximoSeguimiento(ultimaActividad: Date, ramo: string, textoReglas: string, feriados?: string[]): Date | null {
+export function calcularProximoSeguimiento(
+  ultimaActividad: Date,
+  ramo: string,
+  textoReglas: string,
+  { provincia, feriados }: { provincia?: string | null; feriados?: string[] } = {},
+): Date | null {
   const reglas = interpretarEstrategiaSeguimiento(textoReglas);
   if (!reglas) return null;
   const ramoNormalizado = ramo.trim().toLocaleLowerCase("es-AR");
@@ -78,6 +103,6 @@ export function calcularProximoSeguimiento(ultimaActividad: Date, ramo: string, 
     ?? reglas.intervaloDiasHabiles;
   const hoy = diaEnArgentina(ultimaActividad);
   const anio = Number(hoy.slice(0, 4));
-  const siguiente = sumarDiasHabiles(hoy, dias, feriados ?? [...feriadosNacionalesArgentina(anio), ...feriadosNacionalesArgentina(anio + 1)]);
+  const siguiente = sumarDiasHabiles(hoy, dias, feriados ?? [...diasNoHabiles(anio, provincia), ...diasNoHabiles(anio + 1, provincia)]);
   return new Date(`${siguiente}T00:00:00-03:00`);
 }

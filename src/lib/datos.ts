@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { db, schema } from "@/db";
 import type { Ajustes, Productor } from "@/db/schema";
 import { diaEnArgentina, sumarDias } from "./fechas";
+import { provinciaValida } from "./provincias";
 import { conexionesPendientes } from "@/conexiones/catalogo";
 import type { AgenteId, ContadoresMenu } from "./menu";
 
@@ -69,6 +70,8 @@ export type Cuenta = {
   logoEmpresa: boolean;
   telefono: string | null;
   email: string | null;
+  /** Para los feriados que no son nacionales. */
+  provincia: string;
 };
 
 function productoresDe(
@@ -92,6 +95,7 @@ export async function obtenerCuenta(): Promise<Cuenta> {
     logoEmpresa: Boolean(a?.productorLogo),
     telefono: a?.productorTelefono ?? null,
     email: a?.productorEmail ?? null,
+    provincia: provinciaValida(a?.provincia),
   };
 }
 
@@ -121,6 +125,7 @@ type FilaMarco = {
   logo_empresa: boolean | null;
   telefono: string | null;
   email: string | null;
+  provincia: string | null;
   avisos_comprobantes: number;
   avisos_cobranza: number;
   avisos_cotizaciones: number;
@@ -181,7 +186,8 @@ export async function obtenerMarco(): Promise<{
       a.productor_organizacion as organizacion,
       (a.productor_logo is not null) as logo_empresa,
       a.productor_telefono as telefono,
-      a.productor_email as email
+      a.productor_email as email,
+      a.provincia as provincia
     from (select 1) uno
     left join ajustes a on a.id = 1
     left join lateral (
@@ -201,6 +207,7 @@ export async function obtenerMarco(): Promise<{
       logoEmpresa: Boolean(f.logo_empresa),
       telefono: f.telefono,
       email: f.email,
+      provincia: provinciaValida(f.provincia),
     },
     contadores: {
       asegurados: f.asegurados,

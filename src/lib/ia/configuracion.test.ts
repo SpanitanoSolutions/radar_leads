@@ -33,6 +33,17 @@ describe("resolverConfiguracion", () => {
     expect(resolverConfiguracion(filas, ALCANCE).activa).toBe(false);
   });
 
+  it("la fila de un agente (el interruptor de Cotización) pesa más que la * / *, pero el tope general sigue", () => {
+    const cotizacion: AlcanceIA = { agente: "cotizacion", operacion: "*", orgId: null, producerId: null };
+    const general = fila({ limiteCostoUsd: 20 });
+    expect(resolverConfiguracion([general, fila({ agente: "cotizacion", activa: false })], cotizacion).activa).toBe(false);
+    const prendida = resolverConfiguracion([general, fila({ agente: "cotizacion" })], cotizacion);
+    expect(prendida.activa).toBe(true);
+    expect(prendida.limites).toEqual([{ agente: "*", operacion: "*", porProductor: false, costoUsd: 20, tokensMes: null }]);
+    // El Validador no se entera del interruptor de Cotización.
+    expect(resolverConfiguracion([general, fila({ agente: "cotizacion", activa: false })], ALCANCE).activa).toBe(true);
+  });
+
   it("el productor pisa a la organización y a la plataforma", () => {
     const filas = [fila({ activa: false }), fila({ orgId: "org-1", activa: false }), fila({ orgId: "org-1", producerId: "prod-1" })];
     expect(resolverConfiguracion(filas, ALCANCE).activa).toBe(true);

@@ -70,6 +70,8 @@ export const ajustes = pgTable("ajustes", {
   productorLogo: text("productor_logo"),
   productorTelefono: text("productor_telefono"),
   productorEmail: text("productor_email"),
+  /** Para los feriados que no son nacionales (seguimientos de Cotización). */
+  provincia: text("provincia").notNull().default("Buenos Aires"),
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true })
     .notNull()
     .defaultNow(),

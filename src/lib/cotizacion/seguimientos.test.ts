@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularProximoSeguimiento, feriadosNacionalesArgentina, trasladarFeriado } from "./seguimientos";
+import { calcularProximoSeguimiento, diasNoHabiles, feriadosNacionalesArgentina, trasladarFeriado } from "./seguimientos";
 
 const ESTRATEGIA = "Cada 3 días hábiles";
 
@@ -23,6 +23,7 @@ describe("feriados nacionales", () => {
     ]));
     expect(feriados).not.toContain("2026-06-17");
     expect(feriados).not.toContain("2026-11-20");
+    // En 2026 el Jueves Santo es el 2 de abril, el mismo día que Malvinas.
     expect(feriados).toHaveLength(20);
   });
 
@@ -40,6 +41,25 @@ describe("feriados nacionales", () => {
 
   it("un año sin lista cargada todavía aplica la ley: 2027", () => {
     expect(feriadosNacionalesArgentina(2027)).toEqual(expect.arrayContaining(["2027-02-08", "2027-02-09", "2027-03-26", "2027-06-21", "2027-08-16", "2027-10-11", "2027-11-20"]));
+  });
+
+  it("el Jueves Santo no es hábil, igual que los días puente", () => {
+    expect(feriadosNacionalesArgentina(2025)).toContain("2025-04-17");
+    expect(feriadosNacionalesArgentina(2027)).toContain("2027-03-25");
+  });
+});
+
+describe("días no hábiles por provincia", () => {
+  it("suma los que el Gobierno fijó para la provincia: en noviembre de 2026, el 11 en Buenos Aires y el 10 en CABA y Córdoba", () => {
+    expect(diasNoHabiles(2026, "Buenos Aires")).toContain("2026-11-11");
+    expect(diasNoHabiles(2026, "Buenos Aires")).not.toContain("2026-11-10");
+    expect(diasNoHabiles(2026, "Ciudad Autónoma de Buenos Aires")).toContain("2026-11-10");
+    expect(diasNoHabiles(2026, "Córdoba")).toContain("2026-11-10");
+  });
+
+  it("sin provincia, o con una sin días cargados, quedan los nacionales", () => {
+    expect(diasNoHabiles(2026, null)).toEqual(feriadosNacionalesArgentina(2026));
+    expect(diasNoHabiles(2026, "Mendoza")).toEqual(feriadosNacionalesArgentina(2026));
   });
 });
 
@@ -61,6 +81,16 @@ describe("próximo seguimiento", () => {
   it("saltea el feriado del 9 de noviembre de 2026", () => {
     // Jueves 5/11: viernes 6, (lunes 9 feriado), martes 10 y miércoles 11.
     expect(calcularProximoSeguimiento(new Date("2026-11-05T12:00:00-03:00"), "Automotor", ESTRATEGIA)).toEqual(new Date("2026-11-11T00:00:00-03:00"));
+  });
+
+  it("en la provincia de Buenos Aires saltea también el 11 de noviembre de 2026", () => {
+    // Jueves 5: viernes 6, (lunes 9 nacional), martes 10, (miércoles 11 en Buenos Aires) y jueves 12.
+    expect(calcularProximoSeguimiento(new Date("2026-11-05T12:00:00-03:00"), "Automotor", ESTRATEGIA, { provincia: "Buenos Aires" })).toEqual(new Date("2026-11-12T00:00:00-03:00"));
+  });
+
+  it("saltea el Jueves Santo y el Viernes Santo", () => {
+    // Lunes 14/4/2025: martes 15, miércoles 16, (jueves 17 y viernes 18) y lunes 21.
+    expect(calcularProximoSeguimiento(new Date("2025-04-14T12:00:00-03:00"), "Automotor", ESTRATEGIA)).toEqual(new Date("2025-04-21T00:00:00-03:00"));
   });
 
   it("saltea un trasladable movido: el 20 de noviembre de 2026 pasa al lunes 23", () => {

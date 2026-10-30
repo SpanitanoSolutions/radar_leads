@@ -63,7 +63,7 @@ export async function ejecutarConReintento<T>(pedido: PedidoIA<T>, deps: Depende
     orgId: pedido.orgId ?? null,
     producerId: pedido.producerId ?? null,
   };
-  if (!deps.proveedor?.generarEstructurado) return { ok: false, motivo: "sin_clave", costoUsd: 0, intentos: 0 };
+  if (!deps.proveedor) return { ok: false, motivo: "sin_clave", costoUsd: 0, intentos: 0 };
   if (!deps.configuracion.activa) return { ok: false, motivo: "desactivada", costoUsd: 0, intentos: 0 };
   if (deps.cuotaAlcanzada) {
     await deps.registrarUso({ ...base, modelo: null, tokensEntrada: 0, tokensSalida: 0, costoUsd: 0, duracionMs: 0, resultado: "sin_cuota" });
