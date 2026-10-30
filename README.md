@@ -33,7 +33,11 @@ datos de personas solo se muestran detrás del login.
 
 Todo esta protegido con una contrasena unica (APP_PASSWORD). El agente de Cotizacion usa reglas y plantillas como base; la IA es opcional y requiere activacion para la organizacion.
 
-Las conexiones ya no aceptan datos escritos como prueba de una conexion. Gmail, Google Calendar y Mercado Pago usan OAuth; WhatsApp valida y envia con Meta Cloud API. Sus credenciales de aplicacion deben estar configuradas en el entorno del servidor. Los tokens OAuth se cifran con SESSION_SECRET.
+Las conexiones ya no aceptan datos escritos como prueba de una conexion. Gmail, Google Calendar y Mercado Pago usan OAuth; WhatsApp valida y envia con Meta Cloud API. Sus credenciales de aplicacion deben estar configuradas en el entorno del servidor. Los tokens OAuth se cifran con SESSION_SECRET: si se cambia, hay que volver a autorizar cada cuenta.
+
+- **Gmail** pide solo permiso de envio (`gmail.send`), nunca de lectura. Los correos salen con el nombre de "Mi cuenta" como remitente, y el panel de la conexion tiene "Mandar un correo de prueba" a la misma casilla. Si Google revoca la autorizacion, la conexion queda en "Hay que volver a autorizar".
+- **Los mensajes de ejemplo** (`es_ejemplo`) nunca salen por una conexion real: sus telefonos y correos son inventados y pueden ser de alguien.
+- Pasos para habilitar cada conexion y como se probo: `docs/progreso/conexiones.md`.
 
 Los bancos siguen pendientes: necesitan un proveedor/API autorizado y sus credenciales. Las compañías de seguros tienen su propia pantalla, Conexiones con las compañías; sin un conector real, los agentes trabajan por correo o con carga manual.
 

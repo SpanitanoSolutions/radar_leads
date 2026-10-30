@@ -18,13 +18,15 @@ export async function enviarMensaje(id: number, opciones: { texto?: string } = {
     return { ok: false, error: "Ese mensaje ya no está pendiente." };
   }
   if (m.canal === "llamada") return { ok: false, error: "Las llamadas no se envían: registrá cómo te fue." };
+  // Los datos de ejemplo tienen teléfonos y correos inventados que pueden ser de alguien.
+  if (m.esEjemplo) return { ok: false, error: "Es un mensaje de ejemplo: no sale por las conexiones reales." };
   const cuenta = await obtenerCuenta();
   const texto = conFirma(opciones.texto?.trim() || m.texto, cuenta.nombre);
   const para = m.destinatario ?? "";
   const resultado =
     m.canal === "whatsapp"
       ? await whatsapp.enviar({ para, texto })
-      : await email.enviar({ para, asunto: m.asunto ?? "Mensaje de tu productor de seguros", texto });
+      : await email.enviar({ para, asunto: m.asunto ?? "Mensaje de tu productor de seguros", texto, remitente: cuenta.nombre });
   if (!resultado.ok) return resultado;
   await db
     .update(schema.mensajes)

@@ -42,7 +42,8 @@ export default async function Configuracion({
     const datos = Object.fromEntries(Object.entries(original.datos).filter(([nombre]) => nombre !== "credencialesCifradas"));
     const esOAuth = ["email", "google_calendar", "mercadopago"].includes(clave);
     const conectorPendiente = original.tipo === "portal" || original.tipo === "banco";
-    const oauthSinToken = esOAuth && typeof original.datos.credencialesCifradas !== "string";
+    // "en_proceso" sin token es una autorización que se cayó: se muestra con su motivo.
+    const oauthSinToken = esOAuth && typeof original.datos.credencialesCifradas !== "string" && original.estado !== "en_proceso";
     const whatsappSinValidar = clave === "whatsapp" && original.datos.validadoReal !== true;
     const estado =
       conectorPendiente || oauthSinToken || whatsappSinValidar || (clave === "whatsapp" && estadoWa.paso !== "conectado")

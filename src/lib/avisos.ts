@@ -56,6 +56,7 @@ const AVISOS: Record<string, { texto: string; tono: "ok" | "info" | "error" }> =
   oauth_cancelado: { texto: "Cancelaste la autorizacion. La conexion sigue desconectada.", tono: "info" },
   oauth_estado_invalido: { texto: "No pudimos validar el retorno seguro del proveedor. Inicia de nuevo la autorizacion.", tono: "error" },
   oauth_fallo: { texto: "El proveedor rechazo la autorizacion o no respondio. La conexion sigue desconectada.", tono: "error" },
+  oauth_sin_permiso: { texto: "Google no dio el permiso que hace falta. Volvé a autorizar y dejá tildada la casilla de enviar correos o de crear eventos.", tono: "error" },
   desconectada: { texto: "Desconectada.", tono: "info" },
   "mensaje-error": { texto: "No se pudo enviar el mensaje. Probá de nuevo en un rato.", tono: "error" },
   "error-operacion": { texto: "No pudimos completar la operación por un problema inesperado. Revisá si el cambio quedó aplicado antes de volver a intentarlo.", tono: "error" },

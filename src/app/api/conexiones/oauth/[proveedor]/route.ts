@@ -4,6 +4,13 @@ import { COOKIE_SESION, tokenValido } from "@/lib/sesion";
 
 type Proveedor = "gmail" | "google-calendar" | "mercadopago";
 
+// Un permiso por conexión, y ninguno restringido: leer la casilla
+// (gmail.readonly) obliga a una auditoría de Google todos los años.
+const PERMISO_GOOGLE: Record<Exclude<Proveedor, "mercadopago">, string> = {
+  gmail: "https://www.googleapis.com/auth/gmail.send",
+  "google-calendar": "https://www.googleapis.com/auth/calendar.events",
+};
+
 const COOKIE_ESTADO = "uniqo_oauth_estado";
 const DURACION_ESTADO = 10 * 60;
 
@@ -60,12 +67,7 @@ export async function GET(request: Request, context: { params: Promise<{ proveed
       autorizacion.searchParams.set("access_type", "offline");
       autorizacion.searchParams.set("prompt", "consent");
       autorizacion.searchParams.set("include_granted_scopes", "true");
-      autorizacion.searchParams.set(
-        "scope",
-        proveedor === "gmail"
-          ? "openid email https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly"
-          : "openid email https://www.googleapis.com/auth/calendar.events",
-      );
+      autorizacion.searchParams.set("scope", `openid email ${PERMISO_GOOGLE[proveedor === "gmail" ? "gmail" : "google-calendar"]}`);
     } else {
       autorizacion.searchParams.set("platform_id", "mp");
     }
@@ -96,9 +98,14 @@ export async function GET(request: Request, context: { params: Promise<{ proveed
       access_token?: string;
       refresh_token?: string;
       expires_in?: number;
+      scope?: string;
       user_id?: number;
     };
     if (!respuesta.ok || !tokens.access_token) return volver("oauth_fallo", url.origin);
+    // Google deja destildar cada permiso en la pantalla de consentimiento.
+    if (proveedor !== "mercadopago" && !tokens.scope?.split(" ").includes(PERMISO_GOOGLE[proveedor])) {
+      return volver("oauth_sin_permiso", url.origin);
+    }
 
     let direccion = "";
     let cuenta = "";
