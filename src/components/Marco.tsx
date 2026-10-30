@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import logoUniqo from "@/app/icon.png";
 import { cerrarSesion } from "@/app/login/actions";
 import type { Cuenta } from "@/lib/datos";
 import {
@@ -185,10 +186,8 @@ export function Marco({
           <span className="visualmente-oculto">Menú</span>
         </button>
         <Link href="/" className="barra-marca">
-          <span className="barra-nombre">
-            UNI<span className="barra-nombre-q">Q</span>O
-          </span>
-          <span className="barra-producto">Administración de seguros</span>
+          <Image src={logoUniqo} alt="UNIQO" width={34} height={34} loading="eager" className="barra-logo" />
+          <span className="barra-producto">Tecnología aplicada a seguros</span>
         </Link>
         <span className="barra-separador" aria-hidden="true" />
         <div className="barra-equipo">

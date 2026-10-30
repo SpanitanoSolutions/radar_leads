@@ -52,9 +52,9 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   "envio-aprobado-sin-enviar": { texto: "Aprobaste el correo, pero no salió. En la tabla está el motivo; cuando lo resuelvas, tocá “Enviar ahora”.", error: true },
   "borrador-omitido": { texto: "Omitiste el borrador; no se envió nada." },
   "propuesta-generada": { texto: "Generaste la propuesta con tu logo. Queda como borrador hasta que la apruebes." },
-  "propuesta-sin-logo": { texto: "Generaste la propuesta. No lleva logo: cargalo en Mi cuenta para que salga en las próximas. Queda como borrador hasta que la apruebes." },
-  "propuesta-sin-logo-webp": { texto: "Generaste la propuesta sin tu logo: está en WebP y el PDF solo acepta PNG o JPG. Subilo en uno de esos formatos en Mi cuenta.", error: true },
-  "propuesta-sin-logo-invalido": { texto: "Generaste la propuesta sin tu logo: no lo pudimos leer. Volvé a subirlo en PNG o JPG en Mi cuenta.", error: true },
+  "propuesta-sin-logo": { texto: "Generaste la propuesta. No lleva logo: cargalo en Mi equipo para que salga en las próximas. Queda como borrador hasta que la apruebes." },
+  "propuesta-sin-logo-webp": { texto: "Generaste la propuesta sin tu logo: está en WebP y el PDF solo acepta PNG o JPG. Subilo en uno de esos formatos en Mi equipo.", error: true },
+  "propuesta-sin-logo-invalido": { texto: "Generaste la propuesta sin tu logo: no lo pudimos leer. Volvé a subirlo en PNG o JPG en Mi equipo.", error: true },
   "propuesta-aprobada": { texto: "Aprobaste la propuesta. Ya podés descargarla; compartirla con el cliente queda a tu cargo." },
   "sin-resultados-confirmados": { texto: "Para generar la propuesta, confirmá al menos una respuesta en el comparativo.", error: true },
   "resumen-enviado": { texto: "Aprobaste el resumen y salió a tu correo." },
@@ -206,7 +206,7 @@ export default async function DetalleCotizacion({ params, searchParams }: {
             })}
             <div className="cotizacion-botones-borrador">
               <form action={generarPropuestaCotizacion}><input type="hidden" name="solicitudId" value={id} /><button className="boton boton-primario">Generar propuesta PDF</button></form>
-              <span className="texto-suave">{!marca?.logo ? <>Sin logo: cargalo en <Link href="/configuracion?tab=cuenta">Mi cuenta</Link> (PNG o JPG) para que salga en la propuesta.</> : marca.logo.startsWith("data:image/webp") ? <>Tu logo está en WebP: para que salga en la propuesta, subilo en PNG o JPG en <Link href="/configuracion?tab=cuenta">Mi cuenta</Link>.</> : "Va con el logo y los datos de Mi cuenta."}</span>
+              <span className="texto-suave">{!marca?.logo ? <>Sin logo: cargalo en <Link href="/configuracion?tab=equipo">Mi equipo</Link> (PNG o JPG) para que salga en la propuesta.</> : marca.logo.startsWith("data:image/webp") ? <>Tu logo está en WebP: para que salga en la propuesta, subilo en PNG o JPG en <Link href="/configuracion?tab=equipo">Mi equipo</Link>.</> : "Va con el logo de Mi equipo y los datos de Mi cuenta."}</span>
             </div>
             <p className="texto-suave">La propuesta incluye respuestas confirmadas y queda guardada como borrador. La aprobación habilita su descarga; compartirla queda a tu cargo.</p>
             {propuestas.map((propuesta) => <article key={propuesta.id} className="cotizacion-propuesta"><strong>{propuesta.nombre}</strong><span>{propuesta.estado === "aprobada" ? "Aprobada" : "Borrador · requiere aprobación"}</span><div className="cotizacion-botones-borrador"><Link className="boton" href={`/agentes/cotizacion/propuestas/${propuesta.id}`} aria-disabled={propuesta.estado !== "aprobada"}>Descargar PDF</Link>{propuesta.estado === "borrador" && <form action={aprobarPropuestaCotizacion}><input type="hidden" name="propuestaId" value={propuesta.id} /><button className="boton boton-primario">Aprobar propuesta</button></form>}</div></article>)}

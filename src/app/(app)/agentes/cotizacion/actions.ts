@@ -391,7 +391,7 @@ export async function generarPropuestaCotizacion(formData: FormData) {
   if (!resultados.some((resultado) => resultado.confirmado)) redirect(`/agentes/cotizacion/${solicitudId}?tab=cotizaciones&aviso=sin-resultados-confirmados`);
   const paqueteIds = [...new Set(envios.flatMap((envio) => envio.paqueteId == null ? [] : [envio.paqueteId]))];
   const paquetes = paqueteIds.length ? await db.select({ id: schema.cotizacionPaquetes.id, nombre: schema.cotizacionPaquetes.nombre }).from(schema.cotizacionPaquetes).where(inArray(schema.cotizacionPaquetes.id, paqueteIds)) : [];
-  // La marca de la cuenta (criterio 6): el logo de Mi cuenta y sus datos, con los mismos valores que muestra la cuenta.
+  // La marca de la cuenta (criterio 6): el logo de Mi equipo y los datos de Mi cuenta, con los mismos valores que muestra la configuración.
   const logo = logoParaPdf(ajustes?.productorLogo);
   const documento = documentoPropuesta({
     solicitud, envios, resultados,

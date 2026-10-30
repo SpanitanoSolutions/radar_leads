@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { IconoRadar } from "@/components/iconos";
+import logoUniqo from "@/app/icon.png";
 import { FormLogin } from "./FormLogin";
 
 export const metadata: Metadata = { title: "Entrar · UNIQO" };
@@ -10,11 +11,8 @@ export default function LoginPage() {
     <main className="login">
       <div className="login-card">
         <div className="marca">
-          <span className="marca-icono" aria-hidden="true">
-            <IconoRadar />
-          </span>
-          <span className="marca-nombre">UNIQO</span>
-          <span className="barra-producto">Administración de seguros</span>
+          <Image src={logoUniqo} alt="UNIQO" width={40} height={40} loading="eager" className="login-logo" />
+          <span className="barra-producto">Tecnología aplicada a seguros</span>
         </div>
         <h1 className="login-titulo">Entrar</h1>
         <FormLogin />
