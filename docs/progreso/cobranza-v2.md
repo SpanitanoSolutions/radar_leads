@@ -1,7 +1,7 @@
 # Progreso — Cobranza v2
 
 Spec: [cobranza-v2.md](../specs/cobranza-v2.md). Plan: [PLAN-cobranza-v2.md](../PLAN-cobranza-v2.md).
-Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fase.
+Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38), con `main` mergeado después del #39. Un commit por fase. **PR #40.**
 
 ## Estado
 
@@ -78,5 +78,9 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 - Plantillas aprobadas de WhatsApp para iniciar conversaciones (spec 11).
 - Registro "No Llame" (Ley 26.951): las llamadas hoy son tareas del productor; hay que revisarlo antes de llamadas automáticas.
 
+### Antes del merge (31/10/2026)
+- Se mergeó `main` (#39, logo) sin conflictos; build, tests y E2E siguen OK.
+- **El cron no corre solo en modo prueba**: los envíos se simulan pero los intentos cuentan en casos reales, así que el cron diario los habría gastado y escalado sin escribirle a nadie. En modo prueba se prueba con "Probar" o "Ejecutar ahora"; con el modo prueba apagado (y la aprobación prendida), el cron deja los mensajes para aprobar, como la v1.
+
 ## Próximo paso exacto
-Revisar la rama con Julian y decidir el PR. Al mergear, el deploy aplica la 0031 (solo agrega tablas y copia los seguimientos de la v1). Después: prender Cobranza en modo prueba en producción con destinos de prueba propios y correr "Probar".
+Con el PR #40 mergeado, revisar que el deploy de producción diga "✓ Migraciones aplicadas" (la 0031). Después, en producción: Configuración → Pruebas con destinos de prueba propios y "Probar" en la vista del agente.
