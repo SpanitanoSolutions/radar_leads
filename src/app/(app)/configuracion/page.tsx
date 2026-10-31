@@ -8,7 +8,7 @@ import { ALCANCE_CONEXIONES } from "@/lib/conectores/companias";
 import { listarCredenciales } from "@/lib/conectores/credenciales";
 import { simulacionHabilitada } from "@/lib/conectores/registro";
 import { obtenerConexiones, obtenerCuenta } from "@/lib/datos";
-import { ContenidoConexion, ContenidoWhatsApp, FormCuenta } from "./Paneles";
+import { ContenidoConexion, ContenidoWhatsApp, FormCuenta, FormEquipo } from "./Paneles";
 import "./configuracion.css";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
@@ -61,7 +61,7 @@ export default async function Configuracion({
           <h1 className="titulo">{pestana === "equipo" ? "Mi equipo" : pestana === "cuenta" ? "Mi cuenta" : "Configuración"}</h1>
           <p className="subtitulo">
             {pestana === "equipo"
-              ? "Administrá el nombre, el logo y las personas que forman parte de tu agrupación aseguradora."
+              ? "Administrá el nombre y el logo de tu asociación aseguradora."
               : pestana === "cuenta"
                 ? "Actualizá los datos del productor que aparecen en tu perfil y firman los mensajes."
                 : "Conectá las herramientas que usan tus agentes. UNIQO no guarda contraseñas y podés desconectar cualquier cuenta cuando quieras."}
@@ -201,7 +201,8 @@ export default async function Configuracion({
         </>
       )}
 
-      {(pestana === "cuenta" || pestana === "equipo") && <FormCuenta cuenta={cuenta} tab={pestana} />}
+      {pestana === "cuenta" && <FormCuenta cuenta={cuenta} />}
+      {pestana === "equipo" && <FormEquipo cuenta={cuenta} />}
 
       {pestana !== "conexiones" && pestana !== "cuenta" && pestana !== "equipo" && (
         <section className="tarjeta">

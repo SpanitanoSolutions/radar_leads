@@ -101,18 +101,19 @@ export async function desconectar(formData: FormData) {
   redirect("/configuracion?aviso=desconectada");
 }
 
+// Mi cuenta y Mi equipo guardan en la misma fila, cada una solo sus columnas:
+// guardar una pestaña no pisa lo que se cargó en la otra.
+async function guardarAjustes(cambios: Partial<Omit<typeof schema.ajustes.$inferInsert, "id">>) {
+  await db
+    .insert(schema.ajustes)
+    .values({ id: 1, ...AJUSTES_POR_DEFECTO, ...cambios })
+    .onConflictDoUpdate({ target: schema.ajustes.id, set: cambios });
+  refrescar();
+}
+
+/** Mi cuenta: los productores con sus matrículas y los datos de contacto. */
 export async function guardarCuenta(_previo: EstadoFormulario, formData: FormData): Promise<EstadoFormulario> {
   await requerirSesion();
-  const archivoLogo = formData.get("logoEmpresa");
-  let logoEmpresa: string | undefined;
-  if (archivoLogo instanceof File && archivoLogo.size > 0) {
-    if (archivoLogo.size > MAX_LOGO_BYTES) return { error: "El logo no puede superar los 512 KB." };
-    const bytes = new Uint8Array(await archivoLogo.arrayBuffer());
-    const mime = tipoLogo(bytes);
-    if (!mime) return { error: "Usá un logo en formato PNG, JPG o WebP." };
-    logoEmpresa = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
-  }
-  const quitarLogo = formData.get("quitarLogo") === "on";
   const correo = texto(formData, "email");
   if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return { error: "El email no parece válido." };
   const nombres = [formData.get("nombre"), ...formData.getAll("productoresNombre")];
@@ -129,25 +130,35 @@ export async function guardarCuenta(_previo: EstadoFormulario, formData: FormDat
   if (!productores.length) return { error: "Agregá al menos un productor con su nombre y matrícula." };
   const matriculasUnicas = new Set(productores.map((p) => p.matricula.toLocaleUpperCase("es-AR").replace(/[\s.-]/g, "")));
   if (matriculasUnicas.size !== productores.length) return { error: "Cada productor debe tener una matrícula distinta." };
-  const datos = {
+  await guardarAjustes({
     productorNombre: productores[0].nombre,
     productorMatricula: productores[0].matricula,
     productores,
-    productorOrganizacion: texto(formData, "organizacion") || null,
     productorTelefono: texto(formData, "telefono", 40) || null,
     productorEmail: correo || null,
     provincia: provinciaValida(texto(formData, "provincia")),
     actualizadoEl: new Date(),
-  };
-  const cambios = {
-    ...datos,
+  });
+  redirect("/configuracion?tab=cuenta&aviso=guardado");
+}
+
+/** Mi equipo: el nombre y el logo de la asociación aseguradora. */
+export async function guardarEquipo(_previo: EstadoFormulario, formData: FormData): Promise<EstadoFormulario> {
+  await requerirSesion();
+  const archivoLogo = formData.get("logoEmpresa");
+  let logoEmpresa: string | undefined;
+  if (archivoLogo instanceof File && archivoLogo.size > 0) {
+    if (archivoLogo.size > MAX_LOGO_BYTES) return { error: "El logo no puede superar los 512 KB." };
+    const bytes = new Uint8Array(await archivoLogo.arrayBuffer());
+    const mime = tipoLogo(bytes);
+    if (!mime) return { error: "Usá un logo en formato PNG, JPG o WebP." };
+    logoEmpresa = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+  }
+  const quitarLogo = formData.get("quitarLogo") === "on";
+  await guardarAjustes({
+    productorOrganizacion: texto(formData, "organizacion") || null,
     ...(logoEmpresa !== undefined ? { productorLogo: logoEmpresa } : quitarLogo ? { productorLogo: null } : {}),
-  };
-  await db
-    .insert(schema.ajustes)
-    .values({ id: 1, ...AJUSTES_POR_DEFECTO, ...cambios })
-    .onConflictDoUpdate({ target: schema.ajustes.id, set: cambios });
-  refrescar();
-  const tab = formData.get("tab") === "equipo" ? "equipo" : "cuenta";
-  redirect(`/configuracion?tab=${tab}&aviso=guardado`);
+    actualizadoEl: new Date(),
+  });
+  redirect("/configuracion?tab=equipo&aviso=guardado");
 }

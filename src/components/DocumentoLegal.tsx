@@ -35,7 +35,7 @@ export function DocumentoLegal({
               <IconoRadar />
             </span>
             <span className="marca-nombre">UNIQO</span>
-            <span className="barra-producto">Administración de seguros</span>
+            <span className="barra-producto">Tecnología aplicada a seguros</span>
           </Link>
           <h1 className="legal-titulo">{titulo}</h1>
           <p className="legal-fecha">Última actualización: {actualizada}</p>
