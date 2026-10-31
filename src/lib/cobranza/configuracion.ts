@@ -225,6 +225,9 @@ export const esquemaConfiguracion = z
   })
   .refine((c) => c.ventanaDesde < c.ventanaHasta, { message: "La ventana de contacto termina antes de empezar", path: ["ventanaHasta"] });
 
+/** Los mensajes de zod en castellano, solo para estas validaciones (llegan a la pantalla y a la API). */
+export const ERRORES_EN_CASTELLANO = z.locales.es().localeError;
+
 export type ResultadoValidacion = { ok: true; config: ConfiguracionCobranza } | { ok: false; errores: string[] };
 
 function esObjeto(v: unknown): v is Record<string, unknown> {
@@ -249,7 +252,7 @@ export function combinar<T>(actual: T, cambios: unknown): T {
  */
 export function aplicarCambios(actual: ConfiguracionCobranza, cambios: unknown): ResultadoValidacion {
   if (!esObjeto(cambios)) return { ok: false, errores: ["Mandá un objeto con los campos a cambiar."] };
-  const resultado = esquemaConfiguracion.safeParse(combinar(actual, cambios));
+  const resultado = esquemaConfiguracion.safeParse(combinar(actual, cambios), { error: ERRORES_EN_CASTELLANO });
   if (!resultado.success) {
     return { ok: false, errores: resultado.error.issues.map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message)) };
   }

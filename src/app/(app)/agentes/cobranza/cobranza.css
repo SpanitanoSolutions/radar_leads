@@ -488,7 +488,13 @@
 }
 .cob-api {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr) minmax(0, 380px);
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.cob-api-dos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
   gap: 18px;
   align-items: start;
 }
@@ -529,8 +535,6 @@
   color: var(--cob-azul);
 }
 .cob-api-ejemplos {
-  position: sticky;
-  top: calc(var(--alto-barra) + 12px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -554,12 +558,14 @@
 }
 
 @media (max-width: 1100px) {
-  .cob-api {
+  .cob-api,
+  .cob-api-dos {
     grid-template-columns: minmax(0, 1fr);
   }
-  .cob-api-ejemplos,
   .cob-api > nav {
     position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 }
 @media (max-width: 900px) {
@@ -594,7 +600,12 @@
   .cob-no-imprimir {
     display: none;
   }
-  .cob-api {
+  .cob-api,
+  .cob-api-dos {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .cob-prompt {
+    max-height: none;
+    white-space: pre-wrap;
   }
 }

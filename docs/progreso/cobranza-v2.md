@@ -13,8 +13,8 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 | 4. Tablero y detalle | Hecha |
 | 5. Configuración y demo | Hecha |
 | 6. Motor, corridas, Instrucciones y Ejecuciones | Hecha |
-| 7. Entrantes y avisos | Pendiente |
-| 8. API | Pendiente |
+| 7. Entrantes y avisos | Hecha |
+| 8. API | Hecha |
 | 9. Cron, menú, E2E, README y verificación | Pendiente |
 
 ## Hecho
@@ -47,5 +47,13 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 - **Probado con la app compilada** (`next build --webpack` en el worktree y `next start`; en dev webpack tardaba minutos en compilar la página): sin IA, la corrida tomó 3 recibos de la demo en modo prueba y los contactó con las plantillas (simulado), con los omitidos explicados. Con una API de Anthropic falsa local (`ANTHROPIC_BASE_URL`), la IA pidió `enviar_whatsapp`/`enviar_email` y `terminar` para 3 asegurados: 6 turnos en `ia_uso` (Haiku 5.5), sistema y herramientas con `cache_control`, esfuerzo `medium`, intentos, estados, KPIs y línea de tiempo actualizados. **Criterio de aceptación de la spec cumplido** con la IA falsa; falta probarlo con la IA real (decisión del 29/10: de a una).
 - Tests: 675 de 678 (los 3 de siempre). Lint sin errores en lo tocado.
 
+### Fases 7 y 8 — entrantes y API (un commit: los webhooks de entrantes son rutas de la API)
+- **Entrantes** (`src/agentes/cobranza/entrantes.ts`, reglas en `src/lib/cobranza/entrantes.ts` con tests): se reconoce al asegurado por la referencia `C-<id>` del texto o el asunto, por su teléfono (últimos 10 dígitos: "+54 9 223…" = "223…") o su correo y, en modo prueba, por el destino de prueba (el último caso al que se le escribió ahí). La respuesta queda en la línea de tiempo de sus recibos abiertos y el agente la procesa con el flujo "Respuesta entrante" (en modo `entrante` del ejecutor: puede contestar aunque se le haya escrito hace poco, y no suma intentos). Sin IA, reglas prudentes: baja, rechazo, "ya pagué", "mañana lo pago" o consulta; no contesta. El texto del asegurado va como dato (el prompt lo dice y las herramientas solo tocan sus casos). En el detalle del caso, "Simular respuesta" (solo en modo prueba).
+- **Avisos al productor** al final de una corrida o de una respuesta: escalados, consultas, rechazos y promesas, por el canal de Notificaciones y solo por conexión real.
+- **API** (`/api/v1/agentes/cobranza/...`): `configuracion` (GET, PUT parcial validado), `corridas` (POST en segundo plano con 202, 409 si hay otra; GET lista) y `corridas/:id`, `casos` (filtros pestana, estado, compania, q y paginación), `casos/:id` (con la actividad), `casos/:id/pagado`, `casos/:id/reactivar`, `universo` y `entrantes/whatsapp` y `/email`. Errores `{ error: { codigo, mensaje } }` con 400, 401, 403, 404, 409 y 500, en castellano (zod con su idioma español, solo en estas validaciones). El proxy deja pasar `/api/v1/`; cada ruta exige `Authorization: Bearer uniqo_…` (`api_claves` guarda el hash y el prefijo).
+- **`/agentes/cobranza/api`:** referencia por secciones (primeros pasos, autenticación con "Generar API key" que la muestra una sola vez y la lista para revocar, errores, paginación, actividad, cada endpoint con cURL, JavaScript y respuesta, esquemas) e "Imprimir / Guardar PDF". `api-docs.test.ts` comprueba que cada endpoint documentado exista y exporte su método.
+- **Probado con la app compilada y la IA falsa:** clave generada desde la pantalla; con curl, 401 sin clave o con clave mala, 400 por JSON roto o datos inválidos, PUT parcial, corrida 202 y 409 al repetir, detalle de la corrida, casos filtrados, universo, pagado y reactivar (con 409 al repetir) y 404. Entrantes: WhatsApp desde el número real con "+54 9" → la IA registró la promesa y contestó (simulado); correo con "Ref. C-2" → a ese caso; desconocido → 404; desde el WhatsApp de prueba → al último caso contactado. Con la IA apagada, "no me escriban más" → baja (excluido, marca de baja) y la API no deja reactivarlo.
+- Tests: 683 de 686 (los 3 de siempre). Lint sin errores.
+
 ## Próximo paso exacto
-Fase 7: entrantes. `procesarEntrante()` (identificar el caso por el teléfono o el correo, o la referencia "C-<id>", y conversar con la IA en modo entrante; sin IA, reglas simples para baja y "ya pagué"), las rutas `/api/v1/agentes/cobranza/entrantes/whatsapp` y `/email` (llegan con la fase 8, la API) y "Simular respuesta" en el detalle del caso en modo prueba.
+Fase 9: el cron con la programación (`/api/cron/cobranza` a las 10:00 y `tocaCorrer()`), el menú (contador de Cobranza y "Extractor de pólizas" como Próximamente), el Inicio, el E2E, el README y la verificación completa (build, migración desde la 0030, recorrido con la app compilada y a 390 px).

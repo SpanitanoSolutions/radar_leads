@@ -101,7 +101,7 @@ export async function firmaDeLaCuenta(config: ConfiguracionCobranza): Promise<Fi
 }
 
 /** Cómo se le paga a cada compañía ("transferencia o Rapipago"), si está cargado. */
-async function mediosDePago(): Promise<(compania: string | null) => string | null> {
+export async function mediosDePago(): Promise<(compania: string | null) => string | null> {
   const filas = await db.select({ nombre: schema.companias.nombre, medios: schema.companias.mediosPago }).from(schema.companias);
   const porNombre = new Map(filas.filter((f) => f.medios).map((f) => [companiaCanonica(f.nombre), f.medios!]));
   return (compania) => (compania ? (porNombre.get(companiaCanonica(compania)) ?? null) : null);
@@ -312,36 +312,44 @@ export function crearEjecutor(grupo: CasoCobranza[], ctx: ContextoEjecutor) {
     return { contenido: "La llamada (simulada) fue al buzón. Quedó registrado el intento." };
   }
 
+  /** Cambia el estado en la base y en memoria: lo que sigue en la conversación ya ve el estado nuevo. */
+  async function marcar(casos: CasoCobranza[], cambios: Partial<Pick<CasoCobranza, "estado" | "motivo" | "promesaEl">>, evento: Parameters<typeof actualizarCasos>[2]) {
+    await actualizarCasos(casos.map((k) => k.id), cambios, evento && { ...evento, esPrueba: config.modoPrueba });
+    for (const k of casos) Object.assign(k, cambios);
+  }
+
   async function registrarRespuesta(casos: CasoCobranza[], tipo: TipoRespuesta, fecha: string | undefined, notas: string): Promise<ResultadoHerramienta> {
-    const ids = casos.map((k) => k.id);
-    const datos = { notas, corridaId: registro.corridaId };
+    const datos = { notas };
+    const corridaId = registro.corridaId;
     if (tipo === "promesa_pago" || tipo === "fecha_programada") {
       const dia = fecha ?? sumarDias(ctx.hoy, config.diasGraciaPromesa);
       if (dia < ctx.hoy || dia > sumarDias(ctx.hoy, 90)) return error("La fecha de la promesa tiene que ser de hoy en adelante y dentro de 90 días.");
-      await actualizarCasos(ids, { estado: "promesa", promesaEl: dia, motivo: "Promesa de pago" }, { tipo: "promesa", resumen: `Prometió pagar el ${diaYMes(dia)}.${notas ? ` ${notas}` : ""}`, datos, corridaId: registro.corridaId });
+      await marcar(casos, { estado: "promesa", promesaEl: dia, motivo: "Promesa de pago" }, { tipo: "promesa", resumen: `Prometió pagar el ${diaYMes(dia)}.${notas ? ` ${notas}` : ""}`, datos, corridaId });
       registro.promesas.push(`${casos[0].asegurado.nombre}: pagaría el ${diaYMes(dia)}.`);
       return { contenido: `Promesa registrada para el ${dia}. El agente no le escribe hasta esa fecha más ${config.diasGraciaPromesa} días.` };
     }
     if (tipo === "ya_pago") {
-      await actualizarCasos(ids, { estado: "informo_pago", motivo: "Dice que ya pagó." }, { tipo: "informo_pago", resumen: `Dice que ya pagó: lo confirma el Validador de pagos.${notas ? ` ${notas}` : ""}`, datos, corridaId: registro.corridaId });
+      await marcar(casos, { estado: "informo_pago", motivo: "Dice que ya pagó." }, { tipo: "informo_pago", resumen: `Dice que ya pagó: lo confirma el Validador de pagos.${notas ? ` ${notas}` : ""}`, datos, corridaId });
       return { contenido: "Registrado: dice que ya pagó. Lo confirma el Validador; no le vuelvas a pedir el pago." };
     }
     if (tipo === "respondio") {
-      await actualizarCasos(ids, { estado: "respondio", motivo: notas || "Hizo una consulta." }, { tipo: "respondio", resumen: notas || "Hizo una consulta.", datos, corridaId: registro.corridaId });
-      return { contenido: "Registrada la consulta. Si podés contestarla con lo que sabés, respondé; si no, escalá al productor." };
+      await marcar(casos, { estado: "respondio", motivo: notas || "Hizo una consulta." }, { tipo: "respondio", resumen: notas || "Hizo una consulta.", datos, corridaId });
+      registro.escalados.push(`${casos[0].asegurado.nombre} respondió: ${notas || "hizo una consulta"}.`);
+      return { contenido: "Registrada la consulta y avisado el productor. Si podés contestarla con lo que sabés, respondé; si no, escalá." };
     }
     if (tipo === "rechazo") {
-      await actualizarCasos(ids, { estado: "rechazado", motivo: notas || "Dice que no va a pagar." }, { tipo: "rechazo", resumen: notas || "Dice que no va a pagar.", datos, corridaId: registro.corridaId });
+      await marcar(casos, { estado: "rechazado", motivo: notas || "Dice que no va a pagar." }, { tipo: "rechazo", resumen: notas || "Dice que no va a pagar.", datos, corridaId });
       registro.escalados.push(`${casos[0].asegurado.nombre}: no va a pagar${notas ? ` (${notas})` : ""}.`);
       return { contenido: "Registrado el rechazo. Escalalo al productor." };
     }
     await cambiarNoContactar(casos[0].aseguradoId, true, "baja", notas || undefined);
-    await actualizarCasos(ids, { estado: "excluido", motivo: "Pidió no recibir más mensajes." }, null);
+    await marcar(casos, { estado: "excluido", motivo: "Pidió no recibir más mensajes." }, null);
+    for (const k of casos) k.noContactar = "baja";
     return { contenido: "Registrada la baja: nadie le vuelve a escribir. No le respondas más." };
   }
 
   async function escalar(casos: CasoCobranza[], motivo: string): Promise<ResultadoHerramienta> {
-    await actualizarCasos(casos.map((k) => k.id), { estado: "escalado", motivo }, { tipo: "escalado", resumen: `Te lo pasé: ${motivo}`, corridaId: registro.corridaId });
+    await marcar(casos, { estado: "escalado", motivo }, { tipo: "escalado", resumen: `Te lo pasé: ${motivo}`, corridaId: registro.corridaId });
     registro.escalados.push(`${casos[0].asegurado.nombre}: ${motivo}`);
     return { contenido: "Escalado al productor. No le escribas más." };
   }
@@ -394,6 +402,12 @@ export function crearEjecutor(grupo: CasoCobranza[], ctx: ContextoEjecutor) {
       }
       const m = mensajeSinIA(nombre, recibos, ctx.firma.productor);
       await enviar(canal, pendientes, canal === "email" ? m.asunto : null, m.texto);
+    },
+
+    /** Sin IA, ante una respuesta: registra lo que se entendió y no contesta (lo ve el productor). */
+    async responder(tipo: TipoRespuesta, fecha: string | undefined, notas: string): Promise<void> {
+      const r = await registrarRespuesta(grupo, tipo, fecha, notas);
+      if (r.esError) await registrarRespuesta(grupo, "respondio", undefined, notas);
     },
   };
 }
@@ -522,7 +536,7 @@ export async function correrCobranza(corridaId: number, opciones: OpcionesCorrid
 }
 
 /** Avisos al productor (escalados, promesas y resumen). Devuelve el error si no pudo avisar. */
-async function avisarAlFinal(config: ConfiguracionCobranza, r: Registro, origen: OrigenCorridaCobranza): Promise<string | null> {
+export async function avisarAlFinal(config: ConfiguracionCobranza, r: Registro, origen: OrigenCorridaCobranza): Promise<string | null> {
   const n = config.notificaciones;
   const lineas: string[] = [];
   if (n.alEscalar && r.escalados.length) lineas.push("Te pasé estos casos:", ...r.escalados.map((e) => `- ${e}`));

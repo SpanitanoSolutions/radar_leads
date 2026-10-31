@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { HerramientaIA } from "@/lib/ia";
+import { ERRORES_EN_CASTELLANO } from "./configuracion";
 
 // Las herramientas del Agente de Cobranza: lo que ve la IA (nombre,
 // descripción y JSON Schema) y cómo se valida lo que pide. La ejecución, con
@@ -108,7 +109,7 @@ export type NombreHerramienta = keyof typeof ENTRADAS;
 
 /** La entrada validada, o un error para devolverle a la IA. */
 export function leerEntrada<N extends NombreHerramienta>(nombre: N, entrada: unknown): { ok: true; datos: z.infer<(typeof ENTRADAS)[N]> } | { ok: false; error: string } {
-  const r = ENTRADAS[nombre].safeParse(entrada);
+  const r = ENTRADAS[nombre].safeParse(entrada, { error: ERRORES_EN_CASTELLANO });
   if (r.success) return { ok: true, datos: r.data as z.infer<(typeof ENTRADAS)[N]> };
   return { ok: false, error: r.error.issues.map((i) => `${i.path.join(".") || "entrada"}: ${i.message}`).join("; ") };
 }

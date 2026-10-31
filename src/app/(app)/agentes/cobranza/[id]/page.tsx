@@ -8,12 +8,14 @@ import { chipVencimiento, ESTADO_INFO, REACTIVABLES } from "@/lib/cobranza/estad
 import { TEXTO_OMISION } from "@/lib/cobranza/reglas";
 import { rangoDeTramo } from "@/lib/cobranza/tramos";
 import { diaYHora, fechaCorta } from "@/lib/fechas";
-import { cambiarMarcaNoContactar, guardarContactoCaso, marcarComoPagado, reactivarRecibo } from "../actions";
+import { cambiarMarcaNoContactar, guardarContactoCaso, marcarComoPagado, reactivarRecibo, simularRespuesta } from "../actions";
 import { Chip, ChipEvento, EstadoPunto, Migas, Monto } from "../Componentes";
 import "../../agentes.css";
 import "../cobranza.css";
 
 export const instant = false;
+// "Simular respuesta" espera a que el agente la procese.
+export const maxDuration = 60;
 
 const TABS = [
   { id: "detalle", texto: "Detalle" },
@@ -280,6 +282,31 @@ export default async function CasoCobranza({ params, searchParams }: { params: P
             </form>
           )}
           {caso.noContactar === "baja" && <p className="nota-pie">Pidió no recibir más mensajes de cobranza.</p>}
+
+          {config.modoPrueba && caso.estado !== "pagado" && (
+            <section className="tarjeta tarjeta-padding">
+              <h2 className="cob-titulo-chico">Simular respuesta</h2>
+              <p className="nota-pie">Modo prueba: escribí como si fueras el asegurado y mirá qué hace el agente.</p>
+              <form action={simularRespuesta} className="form-columna">
+                <input type="hidden" name="casoId" value={caso.id} />
+                <input type="hidden" name="volver" value={`/agentes/cobranza/${caso.id}?tab=seguimiento`} />
+                <label className="etiqueta" htmlFor="sim-canal">
+                  Por
+                </label>
+                <select id="sim-canal" name="canal" className="campo" defaultValue={caso.asegurado.tipo === "empresa" ? "email" : "whatsapp"}>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="email">Email</option>
+                </select>
+                <label className="etiqueta" htmlFor="sim-texto">
+                  Mensaje
+                </label>
+                <textarea id="sim-texto" name="texto" rows={3} className="campo" placeholder="Hola, el viernes lo pago." required maxLength={2000} />
+                <button type="submit" className="boton boton-mediano">
+                  Simular respuesta
+                </button>
+              </form>
+            </section>
+          )}
         </aside>
       </div>
     </>

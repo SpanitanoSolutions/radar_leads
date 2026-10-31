@@ -15,6 +15,7 @@ import {
   reactivarCaso,
   registrarEventos,
 } from "@/agentes/cobranza/casos";
+import { procesarEntrante } from "@/agentes/cobranza/entrantes";
 import { correrCobranza, iniciarCorrida } from "@/agentes/cobranza/motor";
 import { leerConfigCobranza } from "@/agentes/cobranza/casos";
 import { enviarMensaje } from "@/agentes/envio";
@@ -228,4 +229,16 @@ export async function guardarContactoCaso(formData: FormData) {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) volver(formData, "contacto-invalido");
   await actualizarContacto(k.id, { telefono: limpio(formData.get("telefono")), email });
   volver(formData, "contacto-guardado");
+}
+
+/** Modo prueba: escribe como si fuera el asegurado y el agente procesa la respuesta. */
+export async function simularRespuesta(formData: FormData) {
+  await requerirSesion();
+  const k = await caso(formData);
+  const texto = String(formData.get("texto") ?? "").trim().slice(0, 2000);
+  if (!texto) volver(formData, "respuesta-vacia");
+  if (!(await leerConfigCobranza()).modoPrueba) volver(formData, "solo-modo-prueba");
+  const canal = formData.get("canal") === "email" ? "email" : "whatsapp";
+  const r = await procesarEntrante({ canal, de: "(respuesta simulada)", texto, casoId: k.id });
+  volver(formData, r.estado === "procesado" ? (r.conIa ? "respuesta-simulada-ia" : "respuesta-simulada") : "respuesta-sin-caso");
 }
