@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNull, lt, lte, gte, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, lte, gte, or, sql } from "drizzle-orm";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import { diaEnArgentina, sumarDias } from "@/lib/fechas";
@@ -9,7 +9,7 @@ export async function obtenerDatosDashboard() {
   await connection();
   const hoy = diaEnArgentina(new Date());
   const en30 = sumarDias(hoy, 30);
-  const [vencimientos, cobrosVencidos, comprobantes, mensajes, cotizaciones, siniestros, actividad, eventos] = await Promise.all([
+  const [vencimientos, cobrosVencidos, comprobantes, casosAtencion, mensajes, cotizaciones, siniestros, actividad, eventos] = await Promise.all([
     db
       .select({ id: schema.polizas.id, aseguradoId: schema.asegurados.id, cliente: schema.asegurados.nombre, ramo: schema.polizas.ramo, compania: schema.polizas.compania, vigenciaHasta: schema.polizas.vigenciaHasta })
       .from(schema.polizas)
@@ -25,10 +25,12 @@ export async function obtenerDatosDashboard() {
       .orderBy(schema.cuotas.vencimiento)
       .limit(5),
     db.select({ id: schema.comprobantes.id }).from(schema.comprobantes).where(eq(schema.comprobantes.estado, "por_revisar")),
+    // Cobranza: los casos que esperan al productor (escalados, rechazos, consultas y pagos informados).
+    db.select({ id: schema.cobranzaCasos.id }).from(schema.cobranzaCasos).where(inArray(schema.cobranzaCasos.estado, ["respondio", "informo_pago", "escalado", "rechazado"])),
     db
       .select({ id: schema.mensajes.id })
       .from(schema.mensajes)
-      .where(and(eq(schema.mensajes.agente, "cobranza"), eq(schema.mensajes.estado, "borrador"), or(isNull(schema.mensajes.mostrarDesde), lte(schema.mensajes.mostrarDesde, hoy)))),
+      .where(and(inArray(schema.mensajes.agente, ["cobranza", "validador"]), eq(schema.mensajes.estado, "borrador"), or(isNull(schema.mensajes.mostrarDesde), lte(schema.mensajes.mostrarDesde, hoy)))),
     db.select({ id: schema.solicitudesCotizacion.id }).from(schema.solicitudesCotizacion).where(and(eq(schema.solicitudesCotizacion.estado, "atencion"), isNull(schema.solicitudesCotizacion.completadoEl))),
     db
       .select({ id: schema.siniestros.id })
@@ -57,7 +59,7 @@ export async function obtenerDatosDashboard() {
     cobrosVencidos,
     avisos: {
       comprobantes: comprobantes.length,
-      cobranza: mensajes.length,
+      cobranza: mensajes.length + casosAtencion.length,
       cotizaciones: cotizaciones.length,
       siniestros: siniestros.length,
     },

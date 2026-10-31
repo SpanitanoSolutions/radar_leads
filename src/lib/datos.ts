@@ -159,9 +159,10 @@ export async function obtenerMarco(): Promise<{
           and (l.alcance_licitacion is null
             or coalesce((a.licitaciones ->> l.alcance_licitacion::text)::boolean, true))) as leads,
       (select count(*)::int from comprobantes where estado = 'por_revisar') as avisos_comprobantes,
-      (select count(*)::int from mensajes
-        where agente = 'cobranza' and estado = 'borrador'
-          and (mostrar_desde is null or mostrar_desde <= ${hoy})) as avisos_cobranza,
+      ((select count(*)::int from mensajes
+        where agente in ('cobranza', 'validador') and estado = 'borrador'
+          and (mostrar_desde is null or mostrar_desde <= ${hoy}))
+        + (select count(*)::int from cobranza_casos where estado in ('respondio', 'informo_pago', 'escalado', 'rechazado'))) as avisos_cobranza,
       (select count(*)::int from solicitudes_cotizacion where estado = 'atencion' and completado_el is null) as avisos_cotizaciones,
       (select count(*)::int from siniestros where cerrado = false) as avisos_siniestros,
       (select count(distinct c.poliza_id)::int from cuotas c
@@ -177,9 +178,10 @@ export async function obtenerMarco(): Promise<{
       (select count(*)::int from comprobantes c
         where c.estado = 'por_revisar'
           and exists (select 1 from jsonb_array_elements(c.chequeos) ch where ch ->> 'resultado' <> 'ok')) as validador,
-      (select count(*)::int from mensajes
-        where agente = 'cobranza' and estado = 'borrador'
-          and (mostrar_desde is null or mostrar_desde <= ${hoy})) as cobranza,
+      ((select count(*)::int from mensajes
+        where agente in ('cobranza', 'validador') and estado = 'borrador'
+          and (mostrar_desde is null or mostrar_desde <= ${hoy}))
+        + (select count(*)::int from cobranza_casos where estado in ('respondio', 'informo_pago', 'escalado', 'rechazado'))) as cobranza,
       a.productor_nombre as nombre,
       a.productor_matricula as matricula,
       a.productores as productores,

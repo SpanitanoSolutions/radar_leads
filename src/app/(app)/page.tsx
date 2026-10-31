@@ -29,7 +29,7 @@ export default async function Dashboard() {
   const cuotasVencidas = estadisticas.cobranza.find((fila) => fila.id === "vencida") ?? { polizas: 0, monto: 0 };
   const avisos = [
     { href: "/agentes/validador?tab=revisar", texto: "Comprobantes por revisar", cantidad: cartera.avisos.comprobantes, tono: "rojo" },
-    { href: "/agentes/cobranza", texto: "Mensajes para aprobar", cantidad: cartera.avisos.cobranza, tono: "ambar" },
+    { href: "/agentes/cobranza", texto: "Cobranza: requieren tu atención", cantidad: cartera.avisos.cobranza, tono: "ambar" },
     { href: "/agentes/cotizacion?estado=atencion", texto: "Cotizaciones con atención", cantidad: cartera.avisos.cotizaciones, tono: "ambar" },
     { href: "/agentes/siniestros", texto: "Siniestros abiertos", cantidad: cartera.avisos.siniestros, tono: "azul" },
     { href: "/agentes/validador?tab=vencidos", texto: "Cuotas vencidas", cantidad: cuotasVencidas.polizas, tono: "rojo", detalle: `${pesos(cuotasVencidas.monto)} pendientes de cobro` },

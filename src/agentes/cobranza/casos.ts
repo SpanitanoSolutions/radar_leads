@@ -323,7 +323,7 @@ export async function reactivarCaso(casoId: number): Promise<"ok" | "no_reactiva
 }
 
 /** Marca (o desmarca) a un asegurado para que el agente no le escriba. */
-export async function cambiarNoContactar(aseguradoId: number, marcar: boolean, motivo: "manual" | "baja" = "manual", nota?: string) {
+export async function cambiarNoContactar(aseguradoId: number, marcar: boolean, motivo: "manual" | "baja" = "manual", nota?: string, esPrueba = false) {
   if (marcar) {
     await db
       .insert(schema.cobranzaNoContactar)
@@ -341,6 +341,7 @@ export async function cambiarNoContactar(aseguradoId: number, marcar: boolean, m
       casoId: k.id,
       tipo: marcar && motivo === "baja" ? ("baja" as const) : ("nota" as const),
       resumen: marcar ? (motivo === "baja" ? "Pidió no recibir más mensajes: el agente no le vuelve a escribir." : "Lo marcaste para no contactar.") : "Le sacaste la marca de no contactar.",
+      esPrueba,
     })),
   );
 }

@@ -5,6 +5,9 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 
 ## Estado
 
+**Fases 1 a 9 hechas** (31/10/2026). El criterio de aceptación de la spec se cumple con una API de Anthropic falsa local; falta probarlo con la IA real y con Gmail o WhatsApp conectados (van de a una, decisión del 29/10/2026).
+
+
 | Fase | Estado |
 |---|---|
 | 1. Plan y spec | Hecha |
@@ -15,7 +18,7 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 | 6. Motor, corridas, Instrucciones y Ejecuciones | Hecha |
 | 7. Entrantes y avisos | Hecha |
 | 8. API | Hecha |
-| 9. Cron, menú, E2E, README y verificación | Pendiente |
+| 9. Cron, menú, E2E, README y verificación | Hecha |
 
 ## Hecho
 
@@ -55,5 +58,25 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 - **Probado con la app compilada y la IA falsa:** clave generada desde la pantalla; con curl, 401 sin clave o con clave mala, 400 por JSON roto o datos inválidos, PUT parcial, corrida 202 y 409 al repetir, detalle de la corrida, casos filtrados, universo, pagado y reactivar (con 409 al repetir) y 404. Entrantes: WhatsApp desde el número real con "+54 9" → la IA registró la promesa y contestó (simulado); correo con "Ref. C-2" → a ese caso; desconocido → 404; desde el WhatsApp de prueba → al último caso contactado. Con la IA apagada, "no me escriban más" → baja (excluido, marca de baja) y la API no deja reactivarlo.
 - Tests: 683 de 686 (los 3 de siempre). Lint sin errores.
 
+### Fase 9 — cron, menú, Inicio, E2E, README y verificación
+- **Cron:** `/api/cron/cobranza` pasa a las 13:00 UTC (10:00 de Argentina, la hora por defecto de la spec) y corre si `tocaCorrer()` (agente activo, día permitido, desde la hora configurada, una vez por día); la corrida va en el mismo pedido (`maxDuration` 300).
+- **Menú e Inicio:** el contador de Cobranza suma los mensajes para aprobar (del agente y del Validador) y los casos que esperan al productor (escalados, rechazos, consultas y pagos informados): "N requieren tu atención". "Extractor de pólizas" entra al menú como "Pronto", con su página "Próximamente".
+- **E2E:** el paso 14 aprueba desde "Para aprobar" y el 14b recorre la spec (5 KPIs, "Probar" hasta que termina la corrida, la línea de tiempo del caso con modo prueba, "Simular respuesta" con una baja, Configuración → Pruebas y la API); la revisión a 390 px suma las 7 pantallas nuevas.
+- **README:** sección "Agente de Cobranza v2", cron, script de la demo y E2E.
+- **Verificación (31/10/2026):**
+  - `npm test`: 683 de 686; los 3 que fallan son los de antes (`catalogo.test.ts`, `menu.test.ts` por "Mi cartera" y `siniestros.test.ts`).
+  - `tsc`: OK. `npm run lint`: sin errores (5 avisos viejos, en Siniestros y Configuración).
+  - `next build --webpack`: OK, en un worktree del scratchpad (en el repo corre otro `next dev` en el puerto 3100 y no lo toqué).
+  - Migración: base en la 0030 con el seed de `main` → 0031 de esta rama (los seguimientos pasan a casos); y base vacía con la 0000 a la 0031 y el seed nuevo.
+  - **E2E entero (25 pasos) OK** contra la app compilada, Postgres 18.6 descartable, sin IA.
+  - Con IA falsa: corridas, entrantes y la API (ver fases 6 a 8). Tema oscuro revisado.
+
+## Pendiente (no bloquea; van de a una)
+- Probar el agente con la **IA real** (la fila `*`/`*` de `ia_configuracion` ya cubre a Cobranza; entra en el tope de USD 20) y medir el costo por corrida.
+- Envíos reales: hoy salen solo con Gmail o WhatsApp conectados. Con Gmail conectado, en modo prueba ya llegan al correo de prueba.
+- **WhatsApp entrante de Meta:** el webhook propio (`/entrantes/whatsapp`) recibe `{ de, texto }` con la clave de la API; el formato y la verificación de Meta se suman con la conexión de WhatsApp.
+- Plantillas aprobadas de WhatsApp para iniciar conversaciones (spec 11).
+- Registro "No Llame" (Ley 26.951): las llamadas hoy son tareas del productor; hay que revisarlo antes de llamadas automáticas.
+
 ## Próximo paso exacto
-Fase 9: el cron con la programación (`/api/cron/cobranza` a las 10:00 y `tocaCorrer()`), el menú (contador de Cobranza y "Extractor de pólizas" como Próximamente), el Inicio, el E2E, el README y la verificación completa (build, migración desde la 0030, recorrido con la app compilada y a 390 px).
+Revisar la rama con Julian y decidir el PR. Al mergear, el deploy aplica la 0031 (solo agrega tablas y copia los seguimientos de la v1). Después: prender Cobranza en modo prueba en producción con destinos de prueba propios y correr "Probar".

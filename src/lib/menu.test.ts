@@ -24,6 +24,7 @@ describe("armarMenu", () => {
       "Siniestros",
       "Cobranza",
       "Conciliador",
+      "Extractor de pólizas",
     ]);
   });
 

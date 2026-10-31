@@ -342,7 +342,7 @@ export function crearEjecutor(grupo: CasoCobranza[], ctx: ContextoEjecutor) {
       registro.escalados.push(`${casos[0].asegurado.nombre}: no va a pagar${notas ? ` (${notas})` : ""}.`);
       return { contenido: "Registrado el rechazo. Escalalo al productor." };
     }
-    await cambiarNoContactar(casos[0].aseguradoId, true, "baja", notas || undefined);
+    await cambiarNoContactar(casos[0].aseguradoId, true, "baja", notas || undefined, config.modoPrueba);
     await marcar(casos, { estado: "excluido", motivo: "Pidió no recibir más mensajes." }, null);
     for (const k of casos) k.noContactar = "baja";
     return { contenido: "Registrada la baja: nadie le vuelve a escribir. No le respondas más." };

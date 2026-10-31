@@ -240,10 +240,43 @@ ok("validador: listado, totales, asegurado expandido, comprobante confirmado y v
 
 // 14. Cobranza: aprobar un borrador de mensaje (el de una tarjeta, no "Aprobar y enviar N mensajes").
 // Solo sale con WhatsApp o Gmail conectados de verdad; en una base de prueba avisa que no se pudo.
-await page.goto(BASE + "/agentes/cobranza");
+await page.goto(BASE + "/agentes/cobranza?tab=aprobar");
 await page.getByRole("button", { name: "Aprobar y enviar", exact: true }).first().click();
 await page.waitForURL(/aviso=mensaje-(enviado|error)/);
 ok(`cobranza: aprobar un mensaje (${/mensaje-enviado/.test(page.url()) ? "enviado" : "sin canal conectado, no salió"})`);
+
+// 14b. Cobranza v2 (criterio de aceptación de docs/specs/cobranza-v2.md, sin IA en la base de prueba):
+// tablero con los 5 KPIs → "Probar" (modo prueba) → la corrida termina y contacta → el caso lo muestra en
+// su línea de tiempo → simular una respuesta → configuración y API.
+await page.goto(BASE + "/agentes/cobranza");
+const kpisCobranza = page.getByRole("region", { name: "Resumen" });
+for (const kpi of ["Activos", "Hoy", "Promesas", "Escalados", "Pagados (mes)"]) await kpisCobranza.getByText(kpi, { exact: true }).waitFor();
+await page.goto(BASE + "/agentes/cobranza/instrucciones");
+await page.getByText("Sos el agente de seguimiento de cobranza").waitFor();
+await page.getByRole("button", { name: "Probar", exact: true }).click();
+await page.waitForURL(/\/agentes\/cobranza\/ejecuciones\/\d+/);
+const urlCorrida = page.url();
+for (let i = 0; i < 40 && (await page.getByText("El agente está trabajando").count()); i++) {
+  await page.waitForTimeout(1500);
+  await page.goto(urlCorrida);
+}
+const hizo = page.getByRole("region", { name: "Lo que hizo" });
+await hizo.getByText(/Modo prueba/).first().waitFor();
+const enlaceCaso = hizo.locator("a[href^='/agentes/cobranza/']").first();
+const urlCaso = await enlaceCaso.getAttribute("href");
+await enlaceCaso.click();
+await page.getByRole("region", { name: "Seguimiento" }).getByText("Modo prueba").first().waitFor();
+await page.locator("#sim-texto").fill("Por favor no me escriban más");
+await page.getByRole("button", { name: "Simular respuesta" }).click();
+await page.waitForURL(/aviso=respuesta-simulada/);
+await page.getByRole("region", { name: "Seguimiento" }).getByText("Pidió la baja").waitFor();
+await page.goto(BASE + "/agentes/cobranza/configuracion?seccion=pruebas");
+await page.locator("#maxRecibos").fill("4");
+await page.getByRole("button", { name: "Guardar", exact: true }).click();
+await page.waitForURL(/aviso=config-guardada/);
+await page.goto(BASE + "/agentes/cobranza/api");
+await page.getByRole("heading", { name: "Autenticación" }).waitFor();
+ok(`cobranza v2: KPIs, corrida de prueba, línea de tiempo de ${urlCaso}, respuesta simulada, configuración y API`);
 
 // 15. Siniestros: revisar y aprobar la denuncia armada (sale por email: sin Gmail conectado, avisa que no se pudo)
 await page.goto(BASE + "/agentes/siniestros");
@@ -318,6 +351,12 @@ for (const ruta of [
   "/agentes/cotizacion/nueva",
   "/agentes/validador",
   "/agentes/cobranza",
+  "/agentes/cobranza?tab=aprobar",
+  "/agentes/cobranza/configuracion",
+  "/agentes/cobranza/configuracion?tab=canales",
+  "/agentes/cobranza/instrucciones",
+  "/agentes/cobranza/ejecuciones",
+  "/agentes/cobranza/api",
   "/agentes/siniestros",
   "/agentes/conciliador",
   "/configuracion/companias",

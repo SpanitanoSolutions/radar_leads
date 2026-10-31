@@ -160,7 +160,7 @@ export function Marco({
   const importacion = contadores.ultimaImportacion;
   const avisos = [
     { href: "/agentes/validador?tab=revisar", texto: "Comprobantes por revisar", cantidad: notificaciones.comprobantes },
-    { href: "/agentes/cobranza", texto: "Mensajes para aprobar", cantidad: notificaciones.cobranza },
+    { href: "/agentes/cobranza", texto: "Cobranza: requieren tu atención", cantidad: notificaciones.cobranza },
     { href: "/agentes/cotizacion?estado=atencion", texto: "Cotizaciones con atención", cantidad: notificaciones.cotizaciones },
     { href: "/agentes/siniestros", texto: "Siniestros abiertos", cantidad: notificaciones.siniestros },
     { href: "/agentes/validador?bloque=vencidos", texto: "Cuotas vencidas", cantidad: notificaciones.cuotasVencidas },
@@ -348,6 +348,7 @@ function ItemDelMenu({ item, pathname, alElegir }: { item: ItemMenu; pathname: s
         </>
       )}
       {item.configurar && <span className="menu-configurar">Configurar</span>}
+      {item.proximamente && <span className="menu-configurar">Pronto</span>}
     </Link>
   );
 }
