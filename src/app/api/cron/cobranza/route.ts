@@ -9,8 +9,10 @@ export const maxDuration = 300;
 
 /**
  * Agente de Cobranza (ver vercel.json: pasa una vez por día a las 10:00 de
- * Argentina). Corre si el agente está activo, el día está permitido, ya es la
- * hora configurada y todavía no corrió hoy por el cron.
+ * Argentina). Corre si el agente está activo, no está en modo prueba, el día
+ * está permitido, ya es la hora configurada y todavía no corrió hoy por el cron.
+ * En modo prueba no corre solo: sumaría intentos simulados a casos reales todos
+ * los días. Se prueba con "Probar" o "Ejecutar ahora".
  */
 export async function GET(request: Request) {
   if (!cronAutorizado(request.headers.get("authorization"), process.env.CRON_SECRET)) {
@@ -21,6 +23,9 @@ export async function GET(request: Request) {
   }
   const ahora = new Date();
   const [config, ultima] = await Promise.all([leerConfigCobranza(), ultimaCorridaCron()]);
+  if (config.modoPrueba) {
+    return Response.json({ corre: false, mensaje: "Modo prueba: el agente no corre solo. Probalo con Probar o Ejecutar ahora." });
+  }
   if (!tocaCorrer(config, ultima, ahora)) {
     return Response.json({ corre: false, proxima: proximaPasada(config, ultima, ahora)?.toISOString() ?? null });
   }

@@ -379,7 +379,9 @@ async function contenidoGeneral(seccion: Seccion, config: Config, nombreCuenta: 
         </div>
         <p className="nota-caja">
           <span className="celda-fuerte">Próxima ejecución automática: </span>
-          {proxima
+          {config.modoPrueba
+            ? "ninguna mientras esté el modo prueba (Pruebas): se prueba con “Probar” o “Ejecutar ahora”."
+            : proxima
             ? `${diaYHora(proxima)} (hora de ${config.zonaHoraria.split("/").at(-1)?.replace("_", " ")}).`
             : `ninguna. El cron pasa una vez por día a las ${pasada}: elegí esa hora o una anterior, y algún día permitido.`}{" "}
           Los días y la ventana valen para los mensajes reales; en modo prueba se puede probar a cualquier hora.

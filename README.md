@@ -325,7 +325,8 @@ siguiente; si el plan de Vercel lo permite, conviene llevar ese cron a cada hora
 (`0 * * * *`): el endpoint ya decide solo si le toca.
 
 Cobranza corre una vez por día, solo los días permitidos de su Horario, desde la
-hora configurada (10:00 por defecto) y con el agente activo. Con el cron diario,
+hora configurada (10:00 por defecto), con el agente activo y con el modo prueba
+apagado (en modo prueba se prueba a mano, con "Probar" o "Ejecutar ahora"). Con el cron diario,
 una hora posterior a las 10:00 no corre nunca: la Configuración lo avisa.
 
 Vercel las llama con `Authorization: Bearer <CRON_SECRET>`. Sin esa clave el

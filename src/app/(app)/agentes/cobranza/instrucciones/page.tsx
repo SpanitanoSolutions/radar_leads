@@ -130,13 +130,19 @@ export default async function InstruccionesCobranza({ searchParams }: { searchPa
               <article className="cob-herramienta">
                 <div className="titulo-fila">
                   <span className="celda-fuerte">Cron diario</span>
-                  <Chip texto={activo ? "Activo" : "Agente inactivo"} tono={activo ? "verde" : "gris"} />
+                  <Chip texto={!activo ? "Agente inactivo" : config.modoPrueba ? "En pausa: modo prueba" : "Activo"} tono={activo && !config.modoPrueba ? "verde" : "gris"} />
                 </div>
                 <p className="texto-suave">
                   {config.horaEjecucion} · {config.diasPermitidos.map((d) => NOMBRE_DIA[d]).join(", ") || "ningún día"} · {config.zonaHoraria}. Vercel pasa una vez por día a las {pasadasLocales(config.zonaHoraria)[0]} (
                   <code className="cob-codigo-linea">GET /api/cron/cobranza</code>, con <code className="cob-codigo-linea">CRON_SECRET</code>).
                 </p>
-                <p className="nota-pie">{proxima ? `Próxima ejecución: ${diaYHora(proxima)}.` : "Con esta hora y estos días no corre nunca: revisá Configuración → Horario."}</p>
+                <p className="nota-pie">
+                  {config.modoPrueba
+                    ? "En modo prueba no corre solo: probalo con Probar o ▶ Ejecutar."
+                    : proxima
+                      ? `Próxima ejecución: ${diaYHora(proxima)}.`
+                      : "Con esta hora y estos días no corre nunca: revisá Configuración → Horario."}
+                </p>
               </article>
             );
           })()}
