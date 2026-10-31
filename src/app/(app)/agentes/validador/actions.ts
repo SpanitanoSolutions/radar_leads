@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { confirmarCobro, cuotasDelCobro, pausarSeguimiento } from "@/agentes/cobros";
+import { confirmarCobro, cuotasDelCobro, pausarCobranza } from "@/agentes/cobros";
 import { prepararMensaje } from "@/agentes/cobranza";
 import { ALCANCE_CARTERA } from "@/agentes/validador/cartera";
 import { marcarCasoRevisado, resolverCaso } from "@/agentes/validador/casos";
@@ -83,7 +83,7 @@ export async function pedirOtroComprobante(formData: FormData) {
         motivo: `El Validador de pagos encontró un problema: ${problema?.texto ?? "el comprobante no coincide"}`,
       });
   if (!faltante) await rechazarComprobantes(cabezaId);
-  await pausarSeguimiento(cabezaId, faltante ? "Pago incompleto" : "Comprobante con problemas", { contacto: "Detectado por el Validador" });
+  await pausarCobranza(cabezaId, faltante ? "Pago incompleto" : "Comprobante con problemas", { contacto: "Detectado por el Validador" });
   refrescar();
   volver(formData, r ? "pedido-preparado" : "sin-contacto");
 }
@@ -233,7 +233,6 @@ export async function enviarACobranza(formData: FormData) {
   if (!cuota || cuota.estado === "pagada" || cuota.estadoValidacion === "pagada" || cuota.estadoValidacion === "cancelada") volver(formData, "cuota-cerrada");
   const r = await prepararMensaje(await cabezaDelCobro(cuotaId), pasoParaCobranza(cuota.vencimiento, diaEnArgentina(new Date())), {
     motivo: "Lo enviaste desde el Validador de pagos: la cuota sigue impaga.",
-    soloBorrador: true,
   });
   if (r && formData.get("pagoId")) await marcarCasoRevisado(entero(formData.get("pagoId")));
   refrescar();

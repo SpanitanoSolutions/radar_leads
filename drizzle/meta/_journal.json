@@ -218,6 +218,13 @@
       "when": 1793354230171,
       "tag": "0030_cotizacion_conectores",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793405841605,
+      "tag": "0031_cobranza_v2",
+      "breakpoints": true
     }
   ]
 }

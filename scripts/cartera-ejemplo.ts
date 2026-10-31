@@ -10,7 +10,6 @@ import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import type { Chequeo, CotizacionRecibida, Retenciones } from "../src/db/schema";
 import { borrarEjemplosDeCartera } from "../src/db/ejemplos";
-import { CONFIG_COBRANZA_INICIAL } from "../src/agentes/cobranza/secuencia";
 import { diaEnArgentina, sumarDias } from "../src/lib/fechas";
 import { ACUERDOS_VALIDADOR, graciaDeEjemplo, sembrarValidador } from "./validador-ejemplo";
 
@@ -579,41 +578,45 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
       },
     ]);
 
-    // Seguimiento de cobranza.
-    await tx.insert(schema.seguimientosCobranza).values([
-      { cuotaId: cuota("22-M-90314", 5), paso: 3, ultimaNovedad: "Leído, sin respuesta", ultimoContacto: "WhatsApp", ultimaNovedadEl: momento(-5, "10:00") },
-      {
-        cuotaId: cuota("22-IC-7781", 5),
-        paso: 3,
-        estado: "pausado",
-        motivoPausa: "Pagó a una cuenta equivocada",
-        ultimaNovedad: "Pagó a una cuenta equivocada",
-        ultimoContacto: "Detectado por el Validador",
-        ultimaNovedadEl: momento(-3, "19:40"),
-      },
-      {
-        cuotaId: cuota("61-RCP-0332", 9),
-        paso: 3,
-        estado: "pausado",
-        motivoPausa: "Promesa de pago",
-        promesaPagoEl: dia(3),
-        ultimaNovedad: "Promesa de pago",
-        ultimoContacto: "Respondió por WhatsApp",
-        ultimaNovedadEl: momento(-1, "18:20"),
-      },
-      { cuotaId: cuota("22-778190", 8), paso: 2, ultimaNovedad: "Leído, sin respuesta", ultimoContacto: "WhatsApp", ultimaNovedadEl: momento(-5, "10:00") },
-      { cuotaId: cuota("88-310276", 7), paso: 0, ultimaNovedad: "Sin teléfono ni email", ultimoContacto: "No se le pudo avisar" },
-      { cuotaId: cuota("4410-3321908", 6), paso: 1, ultimaNovedad: "Sin respuesta", ultimoContacto: "Recordatorio", ultimaNovedadEl: momento(-1, "09:00") },
-      { cuotaId: cuota("4412-0101772", 4), paso: 0, ultimaNovedad: "Todavía sin avisos" },
-      {
-        cuotaId: cuota("4412-0098811", 10),
-        paso: 1,
-        ultimaNovedad: "Pago incompleto",
-        ultimoContacto: "Pagó $ 640.000 de $ 674.000",
-        ultimaNovedadEl: momento(-1, "16:52"),
-      },
-      { cuotaId: cuota("61-I-30018", 2), paso: 0, ultimaNovedad: "Todavía sin avisos" },
-      { cuotaId: cuota("88-551877", 9), paso: 0, ultimaNovedad: "Todavía sin avisos" },
+    // Cobranza: cada caso apunta a la primera cuota de su cobro (src/agentes/cobranza/casos.ts).
+    const cabezaDe = async (id: number) => {
+      const [f] = await tx.execute<{ id: number; asegurado: number }>(sql`
+        select min(cx.id) as id, min(px.asegurado_id) as asegurado
+        from cuotas c join polizas p on p.id = c.poliza_id
+        join cuotas cx on cx.vencimiento = c.vencimiento
+        join polizas px on px.id = cx.poliza_id and px.asegurado_id = p.asegurado_id and coalesce(px.compania, '') = coalesce(p.compania, '')
+        where c.id = ${id}`);
+      return { cuotaId: Number(f.id), aseguradoId: Number(f.asegurado) };
+    };
+    type CasoEj = { numero: string; n: number } & Partial<typeof schema.cobranzaCasos.$inferInsert>;
+    const casosEj: CasoEj[] = [
+      { numero: "22-M-90314", n: 5, estado: "sin_respuesta", intentos: 2, ultimoContactoEl: momento(-5, "10:00") },
+      { numero: "22-IC-7781", n: 5, estado: "escalado", motivo: "Pagó a una cuenta equivocada", intentos: 3, ultimoContactoEl: momento(-3, "19:40") },
+      { numero: "61-RCP-0332", n: 9, estado: "promesa", motivo: "Promesa de pago", promesaEl: dia(3), intentos: 3, ultimoContactoEl: momento(-1, "18:20") },
+      { numero: "22-778190", n: 8, estado: "sin_respuesta", intentos: 2, ultimoContactoEl: momento(-5, "10:00") },
+      { numero: "88-310276", n: 7, estado: "sin_datos" },
+      { numero: "4410-3321908", n: 6, estado: "sin_respuesta", intentos: 1, ultimoContactoEl: momento(-1, "09:00") },
+      { numero: "4412-0101772", n: 4, estado: "pendiente" },
+      { numero: "4412-0098811", n: 10, estado: "escalado", motivo: "Pago incompleto: pagó $ 640.000 de $ 674.000", intentos: 1, ultimoContactoEl: momento(-1, "16:52") },
+      { numero: "61-I-30018", n: 2, estado: "pendiente" },
+      { numero: "88-551877", n: 9, estado: "pendiente" },
+    ];
+    const casoPorCuota = new Map<number, number>();
+    for (const { numero, n, ...valores } of casosEj) {
+      const cabeza = await cabezaDe(cuota(numero, n));
+      const [caso] = await tx
+        .insert(schema.cobranzaCasos)
+        .values({ ...cabeza, ...valores, esEjemplo: true, creadoEl: momento(-12) })
+        .returning({ id: schema.cobranzaCasos.id });
+      casoPorCuota.set(cuota(numero, n), caso.id);
+    }
+    const casoDe = (numero: string, n: number) => casoPorCuota.get(cuota(numero, n))!;
+    await tx.insert(schema.cobranzaEventos).values([
+      { casoId: casoDe("22-IC-7781", 5), tipo: "validador", resumen: "Pagó a una cuenta que no es de La Segunda (Validador de pagos). El agente no le escribe hasta que lo reactives.", creadoEl: momento(-3, "19:40") },
+      { casoId: casoDe("61-RCP-0332", 9), tipo: "whatsapp_respondido", canal: "whatsapp", resumen: "Respondió que paga el viernes.", datos: { texto: "Hola! Sí, el viernes lo pago sin falta." }, creadoEl: momento(-1, "18:15") },
+      { casoId: casoDe("61-RCP-0332", 9), tipo: "promesa", resumen: `Prometió pagar el ${ddmm(3)}.`, creadoEl: momento(-1, "18:20") },
+      { casoId: casoDe("88-310276", 7), tipo: "nota", resumen: "No tiene teléfono ni email: completá el contacto para que el agente le escriba.", creadoEl: momento(-12) },
+      { casoId: casoDe("4412-0098811", 10), tipo: "validador", resumen: "Pago incompleto: pagó $ 640.000 de $ 674.000 (Validador de pagos). El agente no le escribe hasta que lo reactives.", creadoEl: momento(-1, "16:52") },
     ]);
 
     // Mensajes de cobranza: los que esperan aprobación y los que ya salieron.
@@ -727,6 +730,24 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
         esEjemplo: true,
       },
     ]);
+
+    // La línea de tiempo de cada caso: lo que salió y lo que espera aprobación.
+    const mensajesCobranza = await tx
+      .select()
+      .from(schema.mensajes)
+      .where(and(eq(schema.mensajes.agente, "cobranza"), eq(schema.mensajes.esEjemplo, true)));
+    await tx.insert(schema.cobranzaEventos).values(
+      mensajesCobranza.flatMap((m): (typeof schema.cobranzaEventos.$inferInsert)[] => {
+        const casoId = casoPorCuota.get(Number(/^cuota:(\d+):/.exec(m.referencia ?? "")?.[1]));
+        if (!casoId) return [];
+        const canal = m.canal === "llamada" ? ("telefono" as const) : m.canal;
+        const datos = { mensajeId: m.id, texto: m.texto, para: m.destinatario };
+        if (m.estado === "enviado") {
+          return [{ casoId, tipo: m.canal === "email" ? "email_enviado" : "whatsapp_enviado", canal, resumen: "Salió el mensaje aprobado.", datos, creadoEl: m.enviadoEl ?? m.creadoEl }];
+        }
+        return [{ casoId, tipo: m.canal === "llamada" ? "llamada_pendiente" : "para_aprobar", canal, resumen: `${m.motivo ?? "Mensaje preparado."} Quedó en "Para aprobar".`, datos, creadoEl: m.creadoEl }];
+      }),
+    );
 
     // Siniestros.
     type DocEj = [string, boolean, number?];
@@ -1391,7 +1412,7 @@ export async function sembrarCartera(hoy: string = diaEnArgentina(new Date())) {
         ["cotizacion", "validador", "siniestros", "cobranza", "conciliador"].map((agente) => ({
           agente,
           configurado: true,
-          config: agente === "cobranza" ? CONFIG_COBRANZA_INICIAL : {},
+          config: {},
         })),
       )
       .onConflictDoNothing();

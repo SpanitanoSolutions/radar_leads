@@ -39,6 +39,8 @@ export type ItemMenu = {
   contador?: { valor: number; tono: Tono; descripcion: string };
   /** El agente todavía no está configurado. */
   configurar?: boolean;
+  /** Todavía no existe: la página dice "Próximamente". */
+  proximamente?: boolean;
 };
 
 export type GrupoMenu = { id: string; titulo: string; items: ItemMenu[] };
@@ -47,7 +49,7 @@ const AGENTES: { id: AgenteId; texto: string; icono: Icono; tono: Tono; descripc
   { id: "cotizacion", texto: "Cotización", icono: "calculadora", tono: "ambar", descripcion: (n) => `${n} ${n === 1 ? "solicitud requiere" : "solicitudes requieren"} tu atención` },
   { id: "validador", texto: "Validador de pagos", icono: "tarjeta", tono: "rojo", descripcion: (n) => `${n} ${n === 1 ? "comprobante" : "comprobantes"} por revisar` },
   { id: "siniestros", texto: "Siniestros", icono: "escudo", tono: "rojo", descripcion: (n) => `${n} ${n === 1 ? "siniestro requiere" : "siniestros requieren"} tu atención` },
-  { id: "cobranza", texto: "Cobranza", icono: "moneda", tono: "ambar", descripcion: (n) => `${n} para aprobar` },
+  { id: "cobranza", texto: "Cobranza", icono: "moneda", tono: "ambar", descripcion: (n) => `${n} ${n === 1 ? "requiere" : "requieren"} tu atención` },
   { id: "conciliador", texto: "Conciliador", icono: "flechas", tono: "ambar", descripcion: (n) => `${n} ${n === 1 ? "diferencia" : "diferencias"} para reclamar` },
 ];
 
@@ -86,17 +88,20 @@ export function armarMenu(c: ContadoresMenu): GrupoMenu[] {
     {
       id: "agentes",
       titulo: "Agentes",
-      items: AGENTES.map((a) => {
-        const valor = c.agentes[a.id];
-        return {
-          href: `/agentes/${a.id}`,
-          texto: a.texto,
-          icono: a.icono,
-          ...(valor === null
-            ? { configurar: true }
-            : { contador: siHay(valor, a.tono, a.descripcion(valor)) }),
-        };
-      }),
+      items: [
+        ...AGENTES.map((a): ItemMenu => {
+          const valor = c.agentes[a.id];
+          return {
+            href: `/agentes/${a.id}`,
+            texto: a.texto,
+            icono: a.icono,
+            ...(valor === null
+              ? { configurar: true }
+              : { contador: siHay(valor, a.tono, a.descripcion(valor)) }),
+          };
+        }),
+        { href: "/agentes/extractor", texto: "Extractor de pólizas", icono: "grilla", proximamente: true },
+      ],
     },
     {
       id: "captacion",

@@ -1,7 +1,7 @@
 import type { EsfuerzoIA } from "./index";
 
 /** Qué tipo de trabajo le pide un agente a la IA. El modelo sale de acá, no del agente. */
-export type TareaIA = "extraer" | "clasificar" | "normalizar" | "mapear" | "redactar" | "explicar" | "analizar" | "portal";
+export type TareaIA = "extraer" | "clasificar" | "normalizar" | "mapear" | "redactar" | "explicar" | "analizar" | "portal" | "actuar";
 
 export const MODELO_HAIKU = "claude-haiku-5-5";
 export const MODELO_SONNET = "claude-sonnet-5-5";
@@ -17,6 +17,8 @@ const PLAN_POR_TAREA: Record<TareaIA, PlanBase> = {
   explicar: { modelo: MODELO_SONNET, esfuerzo: "medium", maxTokens: 8_000 },
   analizar: { modelo: MODELO_SONNET, esfuerzo: "high", maxTokens: 16_000 },
   portal: { modelo: MODELO_SONNET, esfuerzo: "medium", maxTokens: 16_000 },
+  /** Un agente que decide y usa herramientas, turno por turno (Cobranza). */
+  actuar: { modelo: MODELO_HAIKU, esfuerzo: "medium", maxTokens: 4_000 },
 };
 
 export type PlanIA = PlanBase & {

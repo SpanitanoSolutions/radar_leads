@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ConfiguracionIA } from "./configuracion";
 import type { ProveedorIA, RespuestaEstructuradaIA, SolicitudIA } from "./index";
 import { MODELO_HAIKU, MODELO_SONNET } from "./modelos";
-import { ejecutarConReintento, type DependenciasIA, type PedidoIA, type UsoIA } from "./motor";
+import { conversarConHerramientas, ejecutarConReintento, type DependenciasIA, type PedidoIA, type UsoIA } from "./motor";
 
 const ESQUEMA = z.object({ poliza: z.string(), monto: z.number().positive() });
 
@@ -120,5 +120,75 @@ describe("ejecutarConReintento", () => {
     const { deps } = dependencias({ proveedor, configuracion: { ...ACTIVA, modelo: MODELO_SONNET } });
     await ejecutarConReintento(PEDIDO, deps);
     expect(pedidos[0].modelo).toBe(MODELO_SONNET);
+  });
+});
+
+describe("conversarConHerramientas", () => {
+  type Respuesta = Partial<Awaited<ReturnType<NonNullable<ProveedorIA["conversar"]>>>>;
+  /** Un proveedor que contesta en orden y guarda cada pedido. */
+  function conversador(respuestas: (Respuesta | Error)[]) {
+    const pedidos: { turnos: number; ultimo: unknown }[] = [];
+    const proveedor: ProveedorIA = {
+      generarEstructurado: async () => {
+        throw new Error("no se usa");
+      },
+      async conversar(solicitud) {
+        pedidos.push({ turnos: solicitud.turnos.length, ultimo: solicitud.turnos.at(-1) });
+        const r = respuestas[pedidos.length - 1];
+        if (r instanceof Error) throw r;
+        return { texto: "", llamadas: [], contenido: [], rechazada: false, cortada: false, modelo: solicitud.modelo ?? "", tokensEntrada: 100, tokensSalida: 20, costoUsd: 0.001, ...r };
+      },
+    };
+    return { proveedor, pedidos };
+  }
+  const pedido = (ejecutadas: string[]) => ({
+    agente: "cobranza",
+    operacion: "contactar",
+    system: "Sos el agente.",
+    herramientas: [{ nombre: "enviar_whatsapp", descripcion: "x", esquema: { type: "object", properties: {} } }],
+    mensaje: "Atendé a este asegurado.",
+    ejecutar: async (l: { nombre: string }) => {
+      ejecutadas.push(l.nombre);
+      return { contenido: "ok", terminar: l.nombre === "terminar" };
+    },
+  });
+
+  it("ejecuta las herramientas, devuelve los resultados y corta al terminar", async () => {
+    const { proveedor, pedidos } = conversador([
+      { llamadas: [{ id: "a", nombre: "enviar_whatsapp", entrada: {} }] },
+      { llamadas: [{ id: "b", nombre: "terminar", entrada: {} }] },
+    ]);
+    const { deps, usos } = dependencias({ proveedor });
+    const ejecutadas: string[] = [];
+    const r = await conversarConHerramientas(pedido(ejecutadas), deps);
+    expect(r).toEqual({ ok: true, terminado: true, turnos: 2, herramientas: 2, modelo: MODELO_HAIKU, costoUsd: 0.002 });
+    expect(ejecutadas).toEqual(["enviar_whatsapp", "terminar"]);
+    expect(pedidos[1]).toEqual({ turnos: 3, ultimo: { rol: "usuario", resultados: [{ id: "a", contenido: "ok", esError: undefined }] } });
+    expect(usos.map((u) => u.resultado)).toEqual(["ok", "ok"]);
+  });
+
+  it("sin herramientas pedidas, termina; con el tope de turnos, también", async () => {
+    const { proveedor } = conversador([{ texto: "listo" }]);
+    expect(await conversarConHerramientas(pedido([]), dependencias({ proveedor }).deps)).toMatchObject({ ok: true, terminado: false, turnos: 1 });
+    const enBucle = conversador(Array.from({ length: 3 }, () => ({ llamadas: [{ id: "x", nombre: "enviar_whatsapp", entrada: {} }] })));
+    expect(await conversarConHerramientas({ ...pedido([]), maxTurnos: 3 }, dependencias({ proveedor: enBucle.proveedor }).deps)).toMatchObject({ ok: true, terminado: false, turnos: 3, herramientas: 3 });
+  });
+
+  it("sin clave, apagada o sin cuota no llama; un error a mitad devuelve lo hecho", async () => {
+    expect(await conversarConHerramientas(pedido([]), dependencias({}).deps)).toMatchObject({ ok: false, motivo: "sin_clave" });
+    const { proveedor } = conversador([]);
+    expect(await conversarConHerramientas(pedido([]), dependencias({ proveedor, configuracion: { ...ACTIVA, activa: false } }).deps)).toMatchObject({ ok: false, motivo: "desactivada" });
+    const sinCuota = dependencias({ proveedor, cuotaAlcanzada: true });
+    expect(await conversarConHerramientas(pedido([]), sinCuota.deps)).toMatchObject({ ok: false, motivo: "sin_cuota" });
+    expect(sinCuota.usos[0].resultado).toBe("sin_cuota");
+    const falla = conversador([{ llamadas: [{ id: "a", nombre: "enviar_whatsapp", entrada: {} }] }, new Error("caída")]);
+    const deps = dependencias({ proveedor: falla.proveedor });
+    expect(await conversarConHerramientas(pedido([]), deps.deps)).toMatchObject({ ok: false, motivo: "error", herramientas: 1 });
+    expect(deps.usos.map((u) => u.resultado)).toEqual(["ok", "error"]);
+  });
+
+  it("un rechazo corta la conversación", async () => {
+    const { proveedor } = conversador([{ rechazada: true }]);
+    expect(await conversarConHerramientas(pedido([]), dependencias({ proveedor }).deps)).toMatchObject({ ok: false, motivo: "rechazada" });
   });
 });

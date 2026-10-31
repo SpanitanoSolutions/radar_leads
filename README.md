@@ -21,7 +21,7 @@ datos de personas solo se muestran detrás del login.
   leads, cotización por conexión directa o portal, comparativo, propuesta en PDF
   con el logo de la cuenta, bitácora con filtros y desempeño.
 - **Validador de pagos** (`/agentes/validador`): revisión de cuotas y comprobantes.
-- **Cobranza** (`/agentes/cobranza`): borradores para aprobar y seguimiento de cuotas.
+- **Cobranza** (`/agentes/cobranza`): casos de los recibos por vencer y vencidos, el agente que le escribe al asegurado, su configuración, ejecuciones y API (ver "Agente de Cobranza v2").
 - **Siniestros** (`/agentes/siniestros`): expedientes con o sin póliza, documentos,
   checklist, gastos, informes en borrador, seguimiento y archivado.
 - **Conciliador** (`/agentes/conciliador`): comisiones esperadas, liquidaciones,
@@ -210,7 +210,8 @@ tabla `cartera` queda sin uso para conservar la historia de migración. Los lead
 que coinciden por CUIT muestran **Ya es cliente** con un enlace a su ficha.
 
 Las acciones de los agentes que envían mensajes o reclamos pasan por una
-confirmación del productor y dejan registro. El Conciliador exporta un CSV para
+confirmación del productor y dejan registro. El Agente de Cobranza escribe solo
+únicamente si el productor apaga su modo prueba y su "Pedirme aprobación". El Conciliador exporta un CSV para
 el contador y permite cargar una liquidación por archivo; si ya existe una
 liquidación para esa compañía y período, la carga se rechaza para preservar los
 datos anteriores.
@@ -312,8 +313,8 @@ Si cambias `SESSION_SECRET`, todas las sesiones abiertas se cierran.
 | 07:00 | `/api/cron/telefonos` | Busca teléfonos de empresas nuevas |
 | 08:00 | `/api/cron/resumen` | Resumen del día |
 | 08:00 | `/api/cron/validador` | Validador de pagos: validación y enriquecimiento, según su Programación |
-| 09:00 | `/api/cron/cobranza` | Estados con la gracia del Validador y borradores de cobranza |
 | 10:00 (lun. a vie.) | `/api/cron/cotizacion` | Seguimientos de cotización |
+| 10:00 | `/api/cron/cobranza` | Agente de Cobranza, según su Horario (días permitidos y hora) |
 | 11:00 | `/api/cron/ia-trabajos` | Retoma la cola de trabajos de IA |
 
 El Validador corre cada etapa una vez por período (día, semana o mes), desde la
@@ -322,6 +323,11 @@ enriquecimiento) y solo con el agente activo. Como el cron pasa una vez por día
 a las 08:00, una hora configurada más tarde recién corre en la pasada del día
 siguiente; si el plan de Vercel lo permite, conviene llevar ese cron a cada hora
 (`0 * * * *`): el endpoint ya decide solo si le toca.
+
+Cobranza corre una vez por día, solo los días permitidos de su Horario, desde la
+hora configurada (10:00 por defecto), con el agente activo y con el modo prueba
+apagado (en modo prueba se prueba a mano, con "Probar" o "Ejecutar ahora"). Con el cron diario,
+una hora posterior a las 10:00 no corre nunca: la Configuración lo avisa.
 
 Vercel las llama con `Authorization: Bearer <CRON_SECRET>`. Sin esa clave el
 endpoint responde 401. En el plan Hobby, Vercel puede correrlas en cualquier
@@ -347,6 +353,7 @@ a mano: `npm run captura`.
 | `npm run db:preparar` | Migraciones + datos iniciales si la base está vacía (lo corre el build) |
 | `npm run db:seed` | Carga datos iniciales, leads y cartera de ejemplo (no pisa la configuración) |
 | `npm run db:seed -- --reset` | Igual, pero vuelve sectores y zonas a los valores iniciales |
+| `npm run db:seed:cobranza` | Carga (o recarga) la demo del Agente de Cobranza: 100 recibos ficticios con su línea de tiempo |
 | `npm run db:limpiar-ejemplos` | Borra los leads de ejemplo (la captura ya lo hace sola) |
 
 ### Prueba de punta a punta
@@ -363,7 +370,9 @@ Revisa login → cartera, búsqueda y panel del asegurado, importación CSV en m
 combinar (con una fila inválida), leads y sectores, solicitud de cotización,
 el Validador (confirmar un pago; y el recorrido de la spec: importar un listado,
 ver los totales, expandir un asegurado, confirmar un comprobante y enviar una
-vencida a Cobranza), aprobación de cobranza, envío de denuncia y reclamo,
+vencida a Cobranza), aprobación de cobranza, el Agente de Cobranza (KPIs,
+corrida de prueba, línea de tiempo, respuesta simulada, configuración y API),
+envío de denuncia y reclamo,
 WhatsApp, las pantallas principales a 390 px y cierre de sesión. El archivo de
 importación está en `e2e/fixtures/`.
 
@@ -458,6 +467,18 @@ Cuando estén disponibles diez casos anonimizados con resultados esperados, `npm
 - **Datos de ejemplo (`scripts/validador-ejemplo.ts`):** 6 compañías con las pólizas que devuelven los conectores simulados, unas 300 cuotas en pesos y dólares en todos los estados, un listado de Sancor ya leído, uno de La Segunda esperando que se confirmen las columnas y 5 comprobantes sueltos. Con `CONECTORES_SIMULADOS=1`, "Ejecutar validación" confirma los pagos del último mes, cancela lo anulado y deja unos pocos casos a revisar. Las fechas de los simulados dependen del mes: si cambió el mes desde que sembraste, volvé a correr `npm run db:seed`.
 - **Evaluación (`npm run evaluar:validador -- <carpeta> [--ia]`):** la carpeta trae un `set.json` (la cartera, lo que tiene que salir de cada fila de cada listado y de cada comprobante) y los archivos. Mide que la extracción de monto, fecha y póliza acierte al menos el 95 % y que el matching sugiera la cuota correcta al menos el 90 %. Sin `--ia` mide el código (listados en Excel o CSV y el matching); con `--ia`, también la IA (PDF y comprobantes), y necesita `DATABASE_URL`, `ANTHROPIC_API_KEY` y la IA activa. Hay un set de demo ficticio en `scripts/evaluacion-validador/demo/`; la meta se mide con listados reales anonimizados de 3 compañías y 20 comprobantes.
 - Spec: `docs/specs/validador-v2.md`. Plan: `docs/PLAN-validador-v2.md`. Progreso: `docs/progreso/validador-v2.md`.
+
+## Agente de Cobranza v2
+
+Reemplaza la secuencia de 5 pasos de la v1. Spec: `docs/specs/cobranza-v2.md`. Plan (con cómo se tradujo cada nombre de la spec): `docs/PLAN-cobranza-v2.md`. Progreso: `docs/progreso/cobranza-v2.md`.
+
+- **Casos (`cobranza_casos`):** un caso por cobro (las cuotas del mismo asegurado, compañía y vencimiento), sincronizado con la cartera cada vez que se mira el tablero o corre el agente: nacen de los recibos impagos de −60 a +30 días, pasan a pagados solos, y los filtros de la configuración o la falta de teléfono y correo los mandan a sus pestañas. Todo lo que pasa queda en `cobranza_eventos` (la línea de tiempo).
+- **Agente:** cada corrida (cron, "Ejecutar ahora", "Probar" o la API) toma los recibos que pasan las reglas duras (estado, máximo de intentos, días entre intentos, primer contacto, promesa con gracia, días y ventana horaria, baja), los agrupa por asegurado y la IA (Haiku 5.5, con herramientas) decide qué escribir y por dónde. Cada herramienta vuelve a pasar por las reglas. Sin IA, el mismo ejecutor escribe con plantillas por tramo. La IA entra en el tope común de USD 20 y cada turno queda en `ia_uso`.
+- **Modo prueba (por defecto):** todo va a los destinos de prueba; sin destino o sin conexión real, se simula. Con el modo prueba apagado y "Pedirme aprobación" prendido (por defecto), cada mensaje espera en "Para aprobar", junto con los pedidos del Validador y las llamadas que el agente le deja al productor. En modo real, sin Gmail o WhatsApp conectados, el envío falla y queda el error: nunca se finge. Los casos de ejemplo nunca salen por una conexión real.
+- **Respuestas:** `POST /api/v1/agentes/cobranza/entrantes/whatsapp` y `/email` (o "Simular respuesta" en el caso, en modo prueba). Se reconoce al asegurado por su número, su correo o la referencia `C-<id>`; el agente registra la promesa, el pago informado, la consulta, el rechazo o la baja, y contesta si hace falta.
+- **API (`/api/v1/agentes/cobranza/...`):** con clave (`Authorization: Bearer uniqo_…`), que se genera en `/agentes/cobranza/api`; ahí está la referencia completa. El proxy deja pasar `/api/v1` sin sesión y cada ruta exige la clave.
+- **Pantallas:** tablero con los 5 KPIs y las pestañas Activos, Sin datos de contacto, Excluidas por reglas y Para aprobar; detalle del caso; Configuración (General con 7 secciones y Canales); vista del agente con sus instrucciones, herramientas, triggers, ejecuciones, detalles y settings; Ejecuciones; API.
+- **Demo:** Configuración → Demo o `npm run db:seed:cobranza`.
 
 ## Specs de producto
 - Las specs de agentes están en docs/specs/. Leé solo la que corresponde a la tarea.
