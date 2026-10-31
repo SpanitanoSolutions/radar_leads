@@ -11,7 +11,7 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 | 2. Modelo de datos y reglas | Hecha |
 | 3. Casos (sincronización, acciones, Validador) | Hecha |
 | 4. Tablero y detalle | Hecha (falta "Ejecutar ahora", que llega con el motor) |
-| 5. Configuración y demo | Pendiente |
+| 5. Configuración y demo | Hecha |
 | 6. Motor, corridas, Instrucciones y Ejecuciones | Pendiente |
 | 7. Entrantes y avisos | Pendiente |
 | 8. API | Pendiente |
@@ -33,5 +33,11 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 - **Probado** contra Postgres 18.6 con la app (worktree aparte en el scratchpad, `next dev --webpack` en el puerto 3217, porque en el repo ya corre otro `next dev` en el 3100): la migración desde la 0030 con el seed de `main`, el tablero, "Para aprobar" con los borradores de la v1 (llamada incluida) y el detalle.
 - Tests: 664 de 667 (los 3 que fallan son los de antes). Lint sin errores en lo tocado.
 
+### Fase 5 — configuración y demo
+- **`/agentes/cobranza/configuracion`:** pestaña General con navegación vertical (Estrategia con reglas generales, reglas de re-contacto y tramos editables en un panel lateral, que se suben, bajan, agregan y borran; Filtros; Horario con la próxima ejecución real según el cron diario; Información; Notificaciones; Pruebas con el modo prueba y "Pedirme aprobación"; Demo) y pestaña Canales (habilitado, instrucciones, remitente con "Verificar" contra la conexión real y bloque de Test). Cada sección guarda por separado y valida con `aplicarCambios()`; si algo no cierra, vuelve con el primer error.
+- **Canales** (`src/agentes/cobranza/canales.ts`): real si la conexión anda (Gmail, WhatsApp Business); simulado solo en modo prueba; en modo real sin conexión, error. El teléfono no tiene proveedor: simulado en prueba y tarea para el productor en modo real.
+- **Programación** (`src/lib/cobranza/programacion.ts`, con tests): pasada diaria del cron a las 10:00 de Argentina; corre si el día está permitido, ya es la hora y no corrió hoy.
+- **Demo** (`src/db/demo-cobranza.ts`, botón y `npm run db:seed:cobranza`): 100 asegurados ficticios con una póliza y un recibo cada uno, 7 aseguradoras, vencimientos de −40 a +30, 10 sin contacto, 5 excluidos (uno pidió la baja), escalados, promesas, rechazos, consultas, pagos informados y pagados, y la línea de tiempo con todos los tipos de evento. Los asegurados llevan la nota de la demo y son ejemplo: recargarla reemplaza la anterior y "Borrar datos de ejemplo" la limpia.
+
 ## Próximo paso exacto
-Fase 5: Configuración (`/agentes/cobranza/configuracion`, General con Estrategia, Filtros, Horario, Información, Notificaciones, Pruebas y Demo, y Canales) y la demo de 100 casos.
+Fase 6: el motor. Conversación con herramientas en `src/lib/ia` (`ejecutarAgenteIA()`), prompt y herramientas en `src/lib/cobranza/`, ejecutor con reglas y corridas con lock en `src/agentes/cobranza/`, "Ejecutar ahora", Instrucciones y Ejecuciones.
