@@ -24,10 +24,19 @@ const filas = () => page.locator("tbody tr").count();
 const empresas = async () => (await page.locator("tbody tr .celda-principal").allTextContents()).map((s) => s.trim());
 const ok = (m) => console.log("✓", m);
 
-// 1. Sin sesión → login
+// 1. Sin sesión: la raíz es la presentación pública y el resto va al login
 await page.goto(BASE + "/");
+assert.equal(new URL(page.url()).pathname, "/");
+assert.equal(await page.title(), "UNIQO");
+await page.getByRole("heading", { name: "UNIQO", level: 1 }).waitFor();
+const legales = page.getByRole("navigation", { name: "Documentos legales" });
+await legales.getByRole("link", { name: "Política de privacidad" }).waitFor();
+await legales.getByRole("link", { name: "Términos y condiciones" }).waitFor();
+await page.getByRole("link", { name: "Iniciar sesión" }).first().click();
+await page.waitForURL(/\/login$/, { waitUntil: "commit" });
+await page.goto(BASE + "/inicio");
 assert.equal(new URL(page.url()).pathname, "/login");
-ok("sin sesión redirige a /login");
+ok("sin sesión la raíz muestra la presentación y el resumen redirige a /login");
 
 // 2. Contraseña incorrecta
 await page.fill("#clave", "mala");
@@ -38,7 +47,7 @@ ok("contraseña incorrecta muestra error");
 // 3. Login correcto
 await page.fill("#clave", CLAVE);
 await page.click("button[type=submit]");
-await page.waitForURL(BASE + "/", { waitUntil: "commit" });
+await page.waitForURL(BASE + "/inicio", { waitUntil: "commit" });
 await page.getByRole("heading", { name: "Resumen general", level: 1 }).waitFor();
 await page.getByText("Prima anual vigente").waitFor();
 await page.getByRole("heading", { name: "Cartera por aseguradora" }).waitFor();
@@ -381,6 +390,7 @@ ok("sin desborde horizontal a 390px");
 // 19. Cerrar sesión
 await page.setViewportSize({ width: 1440, height: 1000 });
 await page.goto(BASE + "/");
+assert.equal(new URL(page.url()).pathname, "/inicio");
 await page.locator("summary.barra-perfil-resumen").click();
 await page.getByRole("button", { name: "Cerrar sesión" }).click();
 await page.waitForURL(/\/login/, { waitUntil: "commit" });

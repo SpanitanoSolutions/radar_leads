@@ -6,9 +6,14 @@ import { COOKIE_SESION, tokenValido } from "@/lib/sesion";
 // /api/cron queda afuera: se protege con CRON_SECRET (ver src/lib/cron.ts).
 // /api/v1 también: cada ruta pide la clave de la API (src/agentes/cobranza/api.ts).
 // /privacidad y /terminos también: son públicas porque Google las pide para autorizar Gmail y Calendar.
+// La raíz es la presentación pública, que Google revisa al verificar la app; con sesión, va al resumen (/inicio).
 export async function proxy(request: NextRequest) {
   const token = request.cookies.get(COOKIE_SESION)?.value;
-  if (await tokenValido(token)) return NextResponse.next();
+  const conSesion = await tokenValido(token);
+  if (request.nextUrl.pathname === "/") {
+    return conSesion ? NextResponse.redirect(new URL("/inicio", request.url)) : NextResponse.next();
+  }
+  if (conSesion) return NextResponse.next();
   const url = new URL("/login", request.url);
   return NextResponse.redirect(url);
 }

@@ -63,7 +63,7 @@ export function armarMenu(c: ContadoresMenu): GrupoMenu[] {
     {
       id: "inicio",
       titulo: "Inicio",
-      items: [{ href: "/", texto: "Resumen general", icono: "grafico" }],
+      items: [{ href: "/inicio", texto: "Resumen general", icono: "grafico" }],
     },
     {
       id: "cartera",

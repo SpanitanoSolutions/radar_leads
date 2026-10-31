@@ -185,7 +185,7 @@ export function Marco({
           {abierto ? <IconoCerrar /> : <IconoMenu />}
           <span className="visualmente-oculto">Menú</span>
         </button>
-        <Link href="/" className="barra-marca">
+        <Link href="/inicio" className="barra-marca">
           <Image src={logoUniqo} alt="UNIQO" width={34} height={34} loading="eager" className="barra-logo" />
           <span className="barra-producto">Tecnología aplicada a seguros</span>
         </Link>

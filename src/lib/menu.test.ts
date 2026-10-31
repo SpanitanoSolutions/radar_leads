@@ -17,7 +17,7 @@ describe("armarMenu", () => {
   it("arma los grupos con el dashboard antes de la cartera", () => {
     const grupos = armarMenu(CONTADORES);
     expect(grupos.map((g) => g.titulo)).toEqual(["Inicio", "Mi cartera", "Agentes", "Captación de clientes"]);
-    expect(grupos[0].items[0]).toMatchObject({ href: "/", texto: "Resumen general" });
+    expect(grupos[0].items[0]).toMatchObject({ href: "/inicio", texto: "Resumen general" });
     expect(grupos[2].items.map((i) => i.texto)).toEqual([
       "Cotización",
       "Validador de pagos",

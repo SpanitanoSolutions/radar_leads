@@ -48,6 +48,7 @@ Rama `feat/conexion-gmail`, sale de `main` en `7f13fa3` (con el PR #36). Sin mig
   - `https://www.un1qo.com/api/conexiones/oauth/gmail` y `…/google-calendar`;
   - `https://radar-leads-pink.vercel.app/api/conexiones/oauth/gmail` y `…/google-calendar`, **temporales**: se borran antes de pedir la verificación.
 - Los cambios en el cliente tardan de 5 minutos a unas horas en aplicarse. Si sale `redirect_uri_mismatch`, esperar y reintentar antes de tocar el código.
+- **Página de inicio para la verificación (31/10/2026):** sin sesión, `https://www.un1qo.com/` muestra la presentación pública (`src/app/page.tsx`, estática). Tiene el nombre "UNIQO", igual que en la pantalla de consentimiento, explica qué hace la app, los dos permisos y cómo se usan los datos de Google, y lleva links a `/privacidad` y `/terminos`. Con sesión, la raíz va al resumen, que pasó a `/inicio`. La política de privacidad tiene además la frase de Uso Limitado en inglés, textual. Para pedir la verificación, `un1qo.com` tiene que estar verificado en Search Console con una cuenta que sea propietaria o editora del proyecto de Google Cloud.
 
 **Dominio:** `un1qo.com` se compró en Vercel el 30/10/2026 y está en el proyecto `radar-leads`. `www.un1qo.com` sirve la app y `un1qo.com` redirige ahí (308).
 

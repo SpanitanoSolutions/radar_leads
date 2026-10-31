@@ -32,7 +32,7 @@ export function ErrorRecuperable({
           <button type="button" className="boton boton-primario" onClick={retry}>
             Volver a cargar
           </button>
-          <Link className="boton" href="/">
+          <Link className="boton" href="/inicio">
             Volver al inicio
           </Link>
         </div>

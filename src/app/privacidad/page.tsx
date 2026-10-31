@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 // Página pública (queda fuera del proxy): Google la pide para autorizar Gmail
 // y Calendar. Si cambia lo que la app pide o guarda, hay que actualizarla y
 // cambiar la fecha.
-const ACTUALIZADA = "30 de octubre de 2026";
+const ACTUALIZADA = "31 de octubre de 2026";
 
 const SECCIONES = [
   { id: "alcance", titulo: "Quiénes somos y a quién se aplica" },
@@ -281,14 +281,24 @@ export default function Privacidad() {
           lo necesario para prestar estas funciones, por seguridad o para cumplir la ley. Nadie de nuestro equipo los
           lee, salvo que el productor lo pida para resolver un problema o que lo exija la ley.
         </p>
-        <p className="legal-destacado">
-          El uso que UNIQO hace de la información recibida de las API de Google, y su transferencia a cualquier otra
-          aplicación, se ajusta a la{" "}
-          <a href="https://developers.google.com/terms/api-services-user-data-policy">
-            Política de Datos del Usuario de los Servicios de las API de Google
-          </a>
-          , incluidos los requisitos de Uso Limitado.
-        </p>
+        <div className="legal-destacado">
+          <p>
+            El uso que UNIQO hace de la información recibida de las API de Google, y su transferencia a cualquier otra
+            aplicación, se ajusta a la{" "}
+            <a href="https://developers.google.com/terms/api-services-user-data-policy">
+              Política de Datos del Usuario de los Servicios de las API de Google
+            </a>
+            , incluidos los requisitos de Uso Limitado.
+          </p>
+          {/* Google busca esta frase textual, en inglés, al verificar la app. */}
+          <p lang="en">
+            UNIQO&apos;s use and transfer of information received from Google APIs will adhere to the{" "}
+            <a href="https://developers.google.com/terms/api-services-user-data-policy">
+              Google API Services User Data Policy
+            </a>
+            , including the Limited Use requirements.
+          </p>
+        </div>
         <p>
           Podés desconectar Gmail o Google Calendar en cualquier momento desde Configuración, lo que borra los permisos
           guardados, o quitarle el acceso a UNIQO desde{" "}
@@ -355,8 +365,8 @@ export default function Privacidad() {
         <ul>
           <li>Toda la comunicación viaja cifrada (HTTPS).</li>
           <li>
-            Todas las pantallas y archivos piden la sesión iniciada, salvo esta página. La sesión va en una cookie
-            firmada que el código de la página no puede leer.
+            Todas las pantallas y archivos piden la sesión iniciada, salvo la página de presentación, los términos y
+            esta política. La sesión va en una cookie firmada que el código de la página no puede leer.
           </li>
           <li>
             Los permisos de las conexiones y las claves de los portales se guardan cifrados (AES-256-GCM) y nunca se
