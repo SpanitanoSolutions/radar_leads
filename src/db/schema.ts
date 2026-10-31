@@ -15,6 +15,19 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { Moneda, PagoNormalizado, TipoConector } from "../lib/conectores/tipos";
+import type {
+  CanalCobranza,
+  ConfigCanalCobranza,
+  DetalleCorridaCobranza,
+  EstadoCaso,
+  EstadoCorridaCobranza,
+  FiltroPruebaCobranza,
+  FiltrosCobranza,
+  NotificacionesCobranza,
+  OrigenCorridaCobranza,
+  TipoEventoCobranza,
+  TramoCobranza,
+} from "../lib/cobranza/tipos";
 
 export const prioridadEnum = pgEnum("prioridad", ["alta", "media", "baja"]);
 export const estadoEnum = pgEnum("estado_lead", [
@@ -420,7 +433,7 @@ export const comprobantes = pgTable("comprobantes", {
   esEjemplo: boolean("es_ejemplo").notNull().default(false),
 });
 
-/** Dónde está cada cobro en la secuencia de cobranza. */
+/** Cobranza v1: dónde estaba cada cobro en la secuencia. Desde la v2 no se usa (la migración 0031 lo copió a cobranza_casos); se conserva. */
 export const seguimientosCobranza = pgTable("seguimientos_cobranza", {
   id: serial("id").primaryKey(),
   cuotaId: integer("cuota_id")
@@ -1338,6 +1351,140 @@ export const validadorPagosDetectados = pgTable("validador_pagos_detectados", {
   index("validador_pagos_cuota_idx").on(t.cuotaId),
 ]);
 
+// ---------- Cobranza v2 (docs/specs/cobranza-v2.md) ----------
+
+/**
+ * Configuración del Agente de Cobranza. Cada campo en null toma el valor por
+ * defecto de src/lib/cobranza/configuracion.ts. Una fila por alcance.
+ */
+export const cobranzaConfig = pgTable("cobranza_config", {
+  id: serial("id").primaryKey(),
+  reglasGenerales: text("reglas_generales"),
+  tramos: jsonb("tramos").$type<TramoCobranza[]>(),
+  maxIntentos: integer("max_intentos"),
+  diasEntreIntentos: integer("dias_entre_intentos"),
+  diasGraciaPromesa: integer("dias_gracia_promesa"),
+  diasPrimerContacto: integer("dias_primer_contacto"),
+  /** "10:00" */
+  horaEjecucion: text("hora_ejecucion"),
+  zonaHoraria: text("zona_horaria"),
+  /** ISO: 1 = lunes … 7 = domingo. */
+  diasPermitidos: jsonb("dias_permitidos").$type<number[]>(),
+  ventanaDesde: text("ventana_desde"),
+  ventanaHasta: text("ventana_hasta"),
+  firmanteNombre: text("firmante_nombre"),
+  firmanteEmail: text("firmante_email"),
+  firmanteTelefono: text("firmante_telefono"),
+  idioma: text("idioma"),
+  filtros: jsonb("filtros").$type<Partial<FiltrosCobranza>>(),
+  notificaciones: jsonb("notificaciones").$type<Partial<NotificacionesCobranza>>(),
+  canales: jsonb("canales").$type<Partial<Record<CanalCobranza, Partial<ConfigCanalCobranza>>>>(),
+  modoPrueba: boolean("modo_prueba"),
+  pedirAprobacion: boolean("pedir_aprobacion"),
+  pruebaTelefono: text("prueba_telefono"),
+  pruebaEmail: text("prueba_email"),
+  pruebaWhatsapp: text("prueba_whatsapp"),
+  pruebaMaxRecibos: integer("prueba_max_recibos"),
+  pruebaFiltro: jsonb("prueba_filtro").$type<FiltroPruebaCobranza>(),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique("cobranza_config_alcance_uq").on(t.orgId, t.producerId).nullsNotDistinct()]);
+
+/** Cada ejecución del agente (cron, "Ejecutar ahora", "Probar" o la API). */
+export const cobranzaCorridas = pgTable("cobranza_corridas", {
+  id: serial("id").primaryKey(),
+  origen: text("origen").$type<OrigenCorridaCobranza>().notNull(),
+  estado: text("estado").$type<EstadoCorridaCobranza>().notNull().default("en_curso"),
+  modoPrueba: boolean("modo_prueba").notNull(),
+  /** Si los mensajes los redactó la IA (si no, las plantillas por tramo). */
+  conIa: boolean("con_ia").notNull().default(false),
+  iniciadaEl: timestamp("iniciada_el", { withTimezone: true }).notNull().defaultNow(),
+  terminadaEl: timestamp("terminada_el", { withTimezone: true }),
+  procesados: integer("procesados").notNull().default(0),
+  contactados: integer("contactados").notNull().default(0),
+  errores: integer("errores").notNull().default(0),
+  costoIaUsd: numeric("costo_ia_usd", { precision: 12, scale: 6, mode: "number" }),
+  resumen: text("resumen"),
+  detalle: jsonb("detalle").$type<DetalleCorridaCobranza>().notNull().default({}),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+}, (t) => [index("cobranza_corridas_fecha_idx").on(t.orgId, t.iniciadaEl)]);
+
+/**
+ * Un caso de cobranza es un cobro (src/lib/validador.ts → agruparCobros) y
+ * apunta a su primera cuota. Monto, compañía y vencimiento se leen de la
+ * cartera: no se copian.
+ */
+export const cobranzaCasos = pgTable("cobranza_casos", {
+  id: serial("id").primaryKey(),
+  cuotaId: integer("cuota_id")
+    .notNull()
+    .unique()
+    .references(() => cuotas.id, { onDelete: "cascade" }),
+  aseguradoId: integer("asegurado_id")
+    .notNull()
+    .references(() => asegurados.id, { onDelete: "cascade" }),
+  estado: text("estado").$type<EstadoCaso>().notNull().default("pendiente"),
+  /** Por qué está excluido, escalado o en pausa. */
+  motivo: text("motivo"),
+  intentos: integer("intentos").notNull().default(0),
+  ultimoContactoEl: timestamp("ultimo_contacto_el", { withTimezone: true }),
+  promesaEl: date("promesa_el", { mode: "string" }),
+  pagadoEl: timestamp("pagado_el", { withTimezone: true }),
+  /** "Reactivar recibo" en un caso excluido: entra al agente aunque los filtros lo dejen afuera. */
+  incluirIgual: boolean("incluir_igual").notNull().default(false),
+  esEjemplo: boolean("es_ejemplo").notNull().default(false),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+  actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("cobranza_casos_estado_idx").on(t.estado), index("cobranza_casos_asegurado_idx").on(t.aseguradoId)]);
+
+/** Todo lo que pasa en un caso: es la línea de tiempo, la fuente de los KPIs y la auditoría. */
+export const cobranzaEventos = pgTable("cobranza_eventos", {
+  id: serial("id").primaryKey(),
+  casoId: integer("caso_id")
+    .notNull()
+    .references(() => cobranzaCasos.id, { onDelete: "cascade" }),
+  corridaId: integer("corrida_id").references(() => cobranzaCorridas.id, { onDelete: "set null" }),
+  tipo: text("tipo").$type<TipoEventoCobranza>().notNull(),
+  canal: text("canal").$type<CanalCobranza>(),
+  resumen: text("resumen").notNull(),
+  /** Texto enviado o recibido, destino, id del proveedor. */
+  datos: jsonb("datos").$type<Record<string, unknown>>().notNull().default({}),
+  esPrueba: boolean("es_prueba").notNull().default(false),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("cobranza_eventos_caso_idx").on(t.casoId, t.creadoEl)]);
+
+/** Asegurados a los que el agente no les escribe: los marcó el productor o pidieron la baja. */
+export const cobranzaNoContactar = pgTable("cobranza_no_contactar", {
+  aseguradoId: integer("asegurado_id")
+    .primaryKey()
+    .references(() => asegurados.id, { onDelete: "cascade" }),
+  /** manual | baja */
+  motivo: text("motivo").$type<"manual" | "baja">().notNull(),
+  nota: text("nota"),
+  creadoEl: timestamp("creado_el", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Claves de la API (/api/v1). Solo se guarda el hash; la clave se muestra una vez. */
+export const apiClaves = pgTable("api_claves", {
+  id: serial("id").primaryKey(),
+  nombre: text("nombre").notNull(),
+  /** El comienzo de la clave, para reconocerla en la lista. */
+  prefijo: text("prefijo").notNull(),
+  hash: text("hash").notNull().unique(),
+  /** Qué partes de la API puede usar: "cobranza". */
+  permisos: jsonb("permisos").$type<string[]>().notNull().default(["cobranza"]),
+  orgId: text("org_id"),
+  producerId: text("producer_id"),
+  creadaEl: timestamp("creada_el", { withTimezone: true }).notNull().defaultNow(),
+  ultimoUsoEl: timestamp("ultimo_uso_el", { withTimezone: true }),
+  revocadaEl: timestamp("revocada_el", { withTimezone: true }),
+});
+
 export type Sector = typeof sectores.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type NuevoLead = typeof leads.$inferInsert;
@@ -1366,3 +1513,8 @@ export type ValidadorConfig = typeof validadorConfig.$inferSelect;
 export type ValidadorCorrida = typeof validadorCorridas.$inferSelect;
 export type ValidadorFuente = typeof validadorFuentes.$inferSelect;
 export type ValidadorPagoDetectado = typeof validadorPagosDetectados.$inferSelect;
+export type CobranzaConfig = typeof cobranzaConfig.$inferSelect;
+export type CobranzaCaso = typeof cobranzaCasos.$inferSelect;
+export type CobranzaEvento = typeof cobranzaEventos.$inferSelect;
+export type CobranzaCorrida = typeof cobranzaCorridas.$inferSelect;
+export type ApiClave = typeof apiClaves.$inferSelect;
