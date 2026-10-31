@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { ZodType } from "zod";
-import { estimarCostoIA, type AdjuntoIA, type ProveedorIA, type SolicitudIA } from "./index";
+import { entradaEquivalente, estimarCostoIA, type AdjuntoIA, type ProveedorIA, type SolicitudConversacionIA, type SolicitudIA, type TurnoIA } from "./index";
 import { MODELO_SONNET } from "./modelos";
 
 const MODELO_POR_DEFECTO = "claude-haiku-5-5";
@@ -30,6 +30,19 @@ function contenido(solicitud: SolicitudIA): string | Anthropic.ContentBlockParam
 
 function textoDe(bloques: { type: string; text?: string }[]): string {
   return bloques.filter((bloque) => bloque.type === "text").map((bloque) => bloque.text ?? "").join("\n").trim();
+}
+
+function mensajeDe(turno: TurnoIA): Anthropic.MessageParam {
+  if (turno.rol === "asistente") return { role: "assistant", content: turno.contenido as Anthropic.ContentBlockParam[] };
+  const resultados: Anthropic.ToolResultBlockParam[] = (turno.resultados ?? []).map((r) => ({
+    type: "tool_result",
+    tool_use_id: r.id,
+    content: r.contenido,
+    ...(r.esError ? { is_error: true } : {}),
+  }));
+  // Los resultados van primero; el texto, si hay, después.
+  const contenido: Anthropic.ContentBlockParam[] = [...resultados, ...(turno.texto ? [{ type: "text" as const, text: turno.texto }] : [])];
+  return { role: "user", content: contenido };
 }
 
 /** Único lugar de la aplicación que usa el SDK de Anthropic. */
@@ -69,6 +82,41 @@ export class ProveedorClaude implements ProveedorIA {
       tokensEntrada,
       tokensSalida,
       costoUsd: estimarCostoIA(modeloUsado, tokensEntrada, tokensSalida),
+    };
+  }
+
+  /**
+   * Un turno de una conversación con herramientas. El prompt de sistema y las
+   * herramientas van en caché: se repiten igual para cada asegurado de una
+   * corrida. La IA elige si usa una herramienta (`tool_choice` automático).
+   */
+  async conversar(solicitud: SolicitudConversacionIA) {
+    const modelo = solicitud.modelo || MODELO_POR_DEFECTO;
+    const respuesta = await cliente().messages.create({
+      model: modelo,
+      max_tokens: solicitud.maxTokens ?? 4_000,
+      system: [{ type: "text", text: solicitud.system, cache_control: { type: "ephemeral" } }],
+      tools: solicitud.herramientas.map((h) => ({ name: h.nombre, description: h.descripcion, input_schema: h.esquema as Anthropic.Tool.InputSchema })),
+      messages: solicitud.turnos.map(mensajeDe),
+      cache_control: { type: "ephemeral" },
+      ...(solicitud.esfuerzo ? { output_config: { effort: solicitud.esfuerzo } } : {}),
+    });
+    const llamadas = respuesta.content
+      .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
+      .map((b) => ({ id: b.id, nombre: b.name, entrada: b.input }));
+    const modeloUsado = respuesta.model || modelo;
+    const u = respuesta.usage;
+    const tokensEntrada = entradaEquivalente({ entrada: u.input_tokens, escrituraCache: u.cache_creation_input_tokens, lecturaCache: u.cache_read_input_tokens });
+    return {
+      texto: textoDe(respuesta.content),
+      llamadas,
+      contenido: respuesta.content,
+      rechazada: respuesta.stop_reason === "refusal",
+      cortada: respuesta.stop_reason === "max_tokens",
+      modelo: modeloUsado,
+      tokensEntrada,
+      tokensSalida: u.output_tokens,
+      costoUsd: estimarCostoIA(modeloUsado, tokensEntrada, u.output_tokens),
     };
   }
 }

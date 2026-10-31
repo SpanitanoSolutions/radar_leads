@@ -14,7 +14,7 @@ import {
 } from "./configuracion";
 import { ProveedorClaude } from "./claude";
 import { planDeTarea } from "./modelos";
-import { ejecutarConReintento, type PedidoIA, type ResultadoIA, type UsoIA } from "./motor";
+import { conversarConHerramientas, ejecutarConReintento, type PedidoAgenteIA, type PedidoIA, type ResultadoAgenteIA, type ResultadoIA, type UsoIA } from "./motor";
 import { registroProveedoresIA } from "./registro";
 
 const PROVEEDOR_POR_DEFECTO = "anthropic";
@@ -90,6 +90,26 @@ export async function ejecutarIA<T>(pedido: PedidoIA<T>): Promise<ResultadoIA<T>
     ? registroProveedoresIA.resolver({ proveedor: nombreProveedor, modelo: planDeTarea(pedido.tarea, configuracion.modelo).modelo })
     : null;
   return ejecutarConReintento(pedido, {
+    proveedor,
+    nombreProveedor,
+    configuracion,
+    cuotaAlcanzada: proveedor && configuracion.activa ? await cuotaAlcanzada(configuracion, alcance) : false,
+    registrarUso,
+  });
+}
+
+/**
+ * La misma puerta para un agente que usa herramientas: mismo interruptor,
+ * misma cuota y cada turno en ia_uso. Nunca lanza por la IA.
+ */
+export async function ejecutarAgenteIA(pedido: PedidoAgenteIA): Promise<ResultadoAgenteIA> {
+  const alcance = alcanceDe(pedido);
+  const configuracion = await configuracionPara(alcance);
+  const nombreProveedor = configuracion.proveedor ?? PROVEEDOR_POR_DEFECTO;
+  const proveedor = process.env.ANTHROPIC_API_KEY
+    ? registroProveedoresIA.resolver({ proveedor: nombreProveedor, modelo: planDeTarea("actuar", configuracion.modelo).modelo })
+    : null;
+  return conversarConHerramientas(pedido, {
     proveedor,
     nombreProveedor,
     configuracion,

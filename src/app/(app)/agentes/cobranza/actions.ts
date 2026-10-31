@@ -3,6 +3,7 @@
 import { and, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { db, schema } from "@/db";
 import { confirmarCobro } from "@/agentes/cobros";
 import {
@@ -14,9 +15,12 @@ import {
   reactivarCaso,
   registrarEventos,
 } from "@/agentes/cobranza/casos";
+import { correrCobranza, iniciarCorrida } from "@/agentes/cobranza/motor";
+import { leerConfigCobranza } from "@/agentes/cobranza/casos";
 import { enviarMensaje } from "@/agentes/envio";
 import { requerirSesion } from "@/lib/auth";
 import { cuentaComoIntento, leerReferencia } from "@/lib/cobranza";
+import { agenteConfigurado } from "@/lib/datos-agentes";
 import { diaEnArgentina, diaYMes, sumarDias } from "@/lib/fechas";
 import { leerFecha } from "@/lib/importacion";
 
@@ -57,6 +61,30 @@ async function casosDelMensaje(m: { id: number; referencia: string | null }) {
   if (ligados.length) return db.select().from(schema.cobranzaCasos).where(inArray(schema.cobranzaCasos.id, [...new Set(ligados.map((l) => l.casoId))]));
   const ref = leerReferencia(m.referencia);
   return ref ? casosDeCuotas([ref.cuotaId]) : [];
+}
+
+// ---------- Corridas ----------
+
+/**
+ * "Ejecutar ahora" y "Probar": arranca una corrida en segundo plano y lleva a
+ * su detalle, que se actualiza solo. "Probar" corre en modo prueba aunque la
+ * configuración diga otra cosa. En modo real, el agente tiene que estar activo.
+ */
+export async function ejecutarAhora(formData: FormData) {
+  await requerirSesion();
+  const prueba = formData.get("prueba") === "1";
+  const config = await leerConfigCobranza();
+  if (!prueba && !config.modoPrueba && !(await agenteConfigurado("cobranza"))) volver(formData, "agente-inactivo");
+  const opciones = { origen: prueba ? ("prueba" as const) : ("manual" as const), forzarPrueba: prueba };
+  const { id, nueva } = await iniciarCorrida(opciones);
+  if (nueva) {
+    after(async () => {
+      await correrCobranza(id, opciones);
+      revalidatePath("/agentes/cobranza", "layout");
+    });
+  }
+  revalidatePath("/", "layout");
+  redirect(`/agentes/cobranza/ejecuciones/${id}${nueva ? "" : "?aviso=corrida-en-curso"}`);
 }
 
 // ---------- Para aprobar ----------

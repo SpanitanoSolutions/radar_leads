@@ -14,7 +14,7 @@ import { sumarDias } from "@/lib/fechas";
 import { importe } from "@/lib/formato";
 import { normalizar } from "@/fuentes/clasificacion";
 import { conFirma } from "@/lib/plantillas";
-import { aprobarTodos } from "./actions";
+import { aprobarTodos, ejecutarAhora } from "./actions";
 import { EstadoPunto, Monto, MontoKpi } from "./Componentes";
 import { TarjetaPendiente, type Pendiente } from "./TarjetaPendiente";
 import "../agentes.css";
@@ -22,6 +22,8 @@ import "./cobranza.css";
 
 // Pantalla privada con datos que cambian: se arma en cada pedido.
 export const instant = false;
+// "Ejecutar ahora" sigue en segundo plano después de responder (after()).
+export const maxDuration = 300;
 
 const POR_PAGINA = 25;
 const unico = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
@@ -129,6 +131,12 @@ export default async function Cobranza({ searchParams }: { searchParams: Promise
         <Link href="/agentes/cobranza/configuracion" className="boton boton-mediano">
           Configuración
         </Link>
+        <form action={ejecutarAhora}>
+          <input type="hidden" name="volver" value="/agentes/cobranza" />
+          <button type="submit" className="boton boton-primario boton-mediano">
+            Ejecutar ahora
+          </button>
+        </form>
       </EncabezadoAgente>
 
       <Aviso codigo={sp.aviso} />

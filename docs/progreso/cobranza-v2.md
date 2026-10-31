@@ -10,9 +10,9 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 | 1. Plan y spec | Hecha |
 | 2. Modelo de datos y reglas | Hecha |
 | 3. Casos (sincronización, acciones, Validador) | Hecha |
-| 4. Tablero y detalle | Hecha (falta "Ejecutar ahora", que llega con el motor) |
+| 4. Tablero y detalle | Hecha |
 | 5. Configuración y demo | Hecha |
-| 6. Motor, corridas, Instrucciones y Ejecuciones | Pendiente |
+| 6. Motor, corridas, Instrucciones y Ejecuciones | Hecha |
 | 7. Entrantes y avisos | Pendiente |
 | 8. API | Pendiente |
 | 9. Cron, menú, E2E, README y verificación | Pendiente |
@@ -39,5 +39,13 @@ Rama: `feat/cobranza-v2`, sale de `main` en `4b8762a` (PR #38). Un commit por fa
 - **Programación** (`src/lib/cobranza/programacion.ts`, con tests): pasada diaria del cron a las 10:00 de Argentina; corre si el día está permitido, ya es la hora y no corrió hoy.
 - **Demo** (`src/db/demo-cobranza.ts`, botón y `npm run db:seed:cobranza`): 100 asegurados ficticios con una póliza y un recibo cada uno, 7 aseguradoras, vencimientos de −40 a +30, 10 sin contacto, 5 excluidos (uno pidió la baja), escalados, promesas, rechazos, consultas, pagos informados y pagados, y la línea de tiempo con todos los tipos de evento. Los asegurados llevan la nota de la demo y son ejemplo: recargarla reemplaza la anterior y "Borrar datos de ejemplo" la limpia.
 
+### Fase 6 — motor, corridas, Instrucciones y Ejecuciones
+- **IA con herramientas** (`src/lib/ia`): `ProveedorClaude.conversar()` (único lugar con el SDK; sistema y herramientas en caché, `cache_control` general, `effort`), `conversarConHerramientas()` en `motor.ts` (turnos con tope, cada turno en `ia_uso`, nunca lanza y devuelve cuántas herramientas ya ejecutó) y `ejecutarAgenteIA()` en `ejecutar.ts` (mismo interruptor y tope de USD 20 que `ejecutarIA()`). Tarea nueva `actuar`: Haiku 5.5, esfuerzo medio, 4.000 tokens. Tests con proveedor falso.
+- **`src/lib/cobranza/`:** `herramientas.ts` (las 7 herramientas con su esquema y validación zod), `prompt.ts` (las instrucciones de la spec armadas desde la configuración, con trato digno y modo prueba) y `plantillas.ts` (mensajes sin IA por tramo y el texto del intento, "Cuarto intento. Póliza vencida hace 11 días, $ 14.974,43.").
+- **`src/agentes/cobranza/motor.ts`:** `iniciarCorrida()` con lock (`pg_advisory_xact_lock`; una corrida colgada más de 15 min se cierra como error) y `correrCobranza()`: sincroniza, escala por máximo de intentos, respeta días y ventana (modo real), elige los recibos que pasan las reglas (en modo prueba, con el filtro y el máximo de Pruebas), los agrupa por asegurado y conversa con la IA (3 en paralelo, 240 s de presupuesto). Cada herramienta pasa por `crearEjecutor()`: casos del asegurado, reglas, canal habilitado y con dato, destino de prueba, aprobación, ejemplos simulados en modo real, errores registrados. Sin IA (o si falla), el mismo ejecutor manda la plantilla. Avisos al productor (`avisos.ts`) al final.
+- **Pantallas:** "Ejecutar ahora" en el tablero, Ejecuciones (lista y detalle que se actualiza solo, con por qué no le escribió a cada uno) y la vista del agente (`/agentes/cobranza/instrucciones`) con Instrucciones, Herramientas, Triggers, Ejecuciones, Detalles y Settings, y los botones Probar y ▶ Ejecutar.
+- **Probado con la app compilada** (`next build --webpack` en el worktree y `next start`; en dev webpack tardaba minutos en compilar la página): sin IA, la corrida tomó 3 recibos de la demo en modo prueba y los contactó con las plantillas (simulado), con los omitidos explicados. Con una API de Anthropic falsa local (`ANTHROPIC_BASE_URL`), la IA pidió `enviar_whatsapp`/`enviar_email` y `terminar` para 3 asegurados: 6 turnos en `ia_uso` (Haiku 5.5), sistema y herramientas con `cache_control`, esfuerzo `medium`, intentos, estados, KPIs y línea de tiempo actualizados. **Criterio de aceptación de la spec cumplido** con la IA falsa; falta probarlo con la IA real (decisión del 29/10: de a una).
+- Tests: 675 de 678 (los 3 de siempre). Lint sin errores en lo tocado.
+
 ## Próximo paso exacto
-Fase 6: el motor. Conversación con herramientas en `src/lib/ia` (`ejecutarAgenteIA()`), prompt y herramientas en `src/lib/cobranza/`, ejecutor con reglas y corridas con lock en `src/agentes/cobranza/`, "Ejecutar ahora", Instrucciones y Ejecuciones.
+Fase 7: entrantes. `procesarEntrante()` (identificar el caso por el teléfono o el correo, o la referencia "C-<id>", y conversar con la IA en modo entrante; sin IA, reglas simples para baja y "ya pagué"), las rutas `/api/v1/agentes/cobranza/entrantes/whatsapp` y `/email` (llegan con la fase 8, la API) y "Simular respuesta" en el detalle del caso en modo prueba.

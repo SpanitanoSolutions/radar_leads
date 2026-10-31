@@ -211,3 +211,14 @@ export async function borrarDemo() {
   const n = await borrarDemoCobranza();
   ir({ seccion: "demo", aviso: "demo-borrada", detalle: String(n) });
 }
+
+/** Settings de la vista del agente: modo prueba y aprobación, sin pasar por toda la sección Pruebas. */
+export async function cambiarModo(formData: FormData) {
+  await requerirSesion();
+  const actual = await leerConfigCobranza();
+  const r = aplicarCambios(actual, { modoPrueba: marcado(formData, "modoPrueba"), pedirAprobacion: marcado(formData, "pedirAprobacion") });
+  if (!r.ok) redirect(`/agentes/cobranza/instrucciones?tab=settings&aviso=config-invalida`);
+  await guardarConfigCobranza(r.config);
+  revalidatePath("/", "layout");
+  redirect("/agentes/cobranza/instrucciones?tab=settings&aviso=config-guardada");
+}
