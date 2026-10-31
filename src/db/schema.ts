@@ -1090,12 +1090,6 @@ export const conexiones = pgTable("conexiones", {
   actualizadoEl: timestamp("actualizado_el", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type PasoCobranza = { paso: number; plantilla: string; automatico: boolean };
-export type ConfigCobranza = {
-  pasos: PasoCobranza[];
-  reglas: { cortarAlConfirmar: boolean; horario: boolean; contactoAdministracion: boolean; avisarRespuestas: boolean };
-};
-
 /** Configuración de cada agente: si está listo para trabajar y sus reglas. */
 export const configuracionAgentes = pgTable("configuracion_agentes", {
   agente: text("agente").primaryKey(),

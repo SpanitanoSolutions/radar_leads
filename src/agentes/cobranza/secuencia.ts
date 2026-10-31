@@ -1,6 +1,5 @@
-import type { ConfigCobranza } from "@/db/schema";
-
-// Los cinco pasos de la secuencia de cobranza, con su plantilla por defecto.
+// Las plantillas de la Cobranza v1 que siguen en uso: las de los pedidos que
+// el Validador de pagos deja para aprobar (recordatorio, vence hoy, vencida).
 // Las plantillas usan {nombre}, {compañía}, {ramo}, {cuota}, {monto}, {vence},
 // {medios de pago}, {fin de gracia} y {productor}.
 
@@ -57,9 +56,3 @@ export const PASOS_COBRANZA: DefinicionPaso[] = [
       "Hola {nombre}, la cuota {cuota} de tu seguro de {ramo} sigue impaga. Si no se regulariza antes del {fin de gracia}, {compañía} puede suspender la cobertura. Escribime y lo resolvemos. Saludos, {productor}",
   },
 ];
-
-// Ningún paso sale solo hasta que el productor lo activa en "Secuencia".
-export const CONFIG_COBRANZA_INICIAL: ConfigCobranza = {
-  pasos: PASOS_COBRANZA.map((p) => ({ paso: p.paso, plantilla: p.plantilla, automatico: false })),
-  reglas: { cortarAlConfirmar: true, horario: true, contactoAdministracion: true, avisarRespuestas: true },
-};

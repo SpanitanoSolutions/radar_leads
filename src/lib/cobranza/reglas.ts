@@ -137,6 +137,8 @@ export type CobroParaSincronizar = {
   pagado: boolean;
   /** Todas sus cuotas las anuló la compañía. */
   cancelado: boolean;
+  /** Todas sus pólizas se dieron de baja (al reemplazar la cartera). */
+  polizaDeBaja: boolean;
   tieneContacto: boolean;
   noContactar: "manual" | "baja" | null;
 };
@@ -176,6 +178,7 @@ export function estadoSincronizado(cobro: CobroParaSincronizar, caso: CasoParaSi
   if (actual.estado === "pagado") return { estado: enGestion, motivo: "El recibo volvió a figurar impago en la cartera." };
   if (!AUTOMATICOS.includes(actual.estado)) return caso ? null : { estado: actual.estado, motivo: actual.motivo };
   if (cobro.cancelado) return cambio("excluido", "La compañía anuló el recibo.");
+  if (cobro.polizaDeBaja) return cambio("excluido", "La póliza está dada de baja en la cartera.");
   const exclusion = motivoExclusion(cobro, filtros);
   if (exclusion && (cobro.noContactar === "baja" || !actual.incluirIgual)) return cambio("excluido", exclusion);
   if (!cobro.tieneContacto) return cambio("sin_datos", null);

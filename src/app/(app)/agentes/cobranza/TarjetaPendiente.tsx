@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { enlaceLlamada } from "@/lib/asegurados";
 import { aprobarMensaje, llameNoAtendio, omitirMensaje, posponerMensaje, registrarPromesa } from "./actions";
@@ -18,6 +19,8 @@ export type Pendiente = {
   llamada: boolean;
   telefono: string | null;
   manana: string;
+  /** El caso al que corresponde (para "Ver caso"). */
+  casoId?: number;
 };
 
 const CLASE_ETAPA = { aviso: "pastilla-ambar", vencida: "pastilla-rojo", llamada: "pastilla-rojo", problema: "pastilla-rojo" };
@@ -32,6 +35,11 @@ export function TarjetaPendiente({ p }: { p: Pendiente }) {
         <div className="titulo-fila">
           <span className={`pastilla ${CLASE_ETAPA[p.etiqueta.tono]}`}>{p.etiqueta.texto}</span>
           <span className="nota-pie">{p.canal}</span>
+          {p.casoId && (
+            <Link href={`/agentes/cobranza/${p.casoId}`} className="nota-pie">
+              Ver caso →
+            </Link>
+          )}
         </div>
         <h2 id={titulo} className="pendiente-cliente">
           {p.cliente}

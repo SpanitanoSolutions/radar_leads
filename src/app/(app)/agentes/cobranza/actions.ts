@@ -1,30 +1,39 @@
 "use server";
 
-import { and, eq, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
-import type { ConfigCobranza } from "@/db/schema";
-import { pausarSeguimiento } from "@/agentes/cobros";
-import { leerConfigCobranza, marcarPaso } from "@/agentes/cobranza";
-import { PASOS_COBRANZA } from "@/agentes/cobranza/secuencia";
+import { confirmarCobro } from "@/agentes/cobros";
+import {
+  actualizarCasos,
+  actualizarContacto,
+  cambiarNoContactar,
+  casosDeCuotas,
+  despuesDeEnviarMensaje,
+  reactivarCaso,
+  registrarEventos,
+} from "@/agentes/cobranza/casos";
 import { enviarMensaje } from "@/agentes/envio";
 import { requerirSesion } from "@/lib/auth";
-import { leerReferencia } from "@/lib/cobranza";
-import { diaEnArgentina, sumarDias } from "@/lib/fechas";
+import { cuentaComoIntento, leerReferencia } from "@/lib/cobranza";
+import { diaEnArgentina, diaYMes, sumarDias } from "@/lib/fechas";
 import { leerFecha } from "@/lib/importacion";
 
 const AGENTES = ["cobranza", "validador"];
 
-function idDe(formData: FormData): number {
-  const id = Number(formData.get("id"));
-  if (!Number.isInteger(id) || id <= 0) throw new Error("Mensaje inválido");
+function entero(valor: FormDataEntryValue | null, que = "Dato"): number {
+  const id = Number(valor);
+  if (!Number.isInteger(id) || id <= 0) throw new Error(`${que} inválido`);
   return id;
 }
 
-function volver(aviso: string, pestana = "aprobar"): never {
+/** Vuelve a la pantalla de la que vino la acción (el tablero o un caso), con el aviso. */
+function volver(formData: FormData, aviso: string): never {
   revalidatePath("/", "layout");
-  redirect(`/agentes/cobranza?tab=${pestana}&aviso=${aviso}`);
+  const destino = String(formData.get("volver") ?? "");
+  const base = /^\/agentes\/cobranza(\/\d+)?(\?[\w=&-]*)?$/.test(destino) ? destino : "/agentes/cobranza?tab=aprobar";
+  redirect(`${base}${base.includes("?") ? "&" : "?"}aviso=${aviso}`);
 }
 
 async function mensaje(id: number) {
@@ -33,31 +42,42 @@ async function mensaje(id: number) {
   return m;
 }
 
-/** Lo que pasa en la secuencia después de que sale un mensaje. */
-async function despuesDeEnviar(referencia: string | null, canal: string) {
-  const ref = leerReferencia(referencia);
-  if (!ref) return;
-  const contacto = canal === "whatsapp" ? "WhatsApp" : "Email";
-  if (typeof ref.tipo === "number") await marcarPaso(ref.cuotaId, ref.tipo, contacto);
-  else if (ref.tipo === "diferencia") await pausarSeguimiento(ref.cuotaId, "Se pidió la diferencia", { contacto });
-  else if (ref.tipo === "comprobante") await pausarSeguimiento(ref.cuotaId, "Se pidió otro comprobante", { contacto });
+async function caso(formData: FormData) {
+  const [k] = await db.select().from(schema.cobranzaCasos).where(eq(schema.cobranzaCasos.id, entero(formData.get("casoId"), "Caso")));
+  if (!k) throw new Error("Caso inexistente");
+  return k;
 }
+
+/** Los casos a los que corresponde un borrador o una llamada. */
+async function casosDelMensaje(m: { id: number; referencia: string | null }) {
+  const ligados = await db
+    .select({ casoId: schema.cobranzaEventos.casoId })
+    .from(schema.cobranzaEventos)
+    .where(sql`${schema.cobranzaEventos.datos} ->> 'mensajeId' = ${String(m.id)}`);
+  if (ligados.length) return db.select().from(schema.cobranzaCasos).where(inArray(schema.cobranzaCasos.id, [...new Set(ligados.map((l) => l.casoId))]));
+  const ref = leerReferencia(m.referencia);
+  return ref ? casosDeCuotas([ref.cuotaId]) : [];
+}
+
+// ---------- Para aprobar ----------
 
 export async function aprobarMensaje(formData: FormData) {
   await requerirSesion();
-  const m = await mensaje(idDe(formData));
+  const m = await mensaje(entero(formData.get("id"), "Mensaje"));
   const texto = formData.get("texto");
   const r = await enviarMensaje(m.id, { texto: typeof texto === "string" ? texto : undefined });
   if (!r.ok) {
     console.error(`No se pudo enviar el mensaje ${m.id}:`, r.error);
-    volver("mensaje-error");
+    volver(formData, "mensaje-error");
   }
-  await despuesDeEnviar(m.referencia, m.canal);
-  volver("mensaje-enviado");
+  const [enviado] = await db.select().from(schema.mensajes).where(eq(schema.mensajes.id, m.id));
+  const ref = leerReferencia(m.referencia);
+  await despuesDeEnviarMensaje(enviado, ref ? cuentaComoIntento(ref.tipo) : false);
+  volver(formData, "mensaje-enviado");
 }
 
 /** "Aprobar y enviar N mensajes": todos los que esperan, menos las llamadas. */
-export async function aprobarTodos() {
+export async function aprobarTodos(formData: FormData) {
   await requerirSesion();
   const hoy = diaEnArgentina(new Date());
   const pendientes = await db
@@ -82,91 +102,102 @@ export async function aprobarTodos() {
         continue;
       }
       enviados++;
-      await despuesDeEnviar(m.referencia, m.canal);
+      const [enviado] = await db.select().from(schema.mensajes).where(eq(schema.mensajes.id, m.id));
+      const ref = leerReferencia(m.referencia);
+      await despuesDeEnviarMensaje(enviado, ref ? cuentaComoIntento(ref.tipo) : false);
     } catch (error) {
       errores++;
-      console.error(`Falló el envío o la actualización del seguimiento del mensaje ${m.id}:`, error);
+      console.error(`Falló el envío o la línea de tiempo del mensaje ${m.id}:`, error);
     }
   }
-  volver(`envios-lote-${enviados}-errores-${errores}`);
+  volver(formData, `envios-lote-${enviados}-errores-${errores}`);
 }
 
 export async function omitirMensaje(formData: FormData) {
   await requerirSesion();
-  const m = await mensaje(idDe(formData));
+  const m = await mensaje(entero(formData.get("id"), "Mensaje"));
   await db.update(schema.mensajes).set({ estado: "omitido" }).where(eq(schema.mensajes.id, m.id));
-  const ref = leerReferencia(m.referencia);
-  // El paso omitido cuenta como hecho: mañana el agente no lo vuelve a proponer.
-  if (ref && typeof ref.tipo === "number") await marcarPaso(ref.cuotaId, ref.tipo, "Omitido por vos");
-  volver("mensaje-omitido");
+  const lista = await casosDelMensaje(m);
+  await registrarEventos(lista.map((k) => ({ casoId: k.id, tipo: "nota" as const, resumen: "Omitiste el mensaje: no salió nada.", datos: { mensajeId: m.id } })));
+  volver(formData, "mensaje-omitido");
+}
+
+export async function posponerMensaje(formData: FormData) {
+  await requerirSesion();
+  const m = await mensaje(entero(formData.get("id"), "Mensaje"));
+  await db
+    .update(schema.mensajes)
+    .set({ mostrarDesde: sumarDias(diaEnArgentina(new Date()), 1) })
+    .where(eq(schema.mensajes.id, m.id));
+  volver(formData, "pospuesto");
 }
 
 // ---------- Llamadas ----------
 
 export async function registrarPromesa(formData: FormData) {
   await requerirSesion();
-  const m = await mensaje(idDe(formData));
+  const m = await mensaje(entero(formData.get("id"), "Mensaje"));
   const fecha = leerFecha(String(formData.get("fecha") ?? ""));
-  if (!fecha || "error" in fecha) volver("promesa-sin-fecha");
-  const ref = leerReferencia(m.referencia);
-  await db.update(schema.mensajes).set({ estado: "hecho", enviadoEl: new Date() }).where(eq(schema.mensajes.id, m.id));
-  if (ref) {
-    await marcarPaso(ref.cuotaId, 4, "Llamada tuya");
-    await pausarSeguimiento(ref.cuotaId, "Promesa de pago", { promesa: fecha.iso, contacto: "Llamada tuya" });
+  if (!fecha || "error" in fecha) volver(formData, "promesa-sin-fecha");
+  const ahora = new Date();
+  await db.update(schema.mensajes).set({ estado: "hecho", enviadoEl: ahora }).where(eq(schema.mensajes.id, m.id));
+  for (const k of await casosDelMensaje(m)) {
+    await actualizarCasos(
+      [k.id],
+      { estado: "promesa", promesaEl: fecha.iso, motivo: "Promesa de pago", intentos: k.intentos + 1, ultimoContactoEl: ahora },
+      { tipo: "promesa", canal: "telefono", resumen: `Lo llamaste: prometió pagar el ${diaYMes(fecha.iso)}.`, datos: { mensajeId: m.id } },
+    );
   }
-  volver("promesa-registrada");
+  volver(formData, "promesa-registrada");
 }
 
 export async function llameNoAtendio(formData: FormData) {
   await requerirSesion();
-  const m = await mensaje(idDe(formData));
-  const manana = sumarDias(diaEnArgentina(new Date()), 1);
-  await db.update(schema.mensajes).set({ mostrarDesde: manana }).where(eq(schema.mensajes.id, m.id));
-  const ref = leerReferencia(m.referencia);
-  if (ref) {
-    await db
-      .update(schema.seguimientosCobranza)
-      .set({ ultimaNovedad: "Llamaste y no atendió", ultimoContacto: "Llamada tuya", ultimaNovedadEl: new Date(), actualizadoEl: new Date() })
-      .where(eq(schema.seguimientosCobranza.cuotaId, ref.cuotaId));
+  const m = await mensaje(entero(formData.get("id"), "Mensaje"));
+  const ahora = new Date();
+  await db.update(schema.mensajes).set({ mostrarDesde: sumarDias(diaEnArgentina(ahora), 1) }).where(eq(schema.mensajes.id, m.id));
+  for (const k of await casosDelMensaje(m)) {
+    await actualizarCasos(
+      [k.id],
+      { intentos: k.intentos + 1, ultimoContactoEl: ahora, ...(k.estado === "pendiente" ? { estado: "sin_respuesta" as const } : {}) },
+      { tipo: "sin_respuesta", canal: "telefono", resumen: `Lo llamaste y no atendió. Intento ${k.intentos + 1}.`, datos: { mensajeId: m.id } },
+    );
   }
-  volver("llamada-anotada");
+  volver(formData, "llamada-anotada");
 }
 
-export async function posponerMensaje(formData: FormData) {
+// ---------- Acciones del caso ----------
+
+export async function marcarComoPagado(formData: FormData) {
   await requerirSesion();
-  const m = await mensaje(idDe(formData));
-  await db
-    .update(schema.mensajes)
-    .set({ mostrarDesde: sumarDias(diaEnArgentina(new Date()), 1) })
-    .where(eq(schema.mensajes.id, m.id));
-  volver("pospuesto");
+  const k = await caso(formData);
+  if (k.estado === "pagado") volver(formData, "cuota-cerrada");
+  await confirmarCobro(k.cuotaId, { medio: "Marcado como pagado en Cobranza", origen: "manual" });
+  volver(formData, "caso-pagado");
 }
 
-// ---------- Secuencia ----------
-
-export async function guardarSecuencia(formData: FormData) {
+export async function reactivarRecibo(formData: FormData) {
   await requerirSesion();
-  const actual = await leerConfigCobranza();
-  const config: ConfigCobranza = {
-    pasos: PASOS_COBRANZA.map((p) => {
-      const plantilla = String(formData.get(`plantilla-${p.paso}`) ?? "").trim().slice(0, 1000);
-      return {
-        paso: p.paso,
-        plantilla: p.tarea ? p.plantilla : plantilla || (actual.pasos.find((x) => x.paso === p.paso)?.plantilla ?? p.plantilla),
-        // La llamada siempre la hace el productor.
-        automatico: !p.tarea && formData.get(`auto-${p.paso}`) === "on",
-      };
-    }),
-    reglas: {
-      cortarAlConfirmar: formData.get("cortarAlConfirmar") === "on",
-      horario: formData.get("horario") === "on",
-      contactoAdministracion: formData.get("contactoAdministracion") === "on",
-      avisarRespuestas: formData.get("avisarRespuestas") === "on",
-    },
-  };
-  await db
-    .insert(schema.configuracionAgentes)
-    .values({ agente: "cobranza", configurado: true, config })
-    .onConflictDoUpdate({ target: schema.configuracionAgentes.agente, set: { config, actualizadoEl: new Date() } });
-  volver("secuencia-guardada", "secuencia");
+  const k = await caso(formData);
+  const r = await reactivarCaso(k.id);
+  volver(formData, r === "ok" ? "caso-reactivado" : r === "baja" ? "caso-baja" : "caso-no-reactivable");
+}
+
+export async function cambiarMarcaNoContactar(formData: FormData) {
+  await requerirSesion();
+  const k = await caso(formData);
+  const marcar = formData.get("marcar") === "1";
+  await cambiarNoContactar(k.aseguradoId, marcar);
+  volver(formData, marcar ? "marcado-no-contactar" : "desmarcado-no-contactar");
+}
+
+const limpio = (v: FormDataEntryValue | null) => String(v ?? "").trim().slice(0, 200) || null;
+
+export async function guardarContactoCaso(formData: FormData) {
+  await requerirSesion();
+  const k = await caso(formData);
+  const email = limpio(formData.get("email"));
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) volver(formData, "contacto-invalido");
+  await actualizarContacto(k.id, { telefono: limpio(formData.get("telefono")), email });
+  volver(formData, "contacto-guardado");
 }

@@ -120,6 +120,7 @@ describe("sincronización con la cartera", () => {
     monto: 1000,
     pagado: false,
     cancelado: false,
+    polizaDeBaja: false,
     tieneContacto: true,
     noContactar: null,
     ...c,
@@ -130,6 +131,8 @@ describe("sincronización con la cartera", () => {
     expect(estadoSincronizado(cobro({ tieneContacto: false }), null, filtros)).toEqual({ estado: "sin_datos", motivo: null });
     expect(estadoSincronizado(cobro({ noContactar: "manual" }), null, filtros)?.estado).toBe("excluido");
     expect(estadoSincronizado(cobro({ pagado: true }), null, filtros)).toEqual({ estado: "pagado", motivo: null });
+    expect(estadoSincronizado(cobro({ cancelado: true }), null, filtros)).toEqual({ estado: "excluido", motivo: "La compañía anuló el recibo." });
+    expect(estadoSincronizado(cobro({ polizaDeBaja: true }), null, filtros)?.motivo).toMatch(/baja/);
   });
 
   it("los filtros dejan afuera por compañía, ramo y monto", () => {

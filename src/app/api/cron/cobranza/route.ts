@@ -1,13 +1,9 @@
-import { generarBorradores } from "@/agentes/cobranza";
+import { leerConfigCobranza, sincronizarCasos } from "@/agentes/cobranza/casos";
 import { agenteConfigurado } from "@/lib/datos-agentes";
 import { diaEnArgentina } from "@/lib/fechas";
 import { cronAutorizado } from "@/lib/cron";
 
-/**
- * Lo llama Vercel Cron cada mañana a las 9 (hora argentina), ver vercel.json.
- * Prepara los mensajes de cobranza del día; solo envía los pasos marcados
- * como automáticos en la secuencia.
- */
+/** Lo llama Vercel Cron (ver vercel.json). Pone los casos de Cobranza al día con la cartera. */
 export async function GET(request: Request) {
   if (!cronAutorizado(request.headers.get("authorization"), process.env.CRON_SECRET)) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
@@ -15,7 +11,6 @@ export async function GET(request: Request) {
   if (!(await agenteConfigurado("cobranza"))) {
     return Response.json({ desactivado: true, mensaje: "El agente de cobranza está desactivado." });
   }
-  const ahora = new Date();
-  const resultado = await generarBorradores(diaEnArgentina(ahora), ahora);
+  const resultado = await sincronizarCasos(diaEnArgentina(new Date()), await leerConfigCobranza());
   return Response.json(resultado);
 }

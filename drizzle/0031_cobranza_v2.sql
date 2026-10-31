@@ -113,8 +113,9 @@ CREATE INDEX "cobranza_corridas_fecha_idx" ON "cobranza_corridas" USING btree ("
 CREATE INDEX "cobranza_eventos_caso_idx" ON "cobranza_eventos" USING btree ("caso_id","creado_el");--> statement-breakpoint
 -- Cobranza v1 → v2: cada seguimiento pasa a ser un caso, con su estado traducido. seguimientos_cobranza no se toca.
 -- terminado = el Validador confirmó el pago; pausado con promesa = promesa; pausado sin promesa (pago incompleto, comprobante con problemas) = escalado al productor.
+-- El caso apunta a la cuota de menor id del cobro (mismo asegurado, compañía y vencimiento), como la sincronización de src/agentes/cobranza/casos.ts.
 INSERT INTO "cobranza_casos" ("cuota_id", "asegurado_id", "estado", "motivo", "intentos", "ultimo_contacto_el", "promesa_el", "pagado_el", "es_ejemplo", "creado_el", "actualizado_el")
-SELECT s."cuota_id", p."asegurado_id",
+SELECT DISTINCT ON (g."cabeza") g."cabeza", p."asegurado_id",
   CASE
     WHEN s."estado" = 'terminado' THEN 'pagado'
     WHEN s."estado" = 'pausado' AND s."promesa_pago_el" IS NOT NULL THEN 'promesa'
@@ -132,15 +133,24 @@ FROM "seguimientos_cobranza" s
 JOIN "cuotas" c ON c."id" = s."cuota_id"
 JOIN "polizas" p ON p."id" = c."poliza_id"
 JOIN "asegurados" a ON a."id" = p."asegurado_id"
+JOIN LATERAL (
+  SELECT min(cx."id") AS "cabeza" FROM "cuotas" cx JOIN "polizas" px ON px."id" = cx."poliza_id"
+  WHERE cx."vencimiento" = c."vencimiento" AND px."asegurado_id" = p."asegurado_id" AND coalesce(px."compania", '') = coalesce(p."compania", '')
+) g ON true
+ORDER BY g."cabeza", s."actualizado_el" DESC
 ON CONFLICT ("cuota_id") DO NOTHING;--> statement-breakpoint
 INSERT INTO "cobranza_eventos" ("caso_id", "tipo", "resumen", "datos", "creado_el")
 SELECT k."id", 'nota',
   'Venía de la Cobranza anterior: paso ' || s."paso" || ' de 5' || coalesce(' · ' || s."ultima_novedad", '') || '.',
   jsonb_build_object('pasoV1', s."paso", 'estadoV1', s."estado"::text),
   s."actualizado_el"
-FROM "cobranza_casos" k
-JOIN "seguimientos_cobranza" s ON s."cuota_id" = k."cuota_id";--> statement-breakpoint
--- Los mensajes de cobranza que ya salieron quedan en la línea de tiempo de su caso.
+FROM "seguimientos_cobranza" s
+JOIN "cuotas" c ON c."id" = s."cuota_id"
+JOIN "polizas" p ON p."id" = c."poliza_id"
+JOIN "cuotas" ck ON ck."vencimiento" = c."vencimiento"
+JOIN "polizas" pk ON pk."id" = ck."poliza_id" AND pk."asegurado_id" = p."asegurado_id" AND coalesce(pk."compania", '') = coalesce(p."compania", '')
+JOIN "cobranza_casos" k ON k."cuota_id" = ck."id";--> statement-breakpoint
+-- Los mensajes de cobranza que ya salieron quedan en la línea de tiempo de su caso (la referencia es "cuota:<id>:…" de cualquier cuota del cobro).
 INSERT INTO "cobranza_eventos" ("caso_id", "tipo", "canal", "resumen", "datos", "creado_el")
 SELECT k."id",
   CASE m."canal" WHEN 'whatsapp' THEN 'whatsapp_enviado' ELSE 'email_enviado' END,
@@ -149,5 +159,9 @@ SELECT k."id",
   jsonb_build_object('texto', m."texto", 'para', m."destinatario", 'asunto', m."asunto", 'mensajeId', m."id"),
   coalesce(m."enviado_el", m."creado_el")
 FROM "mensajes" m
-JOIN "cobranza_casos" k ON m."referencia" LIKE 'cuota:' || k."cuota_id" || ':%'
+JOIN "cuotas" cx ON m."referencia" LIKE 'cuota:' || cx."id" || ':%'
+JOIN "polizas" px ON px."id" = cx."poliza_id"
+JOIN "cuotas" ck ON ck."vencimiento" = cx."vencimiento"
+JOIN "polizas" pk ON pk."id" = ck."poliza_id" AND pk."asegurado_id" = px."asegurado_id" AND coalesce(pk."compania", '') = coalesce(px."compania", '')
+JOIN "cobranza_casos" k ON k."cuota_id" = ck."id"
 WHERE m."agente" IN ('cobranza', 'validador') AND m."estado" = 'enviado' AND m."canal" IN ('whatsapp', 'email');

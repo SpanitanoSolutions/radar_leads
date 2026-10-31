@@ -128,14 +128,6 @@ export async function obtenerCuentasCompanias(): Promise<Map<string, CuentaCompa
   return new Map(filas.map((f) => [f.nombre, f.cuentas]));
 }
 
-/** Datos de contacto de varios asegurados. */
-export async function obtenerContactos(ids: number[]) {
-  await connection();
-  if (!ids.length) return new Map<number, typeof asegurados.$inferSelect>();
-  const filas = await db.select().from(asegurados).where(inArray(asegurados.id, ids));
-  return new Map(filas.map((a) => [a.id, a]));
-}
-
 export async function obtenerActividad(agente: string, cuantas = 30) {
   await connection();
   return db
@@ -164,50 +156,12 @@ export async function obtenerUltimosEnvios(cabezaIds: number[]) {
   return resultado;
 }
 
-/** Borradores que esperan aprobación en Cobranza (incluye los del validador y las llamadas). */
-export async function obtenerPendientesCobranza(hoy: string) {
+/** Datos de contacto de varios asegurados. */
+export async function obtenerContactos(ids: number[]) {
   await connection();
-  return db
-    .select({
-      id: schema.mensajes.id,
-      canal: schema.mensajes.canal,
-      destinatario: schema.mensajes.destinatario,
-      texto: schema.mensajes.texto,
-      motivo: schema.mensajes.motivo,
-      referencia: schema.mensajes.referencia,
-      aseguradoId: schema.mensajes.aseguradoId,
-      creadoEl: schema.mensajes.creadoEl,
-      tipo: asegurados.tipo,
-      contactoNombre: asegurados.contactoNombre,
-    })
-    .from(schema.mensajes)
-    .leftJoin(asegurados, eq(asegurados.id, schema.mensajes.aseguradoId))
-    .where(
-      and(
-        eq(schema.mensajes.estado, "borrador"),
-        inArray(schema.mensajes.agente, ["cobranza", "validador"]),
-        or(isNull(schema.mensajes.mostrarDesde), lte(schema.mensajes.mostrarDesde, hoy)),
-      ),
-    )
-    .orderBy(schema.mensajes.creadoEl);
-}
-
-export async function obtenerSeguimientosActivos() {
-  await connection();
-  return db.select().from(schema.seguimientosCobranza).where(sql`${schema.seguimientosCobranza.estado} <> 'terminado'`);
-}
-
-/** Todas las cuotas que vencen en el mes de hoy (para "Por cobrar" y "Cobrado"). */
-export async function obtenerCuotasDelMes(hoy: string): Promise<CuotaConPoliza[]> {
-  await connection();
-  const desde = `${hoy.slice(0, 7)}-01`;
-  const hasta = sumarDias(sumarDias(desde, 32).slice(0, 8) + "01", -1);
-  return db
-    .select(columnasCuota)
-    .from(cuotas)
-    .innerJoin(polizas, eq(polizas.id, cuotas.polizaId))
-    .innerJoin(asegurados, eq(asegurados.id, polizas.aseguradoId))
-    .where(and(isNull(asegurados.bajaEl), noCancelada, gte(cuotas.vencimiento, desde), lte(cuotas.vencimiento, hasta)));
+  if (!ids.length) return new Map<number, typeof asegurados.$inferSelect>();
+  const filas = await db.select().from(asegurados).where(inArray(asegurados.id, ids));
+  return new Map(filas.map((a) => [a.id, a]));
 }
 
 /** Siniestros con su póliza, asegurado, documentación e historial. */

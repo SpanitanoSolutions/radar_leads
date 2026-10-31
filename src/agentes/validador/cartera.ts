@@ -172,7 +172,7 @@ export async function guardarProceso(datos: DatosGuardado, ahora = new Date()): 
 
     await anotarEnLasFichas(tx, actualizadas, datos.compania, resultado);
     const cerradas = await cuotasDeCobrosCerrados(tx, actualizadas);
-    await cortarCobranza(tx, cerradas, { ultimaNovedad: `Informado por ${datos.compania}`, ultimoContacto: "Validador de pagos" }, ahora);
+    await cortarCobranza(tx, cerradas, `${datos.compania} informó el pago (Validador de pagos).`, ahora);
     return actualizadas.length;
   });
 }
